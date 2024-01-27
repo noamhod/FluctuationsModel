@@ -1,0 +1,12 @@
+keV2eV = 1e3
+eV2keV = 1e-3
+MeV2eV = 1e6
+eV2MeV = 1e-6
+m2um   = 1e6
+m2mm   = 1e3
+m2cm   = 1e2
+cm2m   = 1e-2
+cm2um  = 1e4
+um2cm  = 1e-4
+mm2cm  = 1e-1
+cm2mm  = 1e1
