@@ -50,6 +50,7 @@ class Parameters:
         # self.E1       = (self.mat.I/(self.E2**self.f2))**(1./self.f1)
         self.a0       = 42 ## [1/cm?]
         self.fw       = 4 ## [?]
+        self.w1       = self.mat.Tc/self.E0
         self.ncontmax = 8 ## the maximum **mean** number of collisions in a step for
                           ## Poisson sampling of number of the actual number of collisions,
                           ## where the actual E-loss is this number times the associated energy.
@@ -438,25 +439,26 @@ class Parameters:
         naAvg  = 0.
         alpha1 = 0.
         n3     = self.n3_mean(E,x)
+        p3     = n3 
         ### gaussian part (conditional)
         if(self.isGauss(E,x,3)):
-            w1 = self.mat.Tc/self.E0
-            alpha  = (w1*(self.ncontmax+n3))/(w1*self.ncontmax+n3)
+            alpha  = (self.w1*(self.ncontmax+n3))/(self.w1*self.ncontmax+n3)
             alpha1 = alpha*math.log(alpha)/(alpha-1)
-            naAvg  = n3*w1*(alpha-1)/(alpha*(w1-1))
-            meanG += (self.Mean(E,x,proc="ION") + naAvg*self.E0*alpha1)
-            variG += self.Width(E,x,proc="ION")**2 + naAvg*(alpha-alpha1**2)*(self.E0**2)
+            naAvg  = n3*self.w1*(alpha-1)/(alpha*(self.w1-1))
+            p3     = n3 - naAvg
+            # meanG += naAvg*alpha1*self.E0
+            # variG += naAvg*(alpha-alpha1**2)*(self.E0**2)
+            meanG += self.Mean(E,x,proc="ION")     ### original simple model
+            variG += self.Width(E,x,proc="ION")**2 ### original simple model
             if(variG>0): Gauss = True
             print(f"Gauss ION: mean={meanG}, variance={variG}")
         ### poisson part (~always)
         w3 = alpha*self.E0
         if(self.mat.Tc>w3):
-            p3 = n3 - naAvg
-            # w = (self.mat.Tc-w3)/self.mat.Tc
-            # mpvL  += self.getmpv(p3) #self.MPV(E,x,proc="ION")
+            # mpvL  += self.getmpv(p3)*self.g_of_dE_integral1Tup(E)
             # variL += p3*self.g_of_dE_integral2Tup(E) ### poisson's variance equals to the mean
-            mpvL  += self.MPV(E,x,proc="ION")
-            variL += self.Width(E,x,proc="ION") ### poisson's variance equals to the mean
+            mpvL  += self.MPV(E,x,proc="ION")   ### original simple model
+            variL += self.Width(E,x,proc="ION")**2 ### original simple model
             if(variL>0): Landau = True
             print(f"Landau ION: mpv={mpvL}, variance={variL}")
         
