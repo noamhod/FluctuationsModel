@@ -85,8 +85,8 @@ ROOT.gStyle.SetPadRightMargin(0.15)
 #     return FWHM
 
 # open a file, where you stored the pickled data
-fileX = open('X.pkl', 'rb')
-fileY = open('Y.pkl', 'rb')
+fileX = open('data/X.pkl', 'rb')
+fileY = open('data/Y.pkl', 'rb')
 
 # dump information to that file
 X = pickle.load(fileX)
@@ -415,7 +415,7 @@ Si = mat.Material("Silicon","Si",rho_Si,Z_Si,A_Si,I_Si,Tc_Si,den_Si,nel_Si)
 
 
 dEdxModel = "BB:Tcut"
-par = fluct.Parameters("Silicon parameters",C.mp,+1,Si,dEdxModel,"eloss_p_si.txt","BB.csv")
+par = fluct.Parameters("Silicon parameters",C.mp,+1,Si,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
 func = shapes.Functions("Landau")
 
 

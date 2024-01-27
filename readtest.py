@@ -38,7 +38,7 @@ den_Si = [31.055, 2.103, 4.4351, 0.2014, 2.8715, 0.14921, 3.2546, 0.14, 0.059, 1
 nel_Si = 1
 Si = mat.Material("Silicon","Si",rho_Si,Z_Si,A_Si,I_Si,Tc_Si,den_Si,nel_Si)
 dEdxModel = "BB:Tcut"
-par = flct.Parameters("Silicon parameters",C.mp,+1,Si,dEdxModel,"eloss_p_si.txt","BB.csv")
+par = flct.Parameters("Silicon parameters",C.mp,+1,Si,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
 
 
 #################################################
@@ -82,8 +82,8 @@ hdE_cnt_lin = TH1D(slicename+"_cnt_lin",slicetitle+";#DeltaE [MeV];Steps",30,dEm
 #################################################
 #################################################
 # open a file, where you stored the pickled data
-fileX = open('X.pkl', 'rb')
-fileY = open('Y.pkl', 'rb')
+fileX = open('data/X.pkl', 'rb')
+fileY = open('data/Y.pkl', 'rb')
 # dump information to that file
 X = pickle.load(fileX)
 Y = pickle.load(fileY)
