@@ -45,7 +45,7 @@ par = flct.Parameters("Silicon parameters",C.mp,+1,Si,dEdxModel,"inputs/eloss_p_
 #################################################
 #################################################
 ### specific slice model
-XX = 2 ## um
+XX = 5 ## um
 EE = 90 ## MeV
 WW = 0.01 ## [%] size of window around XX and EE
 model = par.DifferentialModel(EE*U.MeV2eV,XX*U.um2cm,doSec=False)
@@ -343,6 +343,7 @@ if(rfs.isConv):   legend.AddEntry("full_model", "Convolution", 'L')
 if(rfs.isLandau): legend.AddEntry("landau_model", "Landau", 'L')
 if(rfs.isGauss):  legend.AddEntry("gauss_model", "Gauss", 'L')
 legend.Draw()
+ROOT.gPad.RedrawAxis()
 canvas.SaveAs(pdf+")")
 
 

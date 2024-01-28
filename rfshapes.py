@@ -32,11 +32,13 @@ class RooFitShapes:
         self.gauss_sigma   = None
         self.gauss_model   = None
         self.full_model    = None
+        self.tf1           = None
         self.model_title = "landau #otimes gauss convolution" if(self.isConv) else ""
         if(not self.isConv):
             self.model_title = "Gauss only" if(self.isGauss) else "Landau only"
         self.init_data()
         self.init_shapes()
+        self.setTF1()
 
     def __str__(self):
         return f"{self.name}({self.model})"
@@ -67,3 +69,11 @@ class RooFitShapes:
         if(self.isGauss):  self.gauss_model.plotOn(frame, ROOT.RooFit.LineStyle(ROOT.kDashed), ROOT.RooFit.LineColor(ROOT.kRed), ROOT.RooFit.Name("gauss_model"))
         if(self.isConv):   self.full_model.plotOn(frame, ROOT.RooFit.LineColor(ROOT.kBlue), ROOT.RooFit.Name("full_model"))
         return frame
+    
+    def setTF1(self):
+        if(self.isConv):
+            self.tf1 = self.full_model.asTF(self.dE, ROOT.RooArgList(self.landau_mpv,self.landau_sigma,self.gauss_mean,self.gauss_sigma), self.dE)
+        else:
+            if(self.isLandau): self.tf1 = self.full_model.asTF(self.dE, ROOT.RooArgList(self.landau_mpv,self.landau_sigma), self.dE)
+            if(self.isGauss):  self.tf1 = self.full_model.asTF(self.dE, ROOT.RooArgList(self.gauss_mean,self.gauss_sigma), self.dE)
+

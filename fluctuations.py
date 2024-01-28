@@ -294,24 +294,26 @@ class Parameters:
     def g_of_dE_integral2TupAlpha(self,E,alpha):
         return (self.E0*alpha)*self.Tup(E) # eV^2
     
-    # def RescaleS1(self,E,x):
-    #     S1 = self.Sigma12(E,1)
-    #     a1 = S1*x
-    #     if(a1<self.a0):
-    #         fwnow = 0.1+(self.fw-0.1)*math.sqrt(a1/self.a0)
-    #         S1 = S1/fwnow
-    #         E1 = self.E1*fwnow
-    #     else:
-    #         S1 = S1/self.fw
-    #         E1 = self.E1*self.fw
-    #     return S1,E1
+    def RescaleS1(self,E,x):
+        S1 = self.Sigma12(E,1)
+        a1 = S1*x
+        S1new = 0
+        E1new = 0
+        if(a1<self.a0):
+            fwnow = 0.1+(self.fw-0.1)*math.sqrt(a1/self.a0)
+            S1new = S1/fwnow
+            E1new = self.E1*fwnow
+        else:
+            S1new = S1/self.fw
+            E1new = self.E1*self.fw
+        return S1new,E1new
     
     def Moment1(self,E,x,proc="EX1:EX2:ION:SEC:ZER"): # this is the mean
-        S1 = self.Sigma12(E,1)*self.E1 ## eV/cm
-        # s1,e1 = self.RescaleS1(E,x)
-        # S1 = s1*e1 ## eV/cm
+        # S1 = self.Sigma12(E,1)*self.E1 ## eV/cm
+        s1,e1 = self.RescaleS1(E,x)
+        S1 = s1*e1 ## eV/cm
         S2 = self.Sigma12(E,2)*self.E2 ## eV/cm
-        S3 = self.Sigma3(E)*self.g_of_dE_integral1Tup(E) ## eV/cm
+        S3 = self.Sigma3(E)*self.g_of_dE_integral1Tcut(E) ## eV/cm
         S4 = self.elossSecondary(E,x) ## eV/cm #TODO!!!! UNITS
         S0 = self.Sigma0(E)*self.E0 ## self.Sigma0(E)*self.g_of_dE_integral1(E) ## eV/cm
         M1 = 0
@@ -323,13 +325,12 @@ class Parameters:
         return M1
         
     def Moment2(self,E,x,proc="EX1:EX2:ION:SEC:ZER"): # this is the variance
-        S1 = self.Sigma12(E,1)*(self.E1**2) ## eV^2/cm
-        # s1,e1 = self.RescaleS1(E,x)
-        # S1 = s1*(e1**2) ## eV^2/cm
+        # S1 = self.Sigma12(E,1)*(self.E1**2) ## eV^2/cm
+        s1,e1 = self.RescaleS1(E,x)
+        S1 = s1*(e1**2) ## eV^2/cm
         S2 = self.Sigma12(E,2)*(self.E2**2) ## eV^2/cm
-        # S3 = self.Sigma3(E)*self.g_of_dE_integral2Tcut(E) ## eV^2/cm
         S3 = self.Sigma3(E)*self.g_of_dE_integral2Tcut(E) ## eV^2/cm
-        S4 = (self.elossSecondary(E,x)**2) ## eV^2/cm #TODO: UITS
+        S4 = (self.elossSecondary(E,x)**2) ## eV^2/cm #TODO: UNITS
         S0 = self.Sigma0(E)*(self.E0**2) ## self.Sigma0(E)*self.g_of_dE_integral2(E) ## eV^2/cm
         M2 = 0
         if("EX1" in proc): M2 += S1 ## eV^2/cm
@@ -340,11 +341,11 @@ class Parameters:
         return M2
         
     def MPV(self,E,x,proc="EX1:EX2:ION:SEC:ZER"):
-        mpv1 = self.n12_mpv(E,x,1)*self.E1 ## eV
-        # s1,e1 = self.RescaleS1(E,x)
-        # mpv1 = (self.getmpv(s1*x))*e1 ## eV
+        # mpv1 = self.n12_mpv(E,x,1)*self.E1 ## eV
+        s1,e1 = self.RescaleS1(E,x)
+        mpv1 = (self.getmpv(s1*x))*e1 ## eV
         mpv2 = self.n12_mpv(E,x,2)*self.E2 ## eV
-        mpv3 = self.n3_mpv(E,x)*self.g_of_dE_integral1Tup(E) ## eV
+        mpv3 = self.n3_mpv(E,x)*self.g_of_dE_integral1Tcut(E) ## eV
         mpv4 = self.elossSecondary(E,x) ## eV
         mpv0 = self.n_0dE_mpv(E,x)*self.E0 ## self.n_0dE_mpv(E,x)*self.g_of_dE_integral1(E) ## eV
         mpv = 0
@@ -400,67 +401,73 @@ class Parameters:
         variL = 0
         Gauss  = False
         Landau = False
+        
         ### excitation of type 1
-        if(self.isGauss(E,x,1)):
-            meanG += self.Mean(E,x,proc="EX1")
-            variG += self.Width(E,x,proc="EX1")**2
-            if(variG>0): Gauss = True
-            print(f"Gauss EX1: mean={meanG}, variance={variG}")
-        else:
-            mpvL  += self.MPV(E,x,proc="EX1")
-            # variL += self.Width(E,x,proc="EX1")**2
-            variL += self.n12_mean(E,x,1)*(self.E1**2) ### poisson's variance equals to the mean
-            if(variL>0): Landau = True
-            print(f"Landau EX1: mpv={mpvL}, variance={variL}")
+        if(self.f1>0):
+            if(self.isGauss(E,x,1)):
+                meanG += self.Mean(E,x,proc="EX1")
+                variG += self.Width(E,x,proc="EX1")**2
+                if(variG>0): Gauss = True
+                print(f"Gauss EX1: mean={meanG}, variance={variG}")
+            else:
+                mpvL  += self.MPV(E,x,proc="EX1")
+                variL += self.Width(E,x,proc="EX1")**2
+                if(variL>0): Landau = True
+                print(f"Landau EX1: mpv={mpvL}, variance={variL}")
+        
         ### excitation of type 2 --> should be no such contribution if E1=I
-        if(self.isGauss(E,x,2)):
-            meanG += self.Mean(E,x,proc="EX2")
-            variG += self.Width(E,x,proc="EX2")**2
-            if(variG>0): Gauss = True
-            print(f"Gauss EX2: mean={meanG}, variance={variG}")
-        else:
-            mpvL  += self.MPV(E,x,proc="EX2")
-            # variL += self.Width(E,x,proc="EX2")**2
-            variL += self.n12_mean(E,x,2)*(self.E2**2) ### poisson's variance equals to the mean
-            if(variL>0): Landau = True
-            print(f"Landau EX2: mpv={mpvL}, variance={variL}")
+        if(self.f2>0):
+            if(self.isGauss(E,x,2)):
+                meanG += self.Mean(E,x,proc="EX2")
+                variG += self.Width(E,x,proc="EX2")**2
+                if(variG>0): Gauss = True
+                print(f"Gauss EX2: mean={meanG}, variance={variG}")
+            else:
+                mpvL  += self.MPV(E,x,proc="EX2")
+                variL += self.Width(E,x,proc="EX2")**2
+                if(variL>0): Landau = True
+                print(f"Landau EX2: mpv={mpvL}, variance={variL}")
 
-        ### ionization
+        # ## ionization simple --> either that OR the GEANT one
+        # ### gaussian part (conditional)
         # if(self.isGauss(E,x,3)):
         #     meanG += self.Mean(E,x,proc="ION")
         #     variG += self.Width(E,x,proc="ION")**2
         #     if(variG>0): Gauss = True
+        #     print(f"Gauss ION simple: mean={meanG}, variance={variG}")
+        # ### poisson part (~always)
         # mpvL  += self.MPV(E,x,proc="ION")
         # variL += self.Width(E,x,proc="ION")**2
         # if(variL>0): Landau = True
+        # print(f"Landau ION simple: mean={meanG}, variance={variG}")
         
-        ### ionization 
+        ### ionization from GEANT --> either that OR the simple one
         alpha  = 1.
         naAvg  = 0.
         alpha1 = 0.
         n3     = self.n3_mean(E,x)
-        p3     = n3 
+        p3     = n3
+        w3     = alpha*self.E0
         ### gaussian part (conditional)
         if(self.isGauss(E,x,3)):
             alpha  = (self.w1*(self.ncontmax+n3))/(self.w1*self.ncontmax+n3)
             alpha1 = alpha*math.log(alpha)/(alpha-1)
             naAvg  = n3*self.w1*(alpha-1)/(alpha*(self.w1-1))
             p3     = n3 - naAvg
-            # meanG += naAvg*alpha1*self.E0
-            # variG += naAvg*(alpha-alpha1**2)*(self.E0**2)
-            meanG += self.Mean(E,x,proc="ION")     ### original simple model
-            variG += self.Width(E,x,proc="ION")**2 ### original simple model
+            w3     = alpha*self.E0
+            # meanG += naAvg*alpha1*self.E0 ### TODO: this is from G4, way too small??
+            meanG += naAvg*alpha1*self.g_of_dE_integral1Tcut(E) ### TODO: not in G4, my own interpretation
+            # variG += naAvg*(alpha-alpha1**2)*(self.E0**2) ### TODO: this is from G4, way too small??
+            variG += naAvg*(alpha-alpha1**2)*self.g_of_dE_integral2Tcut(E) ### TODO: not in G4, my own interpretation
             if(variG>0): Gauss = True
             print(f"Gauss ION: mean={meanG}, variance={variG}")
         ### poisson part (~always)
-        w3 = alpha*self.E0
         if(self.mat.Tc>w3):
-            # mpvL  += self.getmpv(p3)*self.g_of_dE_integral1Tup(E)
-            # variL += p3*self.g_of_dE_integral2Tup(E) ### poisson's variance equals to the mean
-            mpvL  += self.MPV(E,x,proc="ION")   ### original simple model
-            variL += self.Width(E,x,proc="ION")**2 ### original simple model
+            mpvL  += self.getmpv(p3)*self.g_of_dE_integral1Tcut(E)
+            variL += p3*self.g_of_dE_integral2Tcut(E)
             if(variL>0): Landau = True
             print(f"Landau ION: mpv={mpvL}, variance={variL}")
+        
         
         #############
         #TODO !!!
@@ -480,7 +487,8 @@ class Parameters:
         if(Landau): model.update({"Landau":{"mpv":mpvL, "width":widthL}})
         return model
     
-    
+
+
     def BBlowE(self,E,T):
         g = self.gamma(E)
         b = self.beta(E)
