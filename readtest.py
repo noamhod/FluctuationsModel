@@ -45,8 +45,9 @@ par = flct.Parameters("Silicon parameters",C.mp,+1,Si,dEdxModel,"inputs/eloss_p_
 #################################################
 #################################################
 ### specific slice model
+ignoreSec = False ## include steps with secondaries?
 XX = 5 ## um
-EE = 90 ## MeV
+EE = 30 ## MeV
 WW = 0.01 ## [%] size of window around XX and EE
 model = par.DifferentialModel(EE*U.MeV2eV,XX*U.um2cm,doSec=False)
 print(model)
@@ -108,11 +109,12 @@ for n,enrgy in enumerate(X):
     dE    = dEtot
     Nsec  = int(Y[n][4])
     
+    if(Nsec>0 and ignoreSec): continue ## ignore steps where secondaries are produced
     if(E>=bins.Emax):   continue ## skip the primary particles
     if(E<bins.Emin):    continue ## skip the low energy particles
     if(dx>=bins.dxmax): continue ## skip
     if(dx<bins.dxmin):  continue ## skip
-        
+    
     # print(f"E={E}: dx={dx}, dR={dR}, dEtot={dEtot}, dEcnt={dEcnt}, dEsec={dEsec}, Nsec={Nsec}")
     
     histos["hdE"].Fill(dE)
@@ -156,8 +158,8 @@ histos["hdEdx"].SetFillColorAlpha(ROOT.kBlack, 0.25)
 histos["hdEdx_cnt"].SetFillColorAlpha(ROOT.kGreen+2, 0.5)
 histos["hdEdx_sec"].SetFillColorAlpha(ROOT.kRed, 0.25)
 ### slice histos
-hdE_sec.Scale(1./hdE_sec.Integral())
-hdE_cnt.Scale(1./hdE_cnt.Integral())
+hdE_sec.Scale(1./hdE_sec.Integral() if hdE_sec.Integral()>0 else 1)
+hdE_cnt.Scale(1./hdE_cnt.Integral() if hdE_cnt.Integral()>0 else 1)
 hdE.Scale(1./hdE.Integral())
 hdE_sec.SetMaximum(0.15)
 hdE_cnt.SetMaximum(0.15)

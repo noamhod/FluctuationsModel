@@ -94,7 +94,7 @@ def getAvgY(h):
             y = h.GetYaxis().GetBinCenter(by)
             av += n*y
             ev += n
-        av = av/ev
+        av = av/ev if(ev!=0) else 0
         hAv.SetBinContent(bx,av)
     return hAv
 
