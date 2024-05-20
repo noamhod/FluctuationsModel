@@ -20,10 +20,10 @@ class ToyMC:
     def __init__(self,E,dx,model):
         self.E     = E
         self.dx    = dx
-        self.slice = ("%.1f" % (E*U.eV2MeV))+"MeV_"+("%.4f" % (dx*U.cm2um))+"um"
+        self.point = ("%.1f" % (E*U.eV2MeV))+"MeV_"+("%.4f" % (dx*U.cm2um))+"um"
         self.model = model
         self.rnd   = ROOT.TRandom() ## random engine
-        print(f"Generating for slice {self.slice}")
+        print(f"Generating for slice {self.point}")
     
     def Generate(self,Nsteps):
         BEBL = self.model.BEBL
@@ -33,11 +33,11 @@ class ToyMC:
         EX1G = self.model.EX1G
         
         histos = {}
-        histos.update(           { "hTotal":        ROOT.TH1D("hTotal",       "Toy Data vs FULL Model for "+self.slice+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
-        if(IONB): histos.update( { "hIon_non_gaus": ROOT.TH1D("hIon_non_gaus","Toy Data vs IONB Model for "+self.slice+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
-        if(EX1B): histos.update( { "hExc_non_gaus": ROOT.TH1D("hExc_non_gaus","Toy Data vs EX1B Model for "+self.slice+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
-        if(IONG): histos.update( { "hIon_gaus":     ROOT.TH1D("hIon_gaus",    "Toy Data vs IONG Model for "+self.slice+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
-        if(EX1G): histos.update( { "hExc_gaus":     ROOT.TH1D("hExc_gaus",    "Toy Data vs EX1G Model for "+self.slice+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
+        histos.update(           { "hTotal":        ROOT.TH1D("hTotal",       "Toy Data vs FULL Model for "+self.point+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
+        if(IONB): histos.update( { "hIon_non_gaus": ROOT.TH1D("hIon_non_gaus","Toy Data vs IONB Model for "+self.point+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
+        if(EX1B): histos.update( { "hExc_non_gaus": ROOT.TH1D("hExc_non_gaus","Toy Data vs EX1B Model for "+self.point+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
+        if(IONG): histos.update( { "hIon_gaus":     ROOT.TH1D("hIon_gaus",    "Toy Data vs IONG Model for "+self.point+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
+        if(EX1G): histos.update( { "hExc_gaus":     ROOT.TH1D("hExc_gaus",    "Toy Data vs EX1G Model for "+self.point+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
         for hname,hist in histos.items():
             hist.SetLineColor(ROOT.kBlack)
             hist.SetMarkerColor(ROOT.kBlack)
@@ -92,12 +92,14 @@ class ToyMC:
 
             ### sum it up
             Eloss = 0
-            if(IONB and EX1B and not IONG and not EX1G): ## Borysov only, no Gauss
-                if(EX1BCOND and IONBCOND): Eloss = eloss_Exc_non_gaus+eloss_Ion_non_gaus
-            if(IONB and not EX1B and IONG and EX1G): ## no Borysov Exc
-                if(IONBCOND and EX1GCOND and IONGCOND): Eloss = eloss_Ion_non_gaus+eloss_Exc_gaus+eloss_Ion_gaus
-            if(IONB and (IONG and not EX1G) or (EX1G and not IONG)): ## only one Gauss
-                if(IONBCOND and EX1GCOND and not IONGCOND): Eloss = eloss_Ion_non_gaus+eloss_Exc_gaus
-                if(IONBCOND and IONGCOND and not EX1GCOND): Eloss = eloss_Ion_non_gaus+eloss_Ion_gaus
+            if(IONB and IONG and EX1G): ## borysov ion + gaus ion + gaus exc
+                if(IONBCOND and EX1GCOND and IONGCOND):
+                    Eloss = eloss_Ion_non_gaus+eloss_Exc_gaus+eloss_Ion_gaus
+            if(IONB and EX1B and IONG): ## borysov ion + borysov exc + gaus ion
+                if(IONBCOND and EX1BCOND and IONGCOND):
+                    Eloss = eloss_Ion_non_gaus+eloss_Exc_non_gaus+eloss_Ion_gaus
+            if(IONB and EX1B and not IONG and not EX1G):
+                if(IONBCOND and EX1BCOND):  ## borysov ion + borysov exc
+                    Eloss = eloss_Ion_non_gaus+eloss_Exc_non_gaus
             if(Eloss>0): histos["hTotal"].Fill(Eloss)
         return histos

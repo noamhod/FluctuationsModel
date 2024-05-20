@@ -14,6 +14,9 @@ from scipy.signal import convolve, fftconvolve
 ROOT.gErrorIgnoreLevel = ROOT.kError
 # ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
+
+### this has to stay outside of any class
+### so it can be called to construct a TF1
 def borysov_excitation(x,par):
     ## par[0] = n1 (mean number of collisions of type 1)
     ## par[1] = e1 (type 1 excitation energy)
@@ -28,10 +31,12 @@ def borysov_excitation(x,par):
     xx *= 0.5*ROOT.TMath.Exp(-par[0])/par[1] #if(x[0]>0) else 0
     return xx
 
+### this has to stay outside of any class
+### so it can be called to construct a TF1
 def truncated_gaus(x,par):
     ## par[0] = mean
     ## par[1] = sigma
-    return ROOT.TMath.Gaus(x[0],par[0],par[1]) #if(x[0]>0 and x[0]<2*par[0]) else 0
+    return ROOT.TMath.Gaus(x[0],par[0],par[1]) if(x[0]>0 and x[0]<2*par[0]) else 0
 
 
 class Model:
@@ -122,17 +127,15 @@ class Model:
             self.dEmin     = 0.1
             self.dEmax     = 3000.1
             self.Nbins     = 6000
-            self.doLogx    = True
         if(self.IONB and not self.EX1B and self.IONG and self.EX1G): ## no Borysov Exc
             self.dEmin     = -3000
             self.dEmax     = 53000
             self.Nbins     = 12500
-            self.doLogx    = True
         if(self.IONB and (self.IONG and not self.EX1G) or (self.EX1G and not self.IONG)): ## only one Gauss
             self.dEmin     = -2000
             self.dEmax     = 12000
             self.Nbins     = 7000
-            self.doLogx    = False
+        self.doLogx = True if(self.dEmin>0) else False
         print(f"dEmin={self.dEmin}, dEmax={self.dEmax}, Nbins={self.Nbins}")
     
     def set_fft_sampling_pars(self,par):
@@ -318,7 +321,7 @@ class Model:
             xConv = np.linspace(start=self.dEmin,stop=self.dEmax,num=len(aConv))
             gConv = ROOT.TGraph(len(aConv),xConv, aConv)
             for b in range(1,hModel.GetNbinsX()+1):
-                # hModel.SetBinContent(b, aManualConv[b-1] if(convManual) else aScipyConv[b-1])
+                # hModel.SetBinContent(b, aManualConv[b-1] if(self.convManual) else aScipyConv[b-1])
                 xb = hModel.GetBinCenter(b)
                 hModel.SetBinContent(b, gConv.Eval(xb+2*abs(self.dEmin)) )
             hModel.Scale(1./hModel.Integral())
