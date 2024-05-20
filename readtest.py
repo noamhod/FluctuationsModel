@@ -37,27 +37,55 @@ Tc_Si  = 990       # Silicon, production threshold for delta ray, eV
 den_Si = [31.055, 2.103, 4.4351, 0.2014, 2.8715, 0.14921, 3.2546, 0.14, 0.059, 173.]
 nel_Si = 1
 Si = mat.Material("Silicon","Si",rho_Si,Z_Si,A_Si,I_Si,Tc_Si,den_Si,nel_Si)
-dEdxModel = "BB:Tcut"
+# dEdxModel = "BB:Tcut"
+dEdxModel = "G4:Tcut"
 par = flct.Parameters("Silicon parameters",C.mp,+1,Si,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
 
 
 #################################################
 #################################################
 #################################################
+import argparse
+parser = argparse.ArgumentParser(description='readtest.py...')
+parser.add_argument('-E', metavar='incoming particle energy [MeV]', required=True,  help='incoming particle energy [MeV]')
+parser.add_argument('-X', metavar='step size in x [um]', required=True,  help='step size in x [um]')
+parser.add_argument('-W', metavar='fractional size in of the window around X:E', required=False,  help='fractional size of the window around X:E')
+parser.add_argument('-N', metavar='N steps to process', required=False,  help='N steps to process')
+argus = parser.parse_args()
+EE = float(argus.E)
+XX = float(argus.X)
+WW = 0.01 if(argus.W is None) else float(argus.W)
+NN = 0 if(argus.N is None) else int(argus.N)
+# XX = 10 ## um
+# EE = 50 ## MeV
+# WW = 0.01 ## [%] size of window around XX and EE
+print(f"Model with energy: {EE} [MeV], dx: {XX} [um], window: {WW*100} [%]")
+
+
+'''
+E = 99.9786379 MeV
+dX = 0.004564567 mm
+dE/dx * dX = 0.003872055 MeV
+'''
+
+#################################################
+#################################################
+#################################################
 ### specific slice model
-ignoreSec = False ## include steps with secondaries?
-XX = 5 ## um
-EE = 30 ## MeV
-WW = 0.01 ## [%] size of window around XX and EE
 model = par.DifferentialModel(EE*U.MeV2eV,XX*U.um2cm,doSec=False)
+scaling = par.scaling()
 print(model)
+
+# quit()
+
 dEmean  = (model["Gauss"]["mean"]+model["Landau"]["mpv"])/2    if("Gauss" in model and "Landau" in model) else model["Landau"]["mpv"]
 dEwidth = (model["Gauss"]["width"]+model["Landau"]["width"])/2 if("Gauss" in model and "Landau" in model) else model["Landau"]["width"]
 dEmean  *= U.eV2MeV
 dEwidth *= U.eV2MeV
-dEmin_lin = dEmean-10*dEwidth if((dEmean-10*dEwidth)>0) else 1e-5
-dEmax_lin = dEmean+20*dEwidth
+dEmin_lin = dEmean-30*dEwidth if((dEmean-30*dEwidth)>0) else 0 #1e-5
+dEmax_lin = dEmean+30*dEwidth
 print(f"dEmean={dEmean}, dEwidth={dEwidth} --> range:[{dEmin_lin},{dEmax_lin}]")
+
 
 
 #################################################
@@ -65,7 +93,7 @@ print(f"dEmean={dEmean}, dEwidth={dEwidth} --> range:[{dEmin_lin},{dEmax_lin}]")
 #################################################
 ### general histos:
 histos = {}
-hist.book(histos)
+hist.book(histos,emin=3e-1)
 ### slice histos
 dEmin = 1e-4
 dEmax = 1.
@@ -77,14 +105,22 @@ hdE_cnt = TH1D(slicename+"_cnt",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,
 hdE_sec = TH1D(slicename+"_sec",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
 # hdE_cnt_lin = TH1D(slicename+"_cnt_lin",slicetitle+";#DeltaE [MeV];Steps",1000,1e-4,1e-1)
 hdE_cnt_lin = TH1D(slicename+"_cnt_lin",slicetitle+";#DeltaE [MeV];Steps",30,dEmin_lin,dEmax_lin)
+# hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE [MeV];Steps",30,dEmin_lin*U.MeV2eV/scaling,dEmax_lin*U.MeV2eV/scaling)
+# hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE [MeV];Steps",50,-2000,+10000)
+# hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE [MeV];Steps",50,0,+3000)
+hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE [MeV];Steps",40,0,+50000)
+hdE_cnt_lin_eV_noscale.GetXaxis().SetTitle( "#DeltaE (unscaled) [eV]" )
 
 
 #################################################
 #################################################
 #################################################
 # open a file, where you stored the pickled data
-fileX = open('data/X.pkl', 'rb')
-fileY = open('data/Y.pkl', 'rb')
+# fileX = open('data/with_E2MeV_cut/X.pkl', 'rb')
+# fileY = open('data/with_E2MeV_cut/Y.pkl', 'rb')
+fileX = open('data/without_E2MeV_cut/with_multiple_scattering/X.pkl', 'rb')
+fileY = open('data/without_E2MeV_cut/with_multiple_scattering/Y.pkl', 'rb')
+
 # dump information to that file
 X = pickle.load(fileX)
 Y = pickle.load(fileY)
@@ -104,12 +140,13 @@ for n,enrgy in enumerate(X):
     dR    = Y[n][1]*U.m2um
     dRinv = 1/dR if(dR>0) else -999 ## this happens for the primary particles...
     dEcnt = Y[n][2]*U.eV2MeV
-    dEtot = Y[n][3]*U.eV2MeV
-    dEsec = dEtot-dEcnt
+    # dEtot = Y[n][3]*U.eV2MeV
+    # dEsec = dEtot-dEcnt
+    dEsec = Y[n][3]*U.eV2MeV
+    dEtot = dEcnt+dEsec
     dE    = dEtot
-    Nsec  = int(Y[n][4])
+    # Nsec  = int(Y[n][4])
     
-    if(Nsec>0 and ignoreSec): continue ## ignore steps where secondaries are produced
     if(E>=bins.Emax):   continue ## skip the primary particles
     if(E<bins.Emin):    continue ## skip the low energy particles
     if(dx>=bins.dxmax): continue ## skip
@@ -117,9 +154,11 @@ for n,enrgy in enumerate(X):
     
     # print(f"E={E}: dx={dx}, dR={dR}, dEtot={dEtot}, dEcnt={dEcnt}, dEsec={dEsec}, Nsec={Nsec}")
     
+    histos["hdx"].Fill(dx)
     histos["hdE"].Fill(dE)
     histos["hdE_cnt"].Fill(dEcnt)
     histos["hdE_sec"].Fill(dEsec)
+    histos["hdx_vs_E"].Fill(E,dx)
     histos["hdEdx"].Fill(dE/dx)
     histos["hdEdx_cnt"].Fill(dEcnt/dx)
     histos["hdEdx_sec"].Fill(dEsec/dx)
@@ -133,9 +172,10 @@ for n,enrgy in enumerate(X):
         hdE_sec.Fill(dEsec)
         hdE_cnt.Fill(dEcnt)
         hdE_cnt_lin.Fill(dEcnt)
+        hdE_cnt_lin_eV_noscale.Fill(dEcnt*U.MeV2eV/scaling)
     
     if(n%1000000==0 and n>0): print("processed: ",n)
-    # if(n>1000000): break
+    if(n>NN and NN>0): break
 print(f"Finished loop")
 
 
@@ -160,10 +200,10 @@ histos["hdEdx_sec"].SetFillColorAlpha(ROOT.kRed, 0.25)
 ### slice histos
 hdE_sec.Scale(1./hdE_sec.Integral() if hdE_sec.Integral()>0 else 1)
 hdE_cnt.Scale(1./hdE_cnt.Integral() if hdE_cnt.Integral()>0 else 1)
-hdE.Scale(1./hdE.Integral())
-hdE_sec.SetMaximum(0.15)
-hdE_cnt.SetMaximum(0.15)
-hdE.SetMaximum(0.15)
+hdE.Scale(1./hdE.Integral() if hdE.Integral()>0 else 1)
+hdE_sec.SetMaximum(0.3)
+hdE_cnt.SetMaximum(0.3)
+hdE.SetMaximum(0.3)
 hdE.SetLineColor(ROOT.kBlack)
 hdE_cnt.SetLineColor(ROOT.kGreen+2)
 hdE_sec.SetLineColor(ROOT.kRed)
@@ -179,9 +219,10 @@ histos["hdEdx_vs_E_small_sec"].SetMaximum(histos["hdEdx_vs_E_small"].GetMaximum(
 histos["hdEdx_vs_E_small_cnt"].SetMinimum(histos["hdEdx_vs_E_small"].GetMinimum())
 histos["hdEdx_vs_E_small_sec"].SetMinimum(histos["hdEdx_vs_E_small"].GetMinimum())
 ### get the averages
-hAv     = hist.getAvgY(histos["hdEdx_vs_E_small"])
-hAv_cnt = hist.getAvgY(histos["hdEdx_vs_E_small_cnt"])
-hAv_sec = hist.getAvgY(histos["hdEdx_vs_E_small_sec"])
+isLogx = True
+hAv     = hist.getAvgY(histos["hdEdx_vs_E_small"],isLogx,bins.Ebins_small)
+hAv_cnt = hist.getAvgY(histos["hdEdx_vs_E_small_cnt"],isLogx,bins.Ebins_small)
+hAv_sec = hist.getAvgY(histos["hdEdx_vs_E_small_sec"],isLogx,bins.Ebins_small)
 hBB_Tcut = hAv.Clone("BB_Tcut")
 hBB_Tmax = hAv.Clone("BB_Tmax")
 hBB_G4   = hAv.Clone("BB_G4")
@@ -251,6 +292,23 @@ leg.Draw("same")
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
+cnv = TCanvas("cnv","",500,500)
+ROOT.gPad.SetLogy()
+ROOT.gPad.SetLogx()
+ROOT.gPad.SetTicks(1,1)
+histos["hdx"].Draw("hist")
+ROOT.gPad.RedrawAxis()
+cnv.SaveAs(pdf)
+
+cnv = TCanvas("cnv","",500,500)
+ROOT.gPad.SetLogy()
+# ROOT.gPad.SetLogx()
+ROOT.gPad.SetLogz()
+ROOT.gPad.SetTicks(1,1)
+histos["hdx_vs_E"].Draw("colz")
+ROOT.gPad.RedrawAxis()
+cnv.SaveAs(pdf)
+
 cnv = TCanvas("cnv","",1500,500)
 leg = TLegend(0.5,0.7,0.8,0.88)
 leg.SetFillStyle(4000) # will be transparent
@@ -269,6 +327,7 @@ hBB_Tmax.Draw("hist same")
 hBB_G4.Draw("hist same")
 hAv.Draw("hist same")
 leg.Draw("same")
+if(isLogx): ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogz()
 ROOT.gPad.SetTicks(1,1)
@@ -280,6 +339,7 @@ hBB_Tmax.Draw("hist same")
 hBB_G4.Draw("hist same")
 hAv_cnt.Draw("hist same")
 leg.Draw("same")
+if(isLogx): ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogz()
 ROOT.gPad.SetTicks(1,1)
@@ -291,6 +351,7 @@ hBB_Tmax.Draw("hist same")
 hBB_G4.Draw("hist same")
 hAv_sec.Draw("hist same")
 leg.Draw("same")
+if(isLogx): ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogz()
 ROOT.gPad.SetTicks(1,1)
@@ -304,7 +365,7 @@ ROOT.gPad.SetTicks(1,1)
 hdE.Draw("hist")
 hdE_sec.Draw("hist same")
 hdE_cnt.Draw("hist same")
-leg = TLegend(0.5,0.7,0.8,0.88)
+leg = TLegend(0.55,0.7,0.8,0.88)
 leg.SetFillStyle(4000) # will be transparent
 leg.SetFillColor(0)
 leg.SetTextFont(42)
@@ -332,13 +393,14 @@ ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetGridx()
 ROOT.gPad.SetGridy()
 # ROOT.gPad.SetLogx()
-# ROOT.gPad.SetLogy()
+ROOT.gPad.SetLogy()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.02)
 frame.GetYaxis().SetLabelOffset(0.008)
 frame.GetYaxis().SetTitleOffset(1.5)
 frame.GetYaxis().SetTitleSize(0.045)
 frame.GetXaxis().SetTitleSize(0.045)
+frame.SetMinimum(0.5)
 frame.Draw()
 legend.AddEntry("data", "data", 'LEP')
 if(rfs.isConv):   legend.AddEntry("full_model", "Convolution", 'L')
@@ -346,8 +408,58 @@ if(rfs.isLandau): legend.AddEntry("landau_model", "Landau", 'L')
 if(rfs.isGauss):  legend.AddEntry("gauss_model", "Gauss", 'L')
 legend.Draw()
 ROOT.gPad.RedrawAxis()
-canvas.SaveAs(pdf+")")
+canvas.SaveAs(pdf)
 
+cnv = TCanvas("cnv","",500,500)
+ROOT.gPad.SetLogy()
+ROOT.gPad.SetTicks(1,1)
+hdE_cnt_lin_eV_noscale.Draw("hist")
+ROOT.gPad.RedrawAxis()
+cnv.SaveAs(pdf+")")
+
+
+# cnv = TCanvas("cnv","",1500,500)
+# cnv.Divide(3,2)
+# cnv.cd(1)
+# ROOT.gPad.SetLogy()
+# ROOT.gPad.SetTicks(1,1)
+# histos["h_w3_dx_vs_E"].Draw("colz")
+# ROOT.gPad.RedrawAxis()
+# cnv.cd(2)
+# ROOT.gPad.SetLogy()
+# ROOT.gPad.SetTicks(1,1)
+# histos["h_p3_dx_vs_E"].Draw("colz")
+# ROOT.gPad.RedrawAxis()
+# cnv.cd(3)
+# ROOT.gPad.SetLogy()
+# ROOT.gPad.SetTicks(1,1)
+# histos["h_w_dx_vs_E"].Draw("colz")
+# ROOT.gPad.RedrawAxis()
+# cnv.cd(4)
+# ROOT.gPad.SetLogy()
+# ROOT.gPad.SetTicks(1,1)
+# histos["h_n1_dx_vs_E"].Draw("colz")
+# ROOT.gPad.RedrawAxis()
+# cnv.cd(5)
+# ROOT.gPad.SetLogy()
+# ROOT.gPad.SetTicks(1,1)
+# histos["h_e1_dx_vs_E"].Draw("colz")
+# ROOT.gPad.RedrawAxis()
+# cnv.SaveAs(pdf)
+
+
+### write to root file
+fOut = ROOT.TFile(pdf.replace("pdf","root"), "RECREATE")
+fOut.cd()
+hdE.Write()
+hdE_cnt.Write()
+hdE_sec.Write()
+hdE_cnt_lin.Write()
+hdE_cnt_lin_eV_noscale.Write()
+for name,h in histos.items(): h.Write()
+fOut.Write()
+fOut.Close()
+    
 
 
 

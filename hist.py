@@ -78,14 +78,14 @@ def getFWHM(h):
     return FWHM
 
 
-def getAvgY(h):
+def getAvgY(h,isLogx=False,xbins=[]):
     ### this function assumes the x axis has linear binning!
     name  = h.GetName()+"_avgY"
     title = ";"+h.GetXaxis().GetTitle()+";"
     nbins = h.GetNbinsX()
     xmin  = h.GetXaxis().GetXmin()
     xmax  = h.GetXaxis().GetXmax()
-    hAv   = TH1D(name,title,nbins,xmin,xmax)
+    hAv   = TH1D(name,title,nbins,xmin,xmax) if(not isLogx) else TH1D(name,title,len(xbins)-1,xbins)
     for bx in range(1,h.GetNbinsX()+1):
         av = 0
         ev = 0
@@ -95,12 +95,14 @@ def getAvgY(h):
             av += n*y
             ev += n
         av = av/ev if(ev!=0) else 0
+        # if(isLogx): av = av/h.GetXaxis().GetBinWidth(bx)
         hAv.SetBinContent(bx,av)
     return hAv
 
 
 
-def book(histos): ### must pass by reference!
+def book(histos,emin=-1): ### must pass by reference!
+    if(emin>0): bins.Emin = emin
     histos.update({"hE":           TH1D("h_E",";E [MeV];Steps", 1000,bins.Emin,bins.Emax)})
     histos.update({"hdE":          TH1D("h_dE",";#DeltaE [MeV];Steps", len(bins.dEbins)-1,array.array("d",bins.dEbins))}) # 1000,0,0.3)
     histos.update({"hdE_cnt":      TH1D("h_dE_cnt",";#DeltaE [MeV];Steps", len(bins.dEbins)-1,array.array("d",bins.dEbins))}) # 1000,0,0.3)
@@ -113,9 +115,9 @@ def book(histos): ### must pass by reference!
     histos.update({"hdEdx_cnt" :   TH1D("h_dEdx_cnt",";dE/dx [MeV/#mum];Steps", len(bins.dEdxbins)-1,array.array("d",bins.dEdxbins))})
     histos.update({"hdEdx_sec" :   TH1D("h_dEdx_sec",";dE/dx [MeV/#mum];Steps", len(bins.dEdxbins)-1,array.array("d",bins.dEdxbins))})
     histos.update({"hdEdx_vs_E":   TH2D("h_dEdx_vs_E",";E [MeV];dE/dx [MeV/#mum];Steps",500,bins.Emin,bins.Emax, len(bins.dEdxbins)-1,array.array("d",bins.dEdxbins))})
-    histos.update({"hdEdx_vs_E_small": TH2D("h_dEdx_vs_E_small",";E [MeV];dE/dx [MeV/#mum];Steps",98,bins.Emin,bins.Emax, len(bins.dEdxbins)-1,array.array("d",bins.dEdxbins))})
-    histos.update({"hdEdx_vs_E_small_cnt": TH2D("h_dEdx_vs_E_small_cnt",";E [MeV];dE/dx [MeV/#mum];Steps",98,bins.Emin,bins.Emax, len(bins.dEdxbins)-1,array.array("d",bins.dEdxbins))})
-    histos.update({"hdEdx_vs_E_small_sec": TH2D("h_dEdx_vs_E_small_sec",";E [MeV];dE/dx [MeV/#mum];Steps",98,bins.Emin,bins.Emax, len(bins.dEdxbins)-1,array.array("d",bins.dEdxbins))})
+    histos.update({"hdEdx_vs_E_small":     TH2D("h_dEdx_vs_E_small",";E [MeV];dE/dx [MeV/#mum];Steps",len(bins.Ebins_small)-1,bins.Ebins_small, len(bins.dEdxbins)-1,array.array("d",bins.dEdxbins))})
+    histos.update({"hdEdx_vs_E_small_cnt": TH2D("h_dEdx_vs_E_small_cnt",";E [MeV];dE/dx [MeV/#mum];Steps",len(bins.Ebins_small)-1,bins.Ebins_small, len(bins.dEdxbins)-1,array.array("d",bins.dEdxbins))})
+    histos.update({"hdEdx_vs_E_small_sec": TH2D("h_dEdx_vs_E_small_sec",";E [MeV];dE/dx [MeV/#mum];Steps",len(bins.Ebins_small)-1,bins.Ebins_small, len(bins.dEdxbins)-1,array.array("d",bins.dEdxbins))})
     histos.update({"hdE_vs_dx":    TH2D("h_dE_vs_dx",";dx [#mum];#DeltaE [MeV];Steps", len(bins.dxbins)-1,array.array("d",bins.dxbins), len(bins.dEbins)-1,array.array("d",bins.dEbins))})
     histos.update({"hdE_vs_dxinv": TH2D("h_dE_vs_dxinv",";1/dx [1/#mum];#DeltaE [MeV];Steps", len(bins.dxinvbins)-1,array.array("d",bins.dxinvbins), len(bins.dEbins)-1,array.array("d",bins.dEbins))})
     histos.update({"hdx_vs_E":     TH2D("h_dx_vs_E",";E [MeV];dx [#mum];Steps", 500,bins.Emin,bins.Emax, len(bins.dxbins)-1,array.array("d",bins.dxbins))})
@@ -140,6 +142,7 @@ def book(histos): ### must pass by reference!
             dxmax = histos["SMALL_hdx_vs_E"].GetYaxis().GetBinUpEdge(ix)
             label = "E"+label_E+"_dx"+label_dx
             histos.update({"hdE_"+label: TH1D("hdE_"+label,label+";#DeltaE [MeV];Steps", len(bins.dEbins_small)-1,array.array("d",bins.dEbins_small))})
+            # histos.update({"hdE_"+label: TH1D("hdE_"+label,label+";#DeltaE [MeV];Steps", 50000,bins.dEmin,bins.dEmax)})
             histos.update({"hE_"+label:  TH1D("hE_"+label,label+";E [MeV];Steps", bins.n_small_E,Emin,Emax)})
             histos.update({"hdx_"+label: TH1D("hdx_"+label,label+";dx [#mum];Steps", bins.n_small_dx,dxmin,dxmax)})
     
@@ -159,6 +162,7 @@ def book(histos): ### must pass by reference!
             dxinvmax = histos["SMALL_hdxinv_vs_E"].GetYaxis().GetBinUpEdge(ixinv)
             label = "E"+label_E+"_dxinv"+label_dxinv
             histos.update({"hdE_"+label: TH1D("hdE_"+label,label+";#DeltaE [MeV];Steps", len(bins.dEbins_small)-1,array.array("d",bins.dEbins_small))})
+            # histos.update({"hdE_"+label: TH1D("hdE_"+label,label+";#DeltaE [MeV];Steps", 50000,bins.dEmin,bins.dEmax)})
             histos.update({"hE_"+label:  TH1D("hE_"+label,label+";E [MeV];Steps", bins.n_small_E,Emin,Emax)})
             histos.update({"hdxinv_"+label: TH1D("hdxinv_"+label,label+";1/dx [1/#mum];Steps", bins.n_small_dxinv,dxinvmin,dxinvmax)})
             histos.update({"hdx_"+label: TH1D("hdx_"+label,label+";dx [#mum];Steps", bins.n_small_dx,1./dxinvmax,1./dxinvmin)})

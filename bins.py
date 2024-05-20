@@ -14,7 +14,7 @@ def GetLogBinning(nbins,xmin,xmax):
     arrxbins = array.array("d", xbins)
     return nbins, arrxbins
 
-Emin = 2
+Emin = 3e-1 #TODO: SHOULD BE 2!!!
 Emax = 100
 dEmin = 1e-7
 dEmax = 1e0

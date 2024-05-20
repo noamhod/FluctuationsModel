@@ -13,7 +13,7 @@ ROOT.gStyle.SetPadLeftMargin(0.13)
 ROOT.gStyle.SetPadRightMargin(0.15)
 
 
-Emin = 0.1  # MeV
+Emin = 1.e-5 #0.1  # MeV
 Emax = 100 # MeV
 
 rho_Si = 2.329     # Silicon, g/cm3
@@ -26,7 +26,7 @@ den_Si = [31.055, 2.103, 4.4351, 0.2014, 2.8715, 0.14921, 3.2546, 0.14, 0.059, 1
 nel_Si = 1
 Si = mat.Material("Silicon","Si",rho_Si,Z_Si,A_Si,I_Si,Tc_Si,den_Si,nel_Si)
 dEdxModel = "BB:Tcut"
-par = flct.Parameters("Silicon parameters",C.mp,+1,Si,dEdxModel,"eloss_p_si.txt","BB.csv")
+par = fluct.Parameters("Silicon parameters",C.mp,+1,Si,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
 
 def getBB_GEANT4(fname):
     hname = fname
@@ -40,6 +40,9 @@ def getBB_GEANT4(fname):
             words = line.split(",")
             if(float(words[0])<Emin): continue
             if(float(words[0])>Emax): break
+            
+            print(f"E=",float(words[0]))
+            
             arr_E.append( float(words[0]) )
             arr_dEdx_low.append( float(words[1]) )
             arr_dEdx_std.append( float(words[2]) )
@@ -56,6 +59,27 @@ def getBB_GEANT4(fname):
     gBBstd.GetYaxis().SetTitle("dE/dx [MeV/mm]")
 
     return gBBlow,gBBstd
+
+
+def setG4BBdEdxFromTable(fname):
+    hname = fname
+    hname = hname.split(".")[0]
+    arr_E    = array( 'd' )
+    arr_dEdx = array( 'd' )
+    with open(fname) as f:
+        for line in f:
+            if("#" in line): continue
+            line = line.replace("\n","")
+            words = line.split("   ")
+            arr_E.append( float(words[0]) )
+            arr_dEdx.append( float(words[1]) )
+    npts = len(arr_E)
+    print(f"Read {npts} points from file {fname}")
+    gBB = ROOT.TGraph(npts,arr_E,arr_dEdx)
+    gBB.SetLineColor(ROOT.kBlue)
+    gBB.GetXaxis().SetTitle("E [MeV]")
+    gBB.GetYaxis().SetTitle("dE/dx [MeV/mm]")
+    return gBB
 
 
 def getBB_PDG(model="std"):
@@ -108,7 +132,8 @@ def getBB_PDG(model="std"):
 gBBTmax,gBBTcut,gBBTup,gRsec = getBB_PDG("std")
 # gBBlowTmax,gBBlowTcut,glowRsec = getBB_PDG("low")
 ### from GEANT4 directly
-gBBlow,gBBstd = getBB_GEANT4("BB.csv")
+# gBBlow,gBBstd = getBB_GEANT4("inputs/BB.csv")
+gBBstd = setG4BBdEdxFromTable("inputs/eloss_p_si.txt")
 
 leg = ROOT.TLegend(0.5,0.74,0.8,0.88)
 leg.SetFillStyle(4000) # will be transparent
@@ -221,11 +246,11 @@ ROOT.gPad.RedrawAxis()
 cnv.SaveAs("dEdx_cpp.pdf)")
 
 
-nsteps = 100
-Estep = (Emax-Emin)/nsteps
-X = 1*U.um2cm
-for i in range(nsteps):
-    E = Emin + i*Estep
-    Tmax = par.Wmax(E*U.MeV2eV)*U.eV2MeV
-    print(f"is sec for E={E} [MeV], X={X} [cm], Tmax={Tmax} : {par.isSecondary(E*U.MeV2eV,X)}")
+# nsteps = 100
+# Estep = (Emax-Emin)/nsteps
+# X = 1*U.um2cm
+# for i in range(nsteps):
+#     E = Emin + i*Estep
+#     Tmax = par.Wmax(E*U.MeV2eV)*U.eV2MeV
+#     # print(f"is sec for E={E} [MeV], X={X} [cm], Tmax={Tmax} : {par.isSecondary(E*U.MeV2eV,X)}")
     

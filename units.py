@@ -8,5 +8,6 @@ m2cm   = 1e2
 cm2m   = 1e-2
 cm2um  = 1e4
 um2cm  = 1e-4
+um2mm  = 1e-3
 mm2cm  = 1e-1
 cm2mm  = 1e1
