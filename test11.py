@@ -49,6 +49,7 @@ slices = {
 "E75.0MeV_X0.5um"  :{"build":"ION.B->EX1.B",        "param":{"minLoss":10, "meanLoss":532.70321455460260, "w3":10.0,               "p3":4.284263001806674,  "w":0.98989898989899,    "n1":1.344246186425751, "e1":116.24329767909988}},
 }
 
+scale = slices[slicename]["scale"]
 param = slices[slicename]["param"]
 build = slices[slicename]["build"]
 
@@ -70,7 +71,7 @@ ex1_sigma = param["ex1_sigma"]   if("ex1_sigma" in param) else -1
 ######################################################
 ######################################################
 ######################################################
-Mod = model.Model(build,dx_cm,E,minLoss,meanLoss,w3,p3,w,e1,n1,ex1_mean,ex1_sigma,ion_mean,ion_sigma)
+Mod = model.Model(build,scale,dx_cm,E,minLoss,meanLoss,w3,p3,w,e1,n1,ex1_mean,ex1_sigma,ion_mean,ion_sigma)
 pdfs = Mod.get_model_pdfs()
 
 ######################################################

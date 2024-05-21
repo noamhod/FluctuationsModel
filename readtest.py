@@ -9,9 +9,23 @@ import units as U
 import material as mat
 import bins
 import fluctuations as flct
-# import shapes
-import rfshapes as rf
+import model
 import hist
+
+import argparse
+parser = argparse.ArgumentParser(description='readtest.py...')
+parser.add_argument('-E', metavar='incoming particle energy [MeV]', required=True,  help='incoming particle energy [MeV]')
+parser.add_argument('-X', metavar='step size in x [um]', required=True,  help='step size in x [um]')
+parser.add_argument('-W', metavar='fractional size in of the window around X:E', required=False,  help='fractional size of the window around X:E')
+parser.add_argument('-N', metavar='N steps to process', required=False,  help='N steps to process')
+argus = parser.parse_args()
+EE = float(argus.E)
+XX = float(argus.X)
+WW = 0.01 if(argus.W is None) else float(argus.W)
+NN = 0 if(argus.N is None) else int(argus.N)
+print(f"Model with energy: {EE} [MeV], dx: {XX} [um], window: {WW*100} [%]")
+
+
 
 ROOT.gErrorIgnoreLevel = ROOT.kError
 # ROOT.gErrorIgnoreLevel = ROOT.kWarning
@@ -27,64 +41,31 @@ ROOT.gStyle.SetPadRightMargin(0.15)
 #################################################
 #################################################
 #################################################
-### GENERAL MODEL
-rho_Si = 2.329     # Silicon, g/cm3
-Z_Si   = [14]      # Silicon atomic number (Z)
-A_Si   = [28.0855] # Silicon atomic mass (A)
-I_Si   = 173.0     # Silicon mean excitation energy (I), eV
-Ep_Si  = 31.05     # Silicon plasma energy (E_p), eV
-Tc_Si  = 990       # Silicon, production threshold for delta ray, eV
-den_Si = [31.055, 2.103, 4.4351, 0.2014, 2.8715, 0.14921, 3.2546, 0.14, 0.059, 173.]
-nel_Si = 1
-Si = mat.Material("Silicon","Si",rho_Si,Z_Si,A_Si,I_Si,Tc_Si,den_Si,nel_Si)
-# dEdxModel = "BB:Tcut"
-dEdxModel = "G4:Tcut"
-par = flct.Parameters("Silicon parameters",C.mp,+1,Si,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
+Mat = mat.Si # or e.g. mat.Al
+dEdxModel = "G4:Tcut" # or "BB:Tcut"
+par = flct.Parameters(Mat.name+" parameters",C.mp,+1,Mat,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
+modelpars = par.GetModelPars(EE*U.MeV2eV,XX*U.um2cm)
+print(modelpars)
+
+######################################################
+######################################################
+######################################################
+### Build the model shapes
+Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars)
+pdfs = Mod.get_model_pdfs()
 
 
 #################################################
 #################################################
 #################################################
-import argparse
-parser = argparse.ArgumentParser(description='readtest.py...')
-parser.add_argument('-E', metavar='incoming particle energy [MeV]', required=True,  help='incoming particle energy [MeV]')
-parser.add_argument('-X', metavar='step size in x [um]', required=True,  help='step size in x [um]')
-parser.add_argument('-W', metavar='fractional size in of the window around X:E', required=False,  help='fractional size of the window around X:E')
-parser.add_argument('-N', metavar='N steps to process', required=False,  help='N steps to process')
-argus = parser.parse_args()
-EE = float(argus.E)
-XX = float(argus.X)
-WW = 0.01 if(argus.W is None) else float(argus.W)
-NN = 0 if(argus.N is None) else int(argus.N)
-# XX = 10 ## um
-# EE = 50 ## MeV
-# WW = 0.01 ## [%] size of window around XX and EE
-print(f"Model with energy: {EE} [MeV], dx: {XX} [um], window: {WW*100} [%]")
 
-
-'''
-E = 99.9786379 MeV
-dX = 0.004564567 mm
-dE/dx * dX = 0.003872055 MeV
-'''
-
-#################################################
-#################################################
-#################################################
-### specific slice model
-model = par.DifferentialModel(EE*U.MeV2eV,XX*U.um2cm,doSec=False)
-scaling = par.scaling()
-print(model)
-
-# quit()
-
-dEmean  = (model["Gauss"]["mean"]+model["Landau"]["mpv"])/2    if("Gauss" in model and "Landau" in model) else model["Landau"]["mpv"]
-dEwidth = (model["Gauss"]["width"]+model["Landau"]["width"])/2 if("Gauss" in model and "Landau" in model) else model["Landau"]["width"]
-dEmean  *= U.eV2MeV
-dEwidth *= U.eV2MeV
-dEmin_lin = dEmean-30*dEwidth if((dEmean-30*dEwidth)>0) else 0 #1e-5
-dEmax_lin = dEmean+30*dEwidth
-print(f"dEmean={dEmean}, dEwidth={dEwidth} --> range:[{dEmin_lin},{dEmax_lin}]")
+# dEmean  = (model["Gauss"]["mean"]+model["Landau"]["mpv"])/2    if("Gauss" in model and "Landau" in model) else model["Landau"]["mpv"]
+# dEwidth = (model["Gauss"]["width"]+model["Landau"]["width"])/2 if("Gauss" in model and "Landau" in model) else model["Landau"]["width"]
+# dEmean  *= U.eV2MeV
+# dEwidth *= U.eV2MeV
+# dEmin_lin = dEmean-30*dEwidth if((dEmean-30*dEwidth)>0) else 0 #1e-5
+# dEmax_lin = dEmean+30*dEwidth
+# print(f"dEmean={dEmean}, dEwidth={dEwidth} --> range:[{dEmin_lin},{dEmax_lin}]")
 
 
 
@@ -104,11 +85,11 @@ hdE     = TH1D(slicename,slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
 hdE_cnt = TH1D(slicename+"_cnt",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
 hdE_sec = TH1D(slicename+"_sec",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
 # hdE_cnt_lin = TH1D(slicename+"_cnt_lin",slicetitle+";#DeltaE [MeV];Steps",1000,1e-4,1e-1)
-hdE_cnt_lin = TH1D(slicename+"_cnt_lin",slicetitle+";#DeltaE [MeV];Steps",30,dEmin_lin,dEmax_lin)
+# hdE_cnt_lin = TH1D(slicename+"_cnt_lin",slicetitle+";#DeltaE [MeV];Steps",30,dEmin_lin,dEmax_lin)
 # hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE [MeV];Steps",30,dEmin_lin*U.MeV2eV/scaling,dEmax_lin*U.MeV2eV/scaling)
 # hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE [MeV];Steps",50,-2000,+10000)
 # hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE [MeV];Steps",50,0,+3000)
-hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE [MeV];Steps",40,0,+50000)
+hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE [MeV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
 hdE_cnt_lin_eV_noscale.GetXaxis().SetTitle( "#DeltaE (unscaled) [eV]" )
 
 
@@ -171,8 +152,8 @@ for n,enrgy in enumerate(X):
         hdE.Fill(dE)
         hdE_sec.Fill(dEsec)
         hdE_cnt.Fill(dEcnt)
-        hdE_cnt_lin.Fill(dEcnt)
-        hdE_cnt_lin_eV_noscale.Fill(dEcnt*U.MeV2eV/scaling)
+        # hdE_cnt_lin.Fill(dEcnt)
+        hdE_cnt_lin_eV_noscale.Fill(dEcnt*U.MeV2eV if(Mod.BEBL or Mod.TGAU or Mod.TGAM) else dEcnt*U.MeV2eV/Mod.scale)
     
     if(n%1000000==0 and n>0): print("processed: ",n)
     if(n>NN and NN>0): break
@@ -378,74 +359,25 @@ ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
 
-###################
-### RooFit shapes
-rfs = rf.RooFitShapes("roofitshapes",model,hdE_cnt_lin)
-frame = rfs.plot()
-###################
-### final plot
-canvas = ROOT.TCanvas("canvas", "canvas", 100, 100, 800, 600)
-legend = ROOT.TLegend(0.2, 0.6, 0.4, 0.85)
-legend.SetTextSize(0.032)
-legend.SetBorderSize(0)
-legend.SetFillStyle(0)
-ROOT.gPad.SetTicks(1,1)
-ROOT.gPad.SetGridx()
-ROOT.gPad.SetGridy()
-# ROOT.gPad.SetLogx()
-ROOT.gPad.SetLogy()
-ROOT.gPad.SetLeftMargin(0.15)
-ROOT.gPad.SetRightMargin(0.02)
-frame.GetYaxis().SetLabelOffset(0.008)
-frame.GetYaxis().SetTitleOffset(1.5)
-frame.GetYaxis().SetTitleSize(0.045)
-frame.GetXaxis().SetTitleSize(0.045)
-frame.SetMinimum(0.5)
-frame.Draw()
-legend.AddEntry("data", "data", 'LEP')
-if(rfs.isConv):   legend.AddEntry("full_model", "Convolution", 'L')
-if(rfs.isLandau): legend.AddEntry("landau_model", "Landau", 'L')
-if(rfs.isGauss):  legend.AddEntry("gauss_model", "Gauss", 'L')
-legend.Draw()
-ROOT.gPad.RedrawAxis()
-canvas.SaveAs(pdf)
-
 cnv = TCanvas("cnv","",500,500)
-ROOT.gPad.SetLogy()
 ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetLogy()
+if(Mod.doLogx): ROOT.gPad.SetLogx()
+hdE_cnt_lin_eV_noscale.SetMinimum(0.5)
+print(f'Data: max={hdE_cnt_lin_eV_noscale.GetMaximum()}, integral={hdE_cnt_lin_eV_noscale.Integral()}')
+print(f'Before: model max={pdfs["hModel"].GetMaximum()}, integral={pdfs["hModel"].Integral()}')
+pdfs["hModel"].Scale( hdE_cnt_lin_eV_noscale.GetMaximum()/pdfs["hModel"].GetMaximum() )
+print(f'After: model max={pdfs["hModel"].GetMaximum()}, integral={pdfs["hModel"].Integral()}')
+hdE_cnt_lin_eV_noscale.SetMaximum(1.2 * hdE_cnt_lin_eV_noscale.GetMaximum() )
+hdE_cnt_lin_eV_noscale.SetLineWidth(1)
+hdE_cnt_lin_eV_noscale.SetLineColor(ROOT.kBlack)
+hdE_cnt_lin_eV_noscale.SetMarkerColor(ROOT.kBlack)
+hdE_cnt_lin_eV_noscale.SetMarkerStyle(20)
+hdE_cnt_lin_eV_noscale.SetMarkerSize(0.6)
 hdE_cnt_lin_eV_noscale.Draw("hist")
+pdfs["hModel"].Draw("hist same")
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf+")")
-
-
-# cnv = TCanvas("cnv","",1500,500)
-# cnv.Divide(3,2)
-# cnv.cd(1)
-# ROOT.gPad.SetLogy()
-# ROOT.gPad.SetTicks(1,1)
-# histos["h_w3_dx_vs_E"].Draw("colz")
-# ROOT.gPad.RedrawAxis()
-# cnv.cd(2)
-# ROOT.gPad.SetLogy()
-# ROOT.gPad.SetTicks(1,1)
-# histos["h_p3_dx_vs_E"].Draw("colz")
-# ROOT.gPad.RedrawAxis()
-# cnv.cd(3)
-# ROOT.gPad.SetLogy()
-# ROOT.gPad.SetTicks(1,1)
-# histos["h_w_dx_vs_E"].Draw("colz")
-# ROOT.gPad.RedrawAxis()
-# cnv.cd(4)
-# ROOT.gPad.SetLogy()
-# ROOT.gPad.SetTicks(1,1)
-# histos["h_n1_dx_vs_E"].Draw("colz")
-# ROOT.gPad.RedrawAxis()
-# cnv.cd(5)
-# ROOT.gPad.SetLogy()
-# ROOT.gPad.SetTicks(1,1)
-# histos["h_e1_dx_vs_E"].Draw("colz")
-# ROOT.gPad.RedrawAxis()
-# cnv.SaveAs(pdf)
 
 
 ### write to root file
@@ -454,7 +386,6 @@ fOut.cd()
 hdE.Write()
 hdE_cnt.Write()
 hdE_sec.Write()
-hdE_cnt_lin.Write()
 hdE_cnt_lin_eV_noscale.Write()
 for name,h in histos.items(): h.Write()
 fOut.Write()

@@ -40,26 +40,32 @@ def truncated_gaus(x,par):
 
 
 class Model:
-    def __init__(self,build,dx,E,minLoss,meanLoss,w3,p3,w,e1,n1,ex1_mean,ex1_sigma,ion_mean,ion_sigma):
+    # def __init__(self,build,scale,dx,E,minLoss,meanLoss,w3,p3,w,e1,n1,ex1_mean,ex1_sigma,ion_mean,ion_sigma):
+    def __init__(self,dx,E,pars):
+        self.TGAU      = False
+        self.TGAM      = False
         self.BEBL      = False
         self.IONB      = False
         self.EX1B      = False
         self.IONG      = False
+        self.EX1G      = False
         self.dx        = dx ## cm
         self.dx_um     = dx*U.cm2um # um
         self.E         = E  ## eV
-        self.build     = build
-        self.minLoss   = minLoss
-        self.meanLoss  = meanLoss
-        self.w3        = w3
-        self.p3        = p3
-        self.w         = w
-        self.e1        = e1
-        self.n1        = n1
-        self.ex1_mean  = ex1_mean
-        self.ex1_sigma = ex1_sigma
-        self.ion_mean  = ion_mean
-        self.ion_sigma = ion_sigma
+        self.build     = pars["build"]
+        self.scale     = pars["scale"]
+        self.param     = pars["param"]
+        self.minLoss   = self.param["minLoss"]   if("minLoss"   in self.param) else -1
+        self.meanLoss  = self.param["meanLoss"]  if("meanLoss"  in self.param) else -1
+        self.w3        = self.param["w3"]        if("w3"        in self.param) else -1
+        self.p3        = self.param["p3"]        if("p3"        in self.param) else -1
+        self.w         = self.param["w"]         if("w"         in self.param) else -1
+        self.e1        = self.param["e1"]        if("e1"        in self.param) else -1
+        self.n1        = self.param["n1"]        if("n1"        in self.param) else -1
+        self.ex1_mean  = self.param["ex1_mean"]  if("ex1_mean"  in self.param) else -1
+        self.ex1_sigma = self.param["ex1_sigma"] if("ex1_sigma" in self.param) else -1
+        self.ion_mean  = self.param["ion_mean"]  if("ion_mean"  in self.param) else -1
+        self.ion_sigma = self.param["ion_sigma"] if("ion_sigma" in self.param) else -1
         ### set parameters
         self.par_bethebloch_min  = [self.meanLoss]
         self.par_borysov_ion     = [self.w3, self.w, self.p3]
@@ -93,6 +99,8 @@ class Model:
     
     ### get the flags from the build string
     def set_flags(self):
+        self.TGAU = ("THK.GAUSS" in self.build)
+        self.TGAM = ("THK.GAMMA" in self.build)
         self.BEBL = (self.meanLoss<self.minLoss and "BEBL" in self.build)
         self.IONB = ("ION.B" in self.build)
         self.EX1B = ("EX1.B" in self.build)

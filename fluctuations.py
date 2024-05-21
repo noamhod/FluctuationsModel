@@ -328,7 +328,7 @@ class Parameters:
     def GetModelPars(self,E,x):
         point = ("%.2f" % (E*U.eV2MeV))+"MeV_"+("%.7f" % (x*U.cm2um))+"um"
         scl   = self.scaling()
-        pars = {"point":point, "build":"NONE", "scaling":scl, "param":{}}
+        pars = {"point":point, "build":"NONE", "scale":scl, "param":{}}
         pars["param"].update({"dx":x})
         pars["param"].update({"E":E})
         pars["param"].update({"minLoss":self.minloss})
@@ -378,11 +378,11 @@ class Parameters:
             if(sn>2):
                 TGAU = True
                 pars["param"]["thk_sigma"] = siga
-                pars["build"] = "TGAU"
+                pars["build"] = "THK.GAUSS"
             else:
                 TGAM = True
                 pars["param"]["thk_neff"] = neff
-                pars["build"] = "TGAM"
+                pars["build"] = "THK.GAMMA"
             return pars
 
         ######################

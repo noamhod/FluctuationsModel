@@ -17,7 +17,7 @@ ROOT.gErrorIgnoreLevel = ROOT.kError
 # ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
 class ToyMC:
-    def __init__(self,E,dx,model):
+    def __init__(self,dx,E,model):
         self.E     = E
         self.dx    = dx
         self.point = ("%.1f" % (E*U.eV2MeV))+"MeV_"+("%.4f" % (dx*U.cm2um))+"um"
