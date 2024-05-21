@@ -122,7 +122,7 @@ class Model:
         if(self.BEBL):
             self.dEmin     = 0
             self.dEmax     = 11
-            self.Nbins     = 110
+            self.Nbins     = 1100
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G): ## Borysov only, no Gauss
             self.dEmin     = 0.1
             self.dEmax     = 3000.1
@@ -240,10 +240,16 @@ class Model:
     def get_component_pdfs(self):
         ### get pdfs
         pdfs = {}
+        pdfs.update({"hModel":        None})
         pdfs.update({"hBorysov_Ion":  None})
         pdfs.update({"hBorysov_Exc":  None})
         pdfs.update({"hTrncGaus_Ion": None})
         pdfs.update({"hTrncGaus_Exc": None})
+        if(self.BEBL): ## first the basic case where <dE/dx>*X is too small
+            # hModel = pdfs["hBorysov_Ion"].Clone("hModel");
+            # hModel.Reset();
+            pdfs["hModel"] = ROOT.TH1D("hModel","",self.Nbins,self.dEmin,self.dEmax)
+            pdfs["hModel"].SetLineColor(ROOT.kRed)
         if(self.IONB and self.EX1B and self.IONG):
             pdfs["hBorysov_Ion"]  = self.get_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
             pdfs["hBorysov_Exc"]  = self.get_pdf("borysov_exc_model", "borysov_excitation", self.par_borysov_exc)
@@ -261,7 +267,16 @@ class Model:
         return pdfs
     
     def get_model_pdfs(self):
+        ### get the relevant pdfs
         pdfs = self.get_component_pdfs()
+        
+        ### if meanLoss is too small return the meanLoss as single bin PDF
+        if(self.BEBL):
+            bx = pdfs["hModel"].FindBin(self.meanLoss)
+            pdfs["hModel"].SetBinContent(bx,1)
+            return pdfs
+
+        ### Otherwise, constructe the model
         aBorysov_Ion  = []
         aBorysov_Exc  = []
         aTrncGaus_Ion = []
@@ -290,7 +305,6 @@ class Model:
                 aScipyConv = aScipyConv2
             print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}, IONG={len(aTrncGaus_Ion)}")
             print(f"sizes of convolutions for (IONB and EX1B and IONG): IONBxEX1B={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}, IONBxEX1BxIONG={len(aManualConv2) if(self.convManual) else len(aScipyConv2)}")
-
         if(self.IONB and self.IONG and self.EX1G):
             if(self.convManual):
                 aManualConv1 = self.manual_convolution(aBorysov_Ion,aTrncGaus_Ion)
@@ -302,7 +316,6 @@ class Model:
                 aScipyConv = aScipyConv2
             print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, IONG={len(aTrncGaus_Ion)}, EX1G={len(aTrncGaus_Exc)}")
             print(f"sizes of convolutions for (IONB and IONG and EX1G): IONBxIONG={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}, IONBxIONGxEX1G={len(aManualConv2) if(self.convManual) else len(aScipyConv2)}")
-
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G):
             if(self.convManual):
                 aManualConv1 = self.manual_convolution(aBorysov_Ion,aBorysov_Exc)
@@ -312,25 +325,14 @@ class Model:
                 aScipyConv = aScipyConv1
             print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}")
             print(f"sizes of convolutions for (IONB and EX1B and not IONG and not EX1G): IONBxEX1B={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}")
-
-        if(not self.BEBL):
-            aConv = aManualConv if(self.convManual) else aScipyConv
-            hModel = pdfs["hBorysov_Ion"].Clone("hModel")
-            hModel.Reset()
-            hModel.SetLineColor(ROOT.kRed)
-            xConv = np.linspace(start=self.dEmin,stop=self.dEmax,num=len(aConv))
-            gConv = ROOT.TGraph(len(aConv),xConv, aConv)
-            for b in range(1,hModel.GetNbinsX()+1):
-                # hModel.SetBinContent(b, aManualConv[b-1] if(self.convManual) else aScipyConv[b-1])
-                xb = hModel.GetBinCenter(b)
-                hModel.SetBinContent(b, gConv.Eval(xb+2*abs(self.dEmin)) )
-            hModel.Scale(1./hModel.Integral())
-            print(f"hModel={hModel.GetNbinsX()}, aConv={len(aConv)}")
-        else:
-            hModel = hTotal.Clone("hModel")
-            hModel.Reset()
-            hModel.SetLineColor(ROOT.kRed)
-            bx = hModel.FindBin(meanLoss)
-            hModel.SetBinContent(bx,1)
-        pdfs.update({"hModel":hModel})
+        ### fill the model hist pdf
+        aConv = aManualConv if(self.convManual) else aScipyConv
+        xConv = np.linspace(start=self.dEmin,stop=self.dEmax,num=len(aConv))
+        gConv = ROOT.TGraph(len(aConv),xConv, aConv)
+        for b in range(1,pdfs["hModel"].GetNbinsX()+1):
+            # pdfs["hModel"].SetBinContent(b, aManualConv[b-1] if(self.convManual) else aScipyConv[b-1])
+            xb = pdfs["hModel"].GetBinCenter(b)
+            pdfs["hModel"].SetBinContent(b, gConv.Eval(xb+2*abs(self.dEmin)) )
+        pdfs["hModel"].Scale(1./pdfs["hModel"].Integral())
+        print(f'hModel={pdfs["hModel"].GetNbinsX()}, aConv={len(aConv)}')
         return pdfs

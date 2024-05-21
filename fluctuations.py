@@ -301,7 +301,7 @@ class Parameters:
         else:
             S1new = S1/self.fw
             E1new = self.E1*self.fw
-        print(f"a1new={S1new*x}, E1new={E1new}")
+        # print(f"a1new={S1new*x}, E1new={E1new}")
         return S1new,E1new
     
     def Moment1(self,E,x,proc="EX1:EX2:ION:SEC:ZER"): # this is the mean
@@ -385,6 +385,121 @@ class Parameters:
             wdt = self.Width(E,x)
             mod = "Landau"
         return loc,wdt,mod
+
+
+    #########################################
+    ### get all necessary pars to build the model shape
+    def GetModelPars(self,E,x):
+        point = ("%.2f" % (E*U.eV2MeV))+"MeV_"+("%.7f" % (x*U.cm2um))+"um"
+        pars = {"point":point, "build":"", "param":{}}
+        pars["param"].update({"dx":x})
+        pars["param"].update({"E":E})
+        pars["param"].update({"minLoss":self.minloss})
+        pars["param"].update({"meanLoss":x*self.getG4BBdEdx(E)})
+        pars["param"].update({"w3":-1})
+        pars["param"].update({"w":-1})
+        pars["param"].update({"p3":-1})
+        pars["param"].update({"e1":-1})
+        pars["param"].update({"n1":-1})
+        pars["param"].update({"e2":-1})
+        pars["param"].update({"n2":-1})
+        pars["param"].update({"ion_mean":-1})
+        pars["param"].update({"ion_sigma":-1})
+        pars["param"].update({"ex1_mean":-1})
+        pars["param"].update({"ex1_sigma":-1})
+        pars["param"].update({"ex2_mean":-1})
+        pars["param"].update({"ex2_sigma":-1})
+        pars["param"].update({"thk_mean":-1})  ## Gauss and Gamma
+        pars["param"].update({"thk_sigma":-1}) ## Gauss
+        pars["param"].update({"thk_neff":-1})  ## Gamma  
+        
+        TGAU = False
+        TGAM = False
+        EX1G = False
+        EX2G = False
+        IONG = False
+        EX1B = False
+        EX2B = False
+        IONB = False
+
+        ######################
+        ### Thick models
+        if(self.isThick(E,x)):
+            mua  = self.MeanThick(E,x)
+            siga = self.WidthThick(E,x)
+            sn   =  mua/siga
+            neff = sn*sn
+            pars["param"]["thk_mean"] = mua
+            if(sn>2):
+                TGAU = True
+                pars["param"]["thk_sigma"] = siga
+            else:
+                TGAM = True
+                pars["param"]["thk_neff"] = neff
+        ######################
+        ### Thin models
+        else:
+            #########################
+            ### excitation of type 1
+            if(self.f1>0):
+                if(self.isGauss(E,x,1)):
+                    EX1G = True
+                    pars["param"]["ex1_mean"]  = self.Mean(E,x,proc="EX1")
+                    pars["param"]["ex1_sigma"] = self.Width(E,x,proc="EX1")
+                else:
+                    EX1B = True
+                    s1,e1 = self.RescaleS1(E,x)
+                    n1 = s1*x
+                    pars["param"]["e1"] = e1
+                    pars["param"]["n1"] = n1
+            #########################
+            ### excitation of type 2
+            if(self.f2>0):
+                if(self.isGauss(E,x,2)):
+                    EX2G = True
+                    pars["param"]["ex2_mean"]  = self.Mean(E,x,proc="EX2")
+                    pars["param"]["ex2_sigma"] = self.Width(E,x,proc="EX2")
+                else:
+                    EX2B = True
+                    s2,e2 = self.RescaleS1(E,x)
+                    n2 = s2*x
+                    pars["param"]["e2"] = e2
+                    pars["param"]["n2"] = n2
+            ##########################
+            ### Ionization
+            alpha  = 1.
+            naAvg  = 0.
+            alpha1 = 0.
+            n3     = self.n3_mean(E,x)
+            p3     = n3
+            w3     = alpha*self.E0
+            ### gaussian part (conditional)
+            if(self.isGauss(E,x,3)):
+                alpha  = (self.w1*(self.ncontmax+n3))/(self.w1*self.ncontmax+n3)
+                alpha1 = alpha*math.log(alpha)/(alpha-1.)
+                naAvg  = n3*self.w1*(alpha-1)/(alpha*(self.w1-1.))
+                p3     = n3 - naAvg
+                w3     = alpha*self.E0
+                pars["param"]["ion_mean"]  = naAvg*alpha1*self.E0 ### TODO: as in G4
+                pars["param"]["ion_sigma"] = math.sqrt(naAvg*(alpha-alpha1**2)*(self.E0**2))
+                IONG = True
+            ### poisson part (~always)
+            if(self.mat.Tc>w3):
+                w = (self.mat.Tc-w3)/self.mat.Tc
+                pars["param"]["w3"] = w3
+                pars["param"]["p3"] = p3
+                pars["param"]["w"]  = w
+                IONB = True
+        #######################
+        ### finally, build string
+        build = "NONE"
+        if(IONB and IONG and EX1G):                  build = "ION.B->ION.G->EX1.G"
+        if(IONB and EX1B and IONG):                  build = "ION.B->EX1.B->ION.G"
+        if(IONB and EX1B and not IONG and not EX1G): build = "ION.B->EX1.B"
+        ### TODO are there other options??
+        ### TODO need to implement the thick case
+        pars["build"] = build
+        return pars
 
 
     #########################################

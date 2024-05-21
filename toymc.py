@@ -60,7 +60,7 @@ class ToyMC:
     
             ### if average loss is smaller than 10 eV, take the averge loss
             if(BEBL):
-                hTotal.Fill(meanLoss)
+                histos["hTotal"].Fill(self.model.meanLoss)
                 continue
     
             ### excitation non-gauss
