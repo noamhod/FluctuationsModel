@@ -221,10 +221,6 @@ class Parameters:
         if(self.dedxmod=="G4:Tcut"): return self.getG4BBdEdx(E)/scl
         return -999
 
-    def getmpv(self,mu):
-        return math.floor(mu) if(mu>1) else 0 ## dimensionless
-        # return math.floor(mu) if(mu>1) else mu ## dimensionless
-
     ##########################################################################
     ### default Energy Loss Fluctuations model used in main Physics List: https://geant4-userdoc.web.cern.ch/UsersGuides/PhysicsReferenceManual/html/electromagnetic/energy_loss/fluctuations.html#id230
     def Sigma12(self,E,i):
@@ -238,37 +234,19 @@ class Parameters:
         return self.dEdx(E)*XX*(YY/ZZ)*(1.-self.r) # 1/cm
     def Sigma3(self,E):
         return self.dEdx(E)*((self.mat.Tc-self.E0)/(self.E0*self.mat.Tc*math.log(self.mat.Tc/self.E0)))*self.r # 1/cm
-    def Sigma4(self,E):
-        return self.dEdx(E)*(1./self.mat.Tc) # 1/cm #TODO: this is just dimensionally-guessed... 
-    def Sigma0(self,E):
-        return self.dEdx(E)*(1./self.E0) # 1/cm
     
     ### mean number of interactions/collisions
     def n12_mean(self,E,x,i):
         return x*self.Sigma12(E,i) ## dimensionless
     def n3_mean(self,E,x):
         return x*self.Sigma3(E) ## dimensionless
-    def n_0dE_mean(self,E,x):
-        return x*self.Sigma0(E) ## dimensionless
-    def n12_mpv(self,E,x,i):
-        return self.getmpv( self.n12_mean(E,x,i) ) ## dimensionless
-    def n3_mpv(self,E,x):
-        return self.getmpv( self.n3_mean(E,x) ) ## dimensionless
-    def n_0dE_mpv(self,E,x):
-        return self.getmpv( self.n_0dE_mean(E,x) ) ## dimensionless
-        
-    def is0dE(self,E,x):   
-        n1 = self.n12_mean(E,x,1)
-        n2 = self.n12_mean(E,x,2)
-        n3 = self.n3_mean(E,x)
-        P_0dE = math.exp(-(n1+n2+n3))
-        return (P_0dE>0.01)
     
     ### there are steps with only 1 or 0 secondaries
+    ### TODO
     def isSecondary(self,E,x):
         return (self.dEdx(E)*x>self.mat.Tc)
         # return ( (self.BB(E,self.Wmax(E))-self.BB(E,self.mat.Tc))*x>self.mat.Tc )
-        
+    ### TODO
     def elossSecondary(self,E,x):
         return self.mat.Tc if(self.isSecondary(E,x)) else 0.
         # return (self.Wmax(E)-self.mat.Tc)/2 if(self.isSecondary(E,x)) else 0.
@@ -286,8 +264,6 @@ class Parameters:
         return self.E0*self.mat.Tc # eV^2
     def g_of_dE_integral2Tmax(self,E):
         return self.mat.Tc*self.Wmax(E) # eV^2
-    def g_of_dE_integral2TupAlpha(self,E,alpha):
-        return (self.E0*alpha)*self.Tup(E) # eV^2
     
     def RescaleS1(self,E,x):
         S1 = self.Sigma12(E,1)
@@ -304,60 +280,36 @@ class Parameters:
         # print(f"a1new={S1new*x}, E1new={E1new}")
         return S1new,E1new
     
-    def Moment1(self,E,x,proc="EX1:EX2:ION:SEC:ZER"): # this is the mean
+    def Moment1(self,E,x,proc="EX1:EX2:ION"): # this is the mean
         # S1 = self.Sigma12(E,1)*self.E1 ## eV/cm
         s1,e1 = self.RescaleS1(E,x)
         S1 = s1*e1 ## eV/cm
         S2 = self.Sigma12(E,2)*self.E2 ## eV/cm
         S3 = self.Sigma3(E)*self.g_of_dE_integral1Tcut(E) ## eV/cm
-        S4 = self.elossSecondary(E,x) ## eV/cm #TODO!!!! UNITS
-        S0 = self.Sigma0(E)*self.E0 ## self.Sigma0(E)*self.g_of_dE_integral1(E) ## eV/cm
         M1 = 0
         if("EX1" in proc): M1 += S1 ## eV/cm
         if("EX2" in proc): M1 += S2 ## eV/cm
         if("ION" in proc): M1 += S3 ## eV/cm
-        if("SEC" in proc): M1 += S4 ## eV/cm
-        if("ZER" in proc and self.is0dE(E,x)): M1 = S0 ## eV/cm
         return M1
         
-    def Moment2(self,E,x,proc="EX1:EX2:ION:SEC:ZER"): # this is the variance
+    def Moment2(self,E,x,proc="EX1:EX2:ION"): # this is the variance
         # S1 = self.Sigma12(E,1)*(self.E1**2) ## eV^2/cm
         s1,e1 = self.RescaleS1(E,x)
         S1 = s1*(e1**2) ## eV^2/cm
         S2 = self.Sigma12(E,2)*(self.E2**2) ## eV^2/cm
         S3 = self.Sigma3(E)*self.g_of_dE_integral2Tcut(E) ## eV^2/cm
-        S4 = (self.elossSecondary(E,x)**2) ## eV^2/cm #TODO: UNITS
-        S0 = self.Sigma0(E)*(self.E0**2) ## self.Sigma0(E)*self.g_of_dE_integral2(E) ## eV^2/cm
         M2 = 0
         if("EX1" in proc): M2 += S1 ## eV^2/cm
         if("EX2" in proc): M2 += S2 ## eV^2/cm
         if("ION" in proc): M2 += S3 ## eV^2/cm
-        if("SEC" in proc): M2 += S4 ## eV^2/cm
-        if("ZER" in proc and self.is0dE(E,x)): M2 = S0 ## eV^2/cm
         return M2
-        
-    def MPV(self,E,x,proc="EX1:EX2:ION:SEC:ZER"):
-        # mpv1 = self.n12_mpv(E,x,1)*self.E1 ## eV
-        s1,e1 = self.RescaleS1(E,x)
-        mpv1 = self.getmpv(s1*x)*e1 ## eV
-        mpv2 = self.n12_mpv(E,x,2)*self.E2 ## eV
-        mpv3 = self.n3_mpv(E,x)*self.g_of_dE_integral1Tcut(E) ## eV
-        mpv4 = self.elossSecondary(E,x) ## eV
-        mpv0 = self.n_0dE_mpv(E,x)*self.E0 ## self.n_0dE_mpv(E,x)*self.g_of_dE_integral1(E) ## eV
-        mpv = 0
-        if("EX1" in proc): mpv += mpv1 ## eV
-        if("EX2" in proc): mpv += mpv2 ## eV
-        if("ION" in proc): mpv += mpv3 ## eV
-        if("SEC" in proc): mpv += mpv4 ## eV
-        if("ZER" in proc and self.n_0dE_mpv(E,x)): mpv = mpv0 ## eV
-        return mpv
 
-    def Mean(self,E,x,proc="EX1:EX2:ION:SEC:ZER"):
+    def Mean(self,E,x,proc="EX1:EX2:ION"):
         return x*self.Moment1(E,x,proc) ## cm * eV/cm = eV
     
     ### default Energy Loss Fluctuations model used in main Physics List: https://geant4-userdoc.web.cern.ch/UsersGuides/PhysicsReferenceManual/html/electromagnetic/energy_loss/fluctuations.html#id230    
-    def Width(self,E,x,proc="EX1:EX2:ION:SEC:ZER"): ###
-        return math.sqrt(x * self.Moment2(E,x,proc)) ## sqrt(cm * eV^2/cm) = eV
+    def Width(self,E,x,proc="EX1:EX2:ION"): ###
+        return math.sqrt(x*self.Moment2(E,x,proc)) ## sqrt(cm * eV^2/cm) = eV
 
     ### for thick media the model is Gaussian
     def MeanThick(self,E,x):
@@ -369,29 +321,14 @@ class Parameters:
         b  = self.beta(E)
         Tmax = self.Wmax(E)
         return math.sqrt( (Tmax/(b**2) - self.mat.Tc)/2. * (C.twopi * C.me * C.re2) * x * (self.z**2) * self.mat.electronDensity )
-    
-    #########################################
-    ### the model: thin (Landau) / thick (Gaus)
-    def Model(self,E,x):
-        loc = -1
-        wdt = -1
-        mod = ""
-        if(self.isThick(E,x)):
-            loc = self.MeanThick(E,x)
-            wdt = self.WidthThick(E,x)
-            mod = "Gaus"
-        else:
-            loc = self.MPV(E,x)
-            wdt = self.Width(E,x)
-            mod = "Landau"
-        return loc,wdt,mod
 
 
     #########################################
     ### get all necessary pars to build the model shape
     def GetModelPars(self,E,x):
         point = ("%.2f" % (E*U.eV2MeV))+"MeV_"+("%.7f" % (x*U.cm2um))+"um"
-        pars = {"point":point, "build":"", "param":{}}
+        scl   = self.scaling()
+        pars = {"point":point, "build":"NONE", "scaling":scl, "param":{}}
         pars["param"].update({"dx":x})
         pars["param"].update({"E":E})
         pars["param"].update({"minLoss":self.minloss})
@@ -413,6 +350,7 @@ class Parameters:
         pars["param"].update({"thk_sigma":-1}) ## Gauss
         pars["param"].update({"thk_neff":-1})  ## Gamma  
         
+        BEBL = False
         TGAU = False
         TGAM = False
         EX1G = False
@@ -421,6 +359,13 @@ class Parameters:
         EX1B = False
         EX2B = False
         IONB = False
+        
+        ######################
+        ### Tiny loss models
+        if(pars["param"]["meanLoss"]<self.minloss):
+            BEBL = True
+            pars["build"] = "BEBL"
+            return pars
 
         ######################
         ### Thick models
@@ -433,237 +378,72 @@ class Parameters:
             if(sn>2):
                 TGAU = True
                 pars["param"]["thk_sigma"] = siga
+                pars["build"] = "TGAU"
             else:
                 TGAM = True
                 pars["param"]["thk_neff"] = neff
+                pars["build"] = "TGAM"
+            return pars
+
         ######################
         ### Thin models
-        else:
-            #########################
-            ### excitation of type 1
-            if(self.f1>0):
-                if(self.isGauss(E,x,1)):
-                    EX1G = True
-                    pars["param"]["ex1_mean"]  = self.Mean(E,x,proc="EX1")
-                    pars["param"]["ex1_sigma"] = self.Width(E,x,proc="EX1")
-                else:
-                    EX1B = True
-                    s1,e1 = self.RescaleS1(E,x)
-                    n1 = s1*x
-                    pars["param"]["e1"] = e1
-                    pars["param"]["n1"] = n1
-            #########################
-            ### excitation of type 2
-            if(self.f2>0):
-                if(self.isGauss(E,x,2)):
-                    EX2G = True
-                    pars["param"]["ex2_mean"]  = self.Mean(E,x,proc="EX2")
-                    pars["param"]["ex2_sigma"] = self.Width(E,x,proc="EX2")
-                else:
-                    EX2B = True
-                    s2,e2 = self.RescaleS1(E,x)
-                    n2 = s2*x
-                    pars["param"]["e2"] = e2
-                    pars["param"]["n2"] = n2
-            ##########################
-            ### Ionization
-            alpha  = 1.
-            naAvg  = 0.
-            alpha1 = 0.
-            n3     = self.n3_mean(E,x)
-            p3     = n3
+        ### excitation of type 1
+        if(self.f1>0):
+            if(self.isGauss(E,x,1)):
+                EX1G = True
+                pars["param"]["ex1_mean"]  = self.Mean(E,x,proc="EX1")
+                pars["param"]["ex1_sigma"] = self.Width(E,x,proc="EX1")
+            else:
+                EX1B = True
+                s1,e1 = self.RescaleS1(E,x)
+                n1 = s1*x
+                pars["param"]["e1"] = e1
+                pars["param"]["n1"] = n1
+        #########################
+        ### excitation of type 2
+        if(self.f2>0):
+            if(self.isGauss(E,x,2)):
+                EX2G = True
+                pars["param"]["ex2_mean"]  = self.Mean(E,x,proc="EX2")
+                pars["param"]["ex2_sigma"] = self.Width(E,x,proc="EX2")
+            else:
+                EX2B = True
+                s2,e2 = self.RescaleS1(E,x)
+                n2 = s2*x
+                pars["param"]["e2"] = e2
+                pars["param"]["n2"] = n2
+        ##########################
+        ### Ionization
+        alpha  = 1.
+        naAvg  = 0.
+        alpha1 = 0.
+        n3     = self.n3_mean(E,x)
+        p3     = n3
+        w3     = alpha*self.E0
+        ### gaussian part (conditional)
+        if(self.isGauss(E,x,3)):
+            alpha  = (self.w1*(self.ncontmax+n3))/(self.w1*self.ncontmax+n3)
+            alpha1 = alpha*math.log(alpha)/(alpha-1.)
+            naAvg  = n3*self.w1*(alpha-1)/(alpha*(self.w1-1.))
+            p3     = n3 - naAvg
             w3     = alpha*self.E0
-            ### gaussian part (conditional)
-            if(self.isGauss(E,x,3)):
-                alpha  = (self.w1*(self.ncontmax+n3))/(self.w1*self.ncontmax+n3)
-                alpha1 = alpha*math.log(alpha)/(alpha-1.)
-                naAvg  = n3*self.w1*(alpha-1)/(alpha*(self.w1-1.))
-                p3     = n3 - naAvg
-                w3     = alpha*self.E0
-                pars["param"]["ion_mean"]  = naAvg*alpha1*self.E0 ### TODO: as in G4
-                pars["param"]["ion_sigma"] = math.sqrt(naAvg*(alpha-alpha1**2)*(self.E0**2))
-                IONG = True
-            ### poisson part (~always)
-            if(self.mat.Tc>w3):
-                w = (self.mat.Tc-w3)/self.mat.Tc
-                pars["param"]["w3"] = w3
-                pars["param"]["p3"] = p3
-                pars["param"]["w"]  = w
-                IONB = True
+            pars["param"]["ion_mean"]  = naAvg*alpha1*self.E0 ### TODO: as in G4
+            pars["param"]["ion_sigma"] = math.sqrt(naAvg*(alpha-alpha1**2)*(self.E0**2))
+            IONG = True
+        ### poisson part (~always)
+        if(self.mat.Tc>w3):
+            w = (self.mat.Tc-w3)/self.mat.Tc
+            pars["param"]["w3"] = w3
+            pars["param"]["p3"] = p3
+            pars["param"]["w"]  = w
+            IONB = True
         #######################
         ### finally, build string
-        build = "NONE"
-        if(IONB and IONG and EX1G):                  build = "ION.B->ION.G->EX1.G"
-        if(IONB and EX1B and IONG):                  build = "ION.B->EX1.B->ION.G"
-        if(IONB and EX1B and not IONG and not EX1G): build = "ION.B->EX1.B"
+        if(IONB and IONG and EX1G):                  pars["build"] = "ION.B->ION.G->EX1.G"
+        if(IONB and EX1B and IONG):                  pars["build"] = "ION.B->EX1.B->ION.G"
+        if(IONB and EX1B and not IONG and not EX1G): pars["build"] = "ION.B->EX1.B"
         ### TODO are there other options??
-        ### TODO need to implement the thick case
-        pars["build"] = build
         return pars
-
-
-    #########################################
-    ### the main model to be used
-    def DifferentialModel(self,E,x,doSec=True):
-        meanG = 0
-        variG = 0
-        mpvL  = 0
-        variL = 0
-        meanThick  = 0
-        sigmaThick = 0
-        neffThick  = 0
-        ThickGauss = False
-        ThickGamma = False
-        Gauss  = False
-        Landau = False
-        scl = self.scaling() ### TODO: rescaling back the loss
-        print(f"scaling={scl}")
-        print(f"x={x}")
-        print(f"<dE/dx>={self.getG4BBdEdx(E)}")
-        print(f"meanLoss={x*self.getG4BBdEdx(E)}")
-        
-        ######################
-        ### Thick models
-        if(self.isThick(E,x)):
-            mua  = self.MeanThick(E,x)
-            siga = self.WidthThick(E,x)
-            sn   =  mua/siga
-            neff = sn*sn
-            if(sn>2):
-                print(f"Thick Gauss with sn={sn}, mean={meanThick}, sigma={sigmaThick}")
-                ThickGauss = True
-                meanThick  = mua
-                sigmaThick = siga
-            else:
-                print(f"Thick Gamma with sn={sn}, mean={meanThick}, sigma=neffThick")
-                ThickGamma = True
-                meanThick  = mua
-                neffThick  = neff
-        
-        ####################
-        ### Thin models
-        else:
-            ### excitation of type 1
-            if(self.f1>0):
-                if(self.isGauss(E,x,1)):
-                    meanG += self.Mean(E,x,proc="EX1")
-                    variG += self.Width(E,x,proc="EX1")**2
-                    if(variG>0): Gauss = True
-                    print(f'EX1 Gaus: mean={self.Mean(E,x,proc="EX1")}, sigma={self.Width(E,x,proc="EX1")}')
-                    # print(f"Gauss EX1: mean={meanG}, variance={variG} before scaling!")
-                else:
-                    # mpvL  += self.MPV(E,x,proc="EX1")
-                    # variL += self.Width(E,x,proc="EX1")**2
-                    s1,e1 = self.RescaleS1(E,x)
-                    n1 = s1*x
-                    print(f"EX1 non-Gaus: n1={n1}, e1={e1}")
-                    mpvL  += self.getmpv(n1)*e1
-                    variL += (0.5774*e1)**2
-                    if(variL>0): Landau = True
-                    # print(f"Landau EX1: mpv={mpvL}, variance={variL} before scaling!")
-            
-            ### excitation of type 2 --> should be no such contribution if E1=I
-            if(self.f2>0):
-                if(self.isGauss(E,x,2)):
-                    meanG += self.Mean(E,x,proc="EX2")
-                    variG += self.Width(E,x,proc="EX2")**2
-                    if(variG>0): Gauss = True
-                    print(f'EX2 Gaus: mean={self.Mean(E,x,proc="EX2")}, sigma={self.Width(E,x,proc="EX2")}')
-                    # print(f"Gauss EX2: mean={meanG}, variance={variG} before scaling!")
-                else:
-                    mpvL  += self.MPV(E,x,proc="EX2")
-                    variL += self.Width(E,x,proc="EX2")**2 ##TODO: this is not good - it is not the variance implemented in GEANT (see the case for EX1)
-                    if(variL>0): Landau = True
-                    print("EX2 non-Gaus: !!!! NEED TO IMPLEMENT !!!!")
-                    # print(f"Landau EX2: mpv={mpvL}, variance={variL} before scaling!")
-    
-            # ## ionization simple --> either that OR the GEANT one
-            # ### gaussian part (conditional)
-            # if(self.isGauss(E,x,3)):
-            #     meanG += self.Mean(E,x,proc="ION")
-            #     variG += self.Width(E,x,proc="ION")**2
-            #     if(variG>0): Gauss = True
-            #     print(f"Gauss ION simple: mean={meanG}, variance={variG}")
-            # ### poisson part (~always)
-            # mpvL  += self.MPV(E,x,proc="ION")
-            # variL += self.Width(E,x,proc="ION")**2
-            # if(variL>0): Landau = True
-            # print(f"Landau ION simple: mean={meanG}, variance={variG}")
-            
-            ### ionization from GEANT --> either that OR the simple one
-            alpha  = 1.
-            naAvg  = 0.
-            alpha1 = 0.
-            n3     = self.n3_mean(E,x)
-            p3     = n3
-            w3     = alpha*self.E0
-            ### gaussian part (conditional)
-            if(self.isGauss(E,x,3)):
-                alpha  = (self.w1*(self.ncontmax+n3))/(self.w1*self.ncontmax+n3)
-                alpha1 = alpha*math.log(alpha)/(alpha-1.)
-                naAvg  = n3*self.w1*(alpha-1)/(alpha*(self.w1-1.))
-                p3     = n3 - naAvg
-                w3     = alpha*self.E0
-                # meanG += naAvg*alpha1*self.E0 ### TODO: this is from G4, way too small??
-                # meanG += naAvg*alpha1*self.g_of_dE_integral1Tcut(E) ### TODO: not in G4, my own interpretation
-                meanG += naAvg*alpha1*self.E0 ### TODO: as in G4
-                # variG += naAvg*(alpha-alpha1**2)*(self.E0**2) ### TODO: this is from G4, way too small??
-                # variG += naAvg*(alpha-alpha1**2)*self.g_of_dE_integral2Tcut(E) ### TODO: not in G4, my own interpretation
-                variG += naAvg*(alpha-alpha1**2)*(self.E0**2) ### TODO: as in G4
-                if(variG>0): Gauss = True
-                print(f'ION Gaus: mean={naAvg*alpha1*self.E0}, sigma={math.sqrt(naAvg*(alpha-alpha1**2)*(self.E0**2))}')
-                # print(f"Gauss ION: mean={meanG}, variance={variG} before scaling!")
-            ### poisson part (~always)
-            if(self.mat.Tc>w3):
-                print(f"ION non-Gaus: w3={w3}, p3={p3}, w={(self.mat.Tc-w3)/self.mat.Tc}")
-                scale = 1 #scl
-                Tmp_mean, Tmp_stdev = self.TmpIonizationStats(self.getmpv(p3),w3,1000000,scale) ### TODO: this is a temporaty fix
-                print(f"Temp fix for ionization sampling: mean={Tmp_mean}, stdev={Tmp_stdev}, for scale={scale}")
-                # mpvL  += self.getmpv(p3)*self.g_of_dE_integral1Tcut(E)
-                # mpvL  += self.getmpv(p3)*(w3*Tmp_mean) ### TODO: almost as in G4
-                mpvL  += (w3*Tmp_mean) ### TODO: almost as in G4
-                # mpvL  += self.getmpv(n3)*self.g_of_dE_integral1Tcut(E)
-                # variL += p3*self.g_of_dE_integral2Tcut(E)
-                # variL += p3*((w3*Tmp_stdev)**2) ### TODO: almost as in G4
-                variL += ((w3*Tmp_stdev)**2) ### TODO: almost as in G4
-                # variL += n3*self.g_of_dE_integral2Tcut(E)
-                if(variL>0): Landau = True
-                # print(f"Landau ION: mpv={mpvL}, variance={variL} (for p3={p3} and n3={n3}) before scaling!")
-        
-        
-        #############
-        #TODO !!!
-        ### secondaries should always be there?
-        if(doSec):
-            meanG += self.Mean(E,x,proc="SEC")
-            variG += self.Width(E,x,proc="SEC")**2
-            mpvL  += self.MPV(E,x,proc="SEC")
-            # variL += self.Width(E,x,proc="SEC")**2
-            variL += self.elossSecondary(E,x)**2 ### poisson's variance equals to the mean #TODO
-        
-        ### construct the model
-        widthG = math.sqrt(variG)
-        widthL = math.sqrt(variL)
-        model = {}
-        if(ThickGauss): model.update({"ThickGauss":{"mean":meanThick, "width":sigmaThick}})
-        if(ThickGamma): model.update({"ThickGamma":{"mean":meanThick, "width":neffThick}})
-        if(Gauss):      model.update({"Gauss":{"mean":meanG*scl, "width":widthG*scl}})
-        if(Landau):     model.update({"Landau":{"mpv":mpvL*scl,  "width":widthL*scl}})
-        return model
-    
-    
-    def TmpIonizationStats(self,p3mpv,w3,N,scale=1):
-        rnd  = ROOT.TRandom()
-        hTmp = ROOT.TH1D("1","1",2000,0,100)
-        w    = (self.mat.Tc-w3)/self.mat.Tc
-        for n in range(N):
-            x = 0
-            for k in range(p3mpv):
-                x += 1./(1.-w*rnd.Uniform())
-            hTmp.Fill(x)
-        return hTmp.GetMean()/scale, hTmp.GetStdDev()/scale
-    
-
 
     # def BBlowE(self,E,T):
     #     g = self.gamma(E)
@@ -729,6 +509,3 @@ class Parameters:
     #
     #     if(ionloss<0.0): ionloss = 0.0
     #     return ionloss
-    #
-    # def Rsec(self,E):
-    #     return (self.BB(E,self.Wmax(E))-self.BB(E,self.mat.Tc))/self.BB(E,self.Wmax(E))

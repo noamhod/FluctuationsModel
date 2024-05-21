@@ -61,10 +61,11 @@ class Model:
         self.ion_mean  = ion_mean
         self.ion_sigma = ion_sigma
         ### set parameters
-        self.par_borysov_ion = [self.w3, self.w, self.p3]
-        self.par_borysov_exc = [self.n1, self.e1]
-        self.par_gauss_ion   = [self.ion_mean, self.ion_sigma]
-        self.par_gauss_exc   = [self.ex1_mean, self.ex1_sigma]
+        self.par_bethebloch_min  = [self.meanLoss]
+        self.par_borysov_ion     = [self.w3, self.w, self.p3]
+        self.par_borysov_exc     = [self.n1, self.e1]
+        self.par_gauss_ion       = [self.ion_mean, self.ion_sigma]
+        self.par_gauss_exc       = [self.ex1_mean, self.ex1_sigma]
         
         self.NptsTF1    = 1000000
         self.N_t_bins   = 1000000
@@ -92,7 +93,7 @@ class Model:
     
     ### get the flags from the build string
     def set_flags(self):
-        self.BEBL = (self.meanLoss<self.minLoss)
+        self.BEBL = (self.meanLoss<self.minLoss and "BEBL" in self.build)
         self.IONB = ("ION.B" in self.build)
         self.EX1B = ("EX1.B" in self.build)
         self.IONG = ("ION.G" in self.build)
@@ -202,25 +203,30 @@ class Model:
 
     def get_pdf(self,name,pdfname,par,dE_lowcut=-1):
         title = name.replace("_model","")
-        f = None
-        g = None
-        isBorysovIon = (pdfname=="borysov_ionization")
-        if(pdfname=="borysov_ionization"): g = self.borysov_ionization(par) ### This is a graph!
-        if(pdfname=="borysov_excitation"): f = ROOT.TF1("f_"+name,borysov_excitation,self.dEmin,self.dEmax,len(par))
-        if(pdfname=="truncated_gaus"):     f = ROOT.TF1("f_"+name,truncated_gaus,self.dEmin,self.dEmax,len(par))
-        if(isBorysovIon):
-            g.SetLineColor(ROOT.kRed)
-        else:
-            for i in range(len(par)): f.SetParameter(i,par[i])
-            f.SetNpx(self.NptsTF1)
-            f.SetLineColor(ROOT.kRed)
         h = ROOT.TH1D("h_"+name,"h_"+title,self.Nbins,self.dEmin,self.dEmax)
-        for bb in range(1,h.GetNbinsX()+1):
-            x = h.GetBinCenter(bb)
-            y = g.Eval(x) if(isBorysovIon) else f.Eval(x)
-            if(x<dE_lowcut and dE_lowcut>0): y = 0 #TODO: is this cutoff physical?
-            if(x<=0 and isBorysovIon):       y = 0 #TODO: is this OK?
-            h.SetBinContent(bb,y)
+        if(self.BEBL):
+            bx = h.FindBin(par[0]) ## par[0] is meanLoss... 
+            h.SetBinContent(bx,1)
+        else:
+            f = None
+            g = None
+            isBorysovIon = (pdfname=="borysov_ionization")
+            if(pdfname=="borysov_ionization"): g = self.borysov_ionization(par) ### This is a graph!
+            if(pdfname=="borysov_excitation"): f = ROOT.TF1("f_"+name,borysov_excitation,self.dEmin,self.dEmax,len(par))
+            if(pdfname=="truncated_gaus"):     f = ROOT.TF1("f_"+name,truncated_gaus,self.dEmin,self.dEmax,len(par))
+            if(isBorysovIon):
+                g.SetLineColor(ROOT.kRed)
+            else:
+                for i in range(len(par)): f.SetParameter(i,par[i])
+                f.SetNpx(self.NptsTF1)
+                f.SetLineColor(ROOT.kRed)
+            for bb in range(1,h.GetNbinsX()+1):
+                x = h.GetBinCenter(bb)
+                y = g.Eval(x) if(isBorysovIon) else f.Eval(x)
+                if(x<dE_lowcut and dE_lowcut>0): y = 0 #TODO: is this cutoff physical?
+                if(x<=0 and isBorysovIon):       y = 0 #TODO: is this OK?
+                h.SetBinContent(bb,y)
+            ### TODO: implement the thick cases
         h.Scale(1./h.Integral())
         h.SetLineColor( ROOT.kRed )
         h.SetLineWidth( 1 )
@@ -245,11 +251,15 @@ class Model:
         pdfs.update({"hBorysov_Exc":  None})
         pdfs.update({"hTrncGaus_Ion": None})
         pdfs.update({"hTrncGaus_Exc": None})
-        if(self.BEBL): ## first the basic case where <dE/dx>*X is too small
-            # hModel = pdfs["hBorysov_Ion"].Clone("hModel");
-            # hModel.Reset();
-            pdfs["hModel"] = ROOT.TH1D("hModel","",self.Nbins,self.dEmin,self.dEmax)
-            pdfs["hModel"].SetLineColor(ROOT.kRed)
+        # pdfs.update({"hGauss_Thk":    None})
+        # pdfs.update({"hGamma_Thk":    None})
+        pdfs.update({"hBEBL_Thn":     None})
+        
+        pdfs["hModel"] = ROOT.TH1D("hModel","",self.Nbins,self.dEmin,self.dEmax)
+        pdfs["hModel"].SetLineColor(ROOT.kRed)
+        if(self.BEBL):
+            pdfs["hBEBL_Thn"] = self.get_pdf("bethebloch_min_model", "bethebloch_min_model", self.par_bethebloch_min)
+            print(f'PDF Integral: hBEBL_Thn={pdfs["hBEBL_Thn"].Integral()}')
         if(self.IONB and self.EX1B and self.IONG):
             pdfs["hBorysov_Ion"]  = self.get_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
             pdfs["hBorysov_Exc"]  = self.get_pdf("borysov_exc_model", "borysov_excitation", self.par_borysov_exc)
@@ -272,8 +282,7 @@ class Model:
         
         ### if meanLoss is too small return the meanLoss as single bin PDF
         if(self.BEBL):
-            bx = pdfs["hModel"].FindBin(self.meanLoss)
-            pdfs["hModel"].SetBinContent(bx,1)
+            for b in range(1,pdfs["hBEBL_Thn"].GetNbinsX()+1): pdfs["hModel"].SetBinContent(b, pdfs["hBEBL_Thn"].GetBinContent(b) )
             return pdfs
 
         ### Otherwise, constructe the model
@@ -291,7 +300,6 @@ class Model:
         aBorysov_Exc  = np.array(aBorysov_Exc)
         aTrncGaus_Ion = np.array(aTrncGaus_Ion)
         aTrncGaus_Exc = np.array(aTrncGaus_Exc)
-
         aScipyConv  = None
         aManualConv = None
         if(self.IONB and self.EX1B and self.IONG):
@@ -329,7 +337,7 @@ class Model:
         aConv = aManualConv if(self.convManual) else aScipyConv
         xConv = np.linspace(start=self.dEmin,stop=self.dEmax,num=len(aConv))
         gConv = ROOT.TGraph(len(aConv),xConv, aConv)
-        for b in range(1,pdfs["hModel"].GetNbinsX()+1):
+        for b in range(1,pdfs["hBorysov_Ion"].GetNbinsX()+1):
             # pdfs["hModel"].SetBinContent(b, aManualConv[b-1] if(self.convManual) else aScipyConv[b-1])
             xb = pdfs["hModel"].GetBinCenter(b)
             pdfs["hModel"].SetBinContent(b, gConv.Eval(xb+2*abs(self.dEmin)) )
