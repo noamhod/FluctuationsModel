@@ -54,11 +54,16 @@ print(modelpars)
 Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars)
 pdfs = Mod.get_model_pdfs()
 cdfs = Mod.get_cdfs(pdfs)
-pdfs_arrx,pdfs_arrsy = Mod.get_as_arrays(pdfs,Mod.scale)
-cdfs_arrx,cdfs_arrsy = Mod.get_as_arrays(cdfs,Mod.scale)
+pdfs_arrx, pdfs_arrsy = Mod.get_as_arrays(pdfs,Mod.scale)
+cdfs_arrx, cdfs_arrsy = Mod.get_as_arrays(cdfs,Mod.scale)
 titles = pdfs["hModel"].GetTitle()+";"+pdfs["hModel"].GetXaxis().GetTitle()+";"+pdfs["hModel"].GetXaxis().GetTitle()
 pdfs_scaled = Mod.get_pdfs_from_arrays(pdfs_arrx,pdfs_arrsy,titles)
 cdfs_scaled = Mod.get_cdfs(pdfs_scaled)
+pdfs_scaled_arrx, pdfs_scaled_arrsy = Mod.get_as_arrays(pdfs_scaled,Mod.scale)
+cdfs_scaled_arrx, cdfs_scaled_arrsy = Mod.get_as_arrays(cdfs_scaled,Mod.scale)
+
+
+
 
 #################################################
 #################################################
