@@ -53,21 +53,12 @@ print(modelpars)
 ### Build the model shapes
 Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars)
 pdfs = Mod.get_model_pdfs()
-
-
-#################################################
-#################################################
-#################################################
-
-# dEmean  = (model["Gauss"]["mean"]+model["Landau"]["mpv"])/2    if("Gauss" in model and "Landau" in model) else model["Landau"]["mpv"]
-# dEwidth = (model["Gauss"]["width"]+model["Landau"]["width"])/2 if("Gauss" in model and "Landau" in model) else model["Landau"]["width"]
-# dEmean  *= U.eV2MeV
-# dEwidth *= U.eV2MeV
-# dEmin_lin = dEmean-30*dEwidth if((dEmean-30*dEwidth)>0) else 0 #1e-5
-# dEmax_lin = dEmean+30*dEwidth
-# print(f"dEmean={dEmean}, dEwidth={dEwidth} --> range:[{dEmin_lin},{dEmax_lin}]")
-
-
+cdfs = Mod.get_cdfs(pdfs)
+pdfs_arrx,pdfs_arrsy = Mod.get_as_arrays(pdfs,Mod.scale)
+cdfs_arrx,cdfs_arrsy = Mod.get_as_arrays(cdfs,Mod.scale)
+titles = pdfs["hModel"].GetTitle()+";"+pdfs["hModel"].GetXaxis().GetTitle()+";"+pdfs["hModel"].GetXaxis().GetTitle()
+pdfs_scaled = Mod.get_pdfs_from_arrays(pdfs_arrx,pdfs_arrsy,titles)
+cdfs_scaled = Mod.get_cdfs(pdfs_scaled)
 
 #################################################
 #################################################
@@ -84,13 +75,8 @@ slicetitle = f"E={EE}#pm{WW*100}% [MeV], #Deltax={XX}#pm{WW*100}% [#mum]"
 hdE     = TH1D(slicename,slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
 hdE_cnt = TH1D(slicename+"_cnt",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
 hdE_sec = TH1D(slicename+"_sec",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
-# hdE_cnt_lin = TH1D(slicename+"_cnt_lin",slicetitle+";#DeltaE [MeV];Steps",1000,1e-4,1e-1)
-# hdE_cnt_lin = TH1D(slicename+"_cnt_lin",slicetitle+";#DeltaE [MeV];Steps",30,dEmin_lin,dEmax_lin)
-# hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE [MeV];Steps",30,dEmin_lin*U.MeV2eV/scaling,dEmax_lin*U.MeV2eV/scaling)
-# hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE [MeV];Steps",50,-2000,+10000)
-# hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE [MeV];Steps",50,0,+3000)
-hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE [MeV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
-hdE_cnt_lin_eV_noscale.GetXaxis().SetTitle( "#DeltaE (unscaled) [eV]" )
+hdE_cnt_lin_eV         = TH1D(slicename+"_cnt_lin_eV",slicetitle+";#DeltaE (scale included in MC, model axis is scaled) [eV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
+hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE (scale removed from MC, model is unscaled) [eV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
 
 
 #################################################
@@ -153,6 +139,7 @@ for n,enrgy in enumerate(X):
         hdE_sec.Fill(dEsec)
         hdE_cnt.Fill(dEcnt)
         # hdE_cnt_lin.Fill(dEcnt)
+        hdE_cnt_lin_eV.Fill(dEcnt*U.MeV2eV)
         hdE_cnt_lin_eV_noscale.Fill(dEcnt*U.MeV2eV if(Mod.BEBL or Mod.TGAU or Mod.TGAM) else dEcnt*U.MeV2eV/Mod.scale)
     
     if(n%1000000==0 and n>0): print("processed: ",n)
@@ -359,25 +346,91 @@ ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
 
-cnv = TCanvas("cnv","",500,500)
+legend = ROOT.TLegend(0.15, 0.75, 0.5, 0.88)
+legend.SetTextSize(0.032)
+legend.SetBorderSize(0)
+legend.SetFillStyle(0)
+legend.AddEntry(hdE_cnt_lin_eV_noscale, "GEANT4", 'L')
+modtitle = Mod.build.replace("->"," #otimes ").replace(".","")
+legend.AddEntry(pdfs["hModel"], "Model: "+modtitle, 'L')
+
+
+
+cnv = TCanvas("cnv","",1200,500)
+cnv.Divide(2,1)
+cnv.cd(1)
 ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetLogy()
 if(Mod.doLogx): ROOT.gPad.SetLogx()
 hdE_cnt_lin_eV_noscale.SetMinimum(0.5)
-print(f'Data: max={hdE_cnt_lin_eV_noscale.GetMaximum()}, integral={hdE_cnt_lin_eV_noscale.Integral()}')
-print(f'Before: model max={pdfs["hModel"].GetMaximum()}, integral={pdfs["hModel"].Integral()}')
-pdfs["hModel"].Scale( hdE_cnt_lin_eV_noscale.GetMaximum()/pdfs["hModel"].GetMaximum() )
-print(f'After: model max={pdfs["hModel"].GetMaximum()}, integral={pdfs["hModel"].Integral()}')
-hdE_cnt_lin_eV_noscale.SetMaximum(1.2 * hdE_cnt_lin_eV_noscale.GetMaximum() )
+pdfModel = pdfs["hModel"].Clone(pdfs["hModel"].GetName()+"_clone")
+pdfModel.Scale( hdE_cnt_lin_eV_noscale.GetMaximum()/pdfModel.GetMaximum() )
 hdE_cnt_lin_eV_noscale.SetLineWidth(1)
 hdE_cnt_lin_eV_noscale.SetLineColor(ROOT.kBlack)
 hdE_cnt_lin_eV_noscale.SetMarkerColor(ROOT.kBlack)
 hdE_cnt_lin_eV_noscale.SetMarkerStyle(20)
 hdE_cnt_lin_eV_noscale.SetMarkerSize(0.6)
 hdE_cnt_lin_eV_noscale.Draw("hist")
-pdfs["hModel"].Draw("hist same")
+pdfModel.Draw("hist same")
+legend.Draw("same")
+ROOT.gPad.RedrawAxis()
+cnv.cd(2)
+ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetLogy()
+if(Mod.doLogx): ROOT.gPad.SetLogx()
+hdE_cnt_lin_eV_noscale_clone = hdE_cnt_lin_eV_noscale.Clone(hdE_cnt_lin_eV_noscale.GetName()+"_clone")
+hdE_cnt_lin_eV_noscale_clone.Scale(1./hdE_cnt_lin_eV_noscale_clone.Integral())
+hdE_cnt_lin_eV_noscale_clone.GetCumulative().Draw("hist")
+cdfs["hModel"].Draw("hist same")
+legend.Draw("same")
+ROOT.gPad.RedrawAxis()
+cnv.SaveAs(pdf)
+
+
+cnv = TCanvas("cnv","",1200,500)
+cnv.Divide(2,1)
+cnv.cd(1)
+ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetLogy()
+if(Mod.doLogx): ROOT.gPad.SetLogx()
+hdE_cnt_lin_eV_noscale.SetMinimum(0.5)
+pdfModel = pdfs_scaled["hModel"].Clone(pdfs_scaled["hModel"].GetName()+"_clone")
+pdfModel.Scale( hdE_cnt_lin_eV.GetMaximum()/pdfModel.GetMaximum() )
+hdE_cnt_lin_eV.SetLineWidth(1)
+hdE_cnt_lin_eV.SetLineColor(ROOT.kBlack)
+hdE_cnt_lin_eV.SetMarkerColor(ROOT.kBlack)
+hdE_cnt_lin_eV.SetMarkerStyle(20)
+hdE_cnt_lin_eV.SetMarkerSize(0.6)
+hdE_cnt_lin_eV.Draw("hist")
+pdfModel.Draw("hist same")
+legend.Draw("same")
+ROOT.gPad.RedrawAxis()
+cnv.cd(2)
+ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetLogy()
+if(Mod.doLogx): ROOT.gPad.SetLogx()
+hdE_cnt_lin_eV_clone = hdE_cnt_lin_eV.Clone(hdE_cnt_lin_eV.GetName()+"_clone")
+hdE_cnt_lin_eV_clone.Scale(1./hdE_cnt_lin_eV_clone.Integral())
+hdE_cnt_lin_eV_clone.GetCumulative().Draw("hist")
+cdfs_scaled["hModel"].Draw("hist same")
+legend.Draw("same")
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf+")")
+
+
+# cnv = TCanvas("cnv","",500,500)
+# ROOT.gPad.SetTicks(1,1)
+# ROOT.gPad.SetLogy()
+# if(Mod.doLogx): ROOT.gPad.SetLogx()
+# hdE_cnt_lin_eV_noscale.Rebin(100)
+# pdfs["hModel"].Rebin(100)
+# pdfs["hModel"].Scale( hdE_cnt_lin_eV_noscale.GetMaximum()/pdfs["hModel"].GetMaximum() )
+# hdE_cnt_lin_eV_noscale.Draw("hist")
+# pdfs["hModel"].Draw("hist same")
+# ROOT.gPad.RedrawAxis()
+# cnv.SaveAs(pdf+")")
+
+
 
 
 ### write to root file

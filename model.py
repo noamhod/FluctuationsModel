@@ -352,3 +352,52 @@ class Model:
         pdfs["hModel"].Scale(1./pdfs["hModel"].Integral())
         print(f'hModel={pdfs["hModel"].GetNbinsX()}, aConv={len(aConv)}')
         return pdfs
+    
+    def get_cdfs(self,pdfs):
+        cdfs = {}
+        for name,pdf in pdfs.items():
+            if(pdf==None): continue
+            cdfs.update( {name : pdf.GetCumulative().Clone(name+"_cdf")} )
+            cdfs[name].GetYaxis().SetTitle( cdfs[name].GetYaxis().GetTitle()+" (cumulative)" )
+        return cdfs
+    
+    def get_as_arrays(self,shapes,doScale=False):
+        arrx  = []
+        arrsy = {}
+        rescale = (doScale and (self.IONB or self.EX1B or self.IONG or self.EX1G))
+        for name,shape in shapes.items():
+            if(shape==None): continue
+            if(len(arrx)==0):
+                for b in range(1,shape.GetNbinsX()+1):
+                    x = shape.GetBinCenter(b)
+                    if(rescale): x *= self.scale
+                    arrx.append(x)
+                arrx = np.array(arrx)
+            arry = []
+            for b in range(1,shape.GetNbinsX()+1):
+                arry.append( shape.GetBinContent(b) )
+            arry = np.array(arry)
+            arrsy.update( {name : arry} )
+        return arrx,arrsy
+        
+    def get_pdfs_from_arrays(self,arrx,arrsy,titles):
+        pdfs = {}
+        Nbins = len(arrx)
+        dEbin = arrx[1]-arrx[0]
+        dEmin = arrx[0]-dEbin/2.
+        dEmax = arrx[-1]+dEbin/2.
+        for name,arry in arrsy.items():
+            h = ROOT.TH1D(name,titles,Nbins,dEmin,dEmax)
+            for i in range(len(arrx)):
+                xa = arrx[i]
+                xh = h.GetBinCenter(i+1)
+                if(abs(xa-xh)/xa>1e-6): print(f"xa={xa}, xh={xh}")
+                y = h.SetBinContent(i+1, arry[i])
+            pdfs.update({name:h})
+            h.Scale(1./h.Integral())
+            h.SetLineColor( ROOT.kRed )
+            h.SetLineWidth( 1 )
+        return pdfs
+            
+    
+    
