@@ -3,7 +3,6 @@ import array
 import numpy as np
 import ROOT
 import units as U
-import matplotlib.pyplot as plt
 from scipy.fft import fft, fftfreq, rfft, irfft
 from scipy.special import sici, exp1
 from scipy.signal import convolve, fftconvolve
@@ -398,6 +397,15 @@ class Model:
             h.SetLineColor( ROOT.kRed )
             h.SetLineWidth( 1 )
         return pdfs
-            
-    
+        
+    def set_all_shapes(self):
+        self.pdfs = self.get_model_pdfs()
+        self.cdfs = self.get_cdfs(self.pdfs)
+        self.pdfs_arrx, self.pdfs_arrsy = self.get_as_arrays(self.pdfs, self.scale)
+        self.cdfs_arrx, self.cdfs_arrsy = self.get_as_arrays(self.cdfs, self.scale)
+        titles = self.pdfs["hModel"].GetTitle()+";"+self.pdfs["hModel"].GetXaxis().GetTitle()+";"+self.pdfs["hModel"].GetXaxis().GetTitle()
+        self.pdfs_scaled = self.get_pdfs_from_arrays(self.pdfs_arrx,self.pdfs_arrsy,titles)
+        self.cdfs_scaled = self.get_cdfs(self.pdfs_scaled)
+        self.pdfs_scaled_arrx, self.pdfs_scaled_arrsy = self.get_as_arrays(self.pdfs_scaled, self.scale)
+        self.cdfs_scaled_arrx, self.cdfs_scaled_arrsy = self.get_as_arrays(self.cdfs_scaled, self.scale)
     

@@ -3,7 +3,6 @@ import math
 import array
 import numpy as np
 import ROOT
-from ROOT import TH1D, TH2D, TCanvas, TFile, TLine, TLatex, TLegend
 import constants as C
 import units as U
 import material as mat
@@ -52,15 +51,17 @@ print(modelpars)
 ######################################################
 ### Build the model shapes
 Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars)
-pdfs = Mod.get_model_pdfs()
-cdfs = Mod.get_cdfs(pdfs)
-pdfs_arrx, pdfs_arrsy = Mod.get_as_arrays(pdfs,Mod.scale)
-cdfs_arrx, cdfs_arrsy = Mod.get_as_arrays(cdfs,Mod.scale)
-titles = pdfs["hModel"].GetTitle()+";"+pdfs["hModel"].GetXaxis().GetTitle()+";"+pdfs["hModel"].GetXaxis().GetTitle()
-pdfs_scaled = Mod.get_pdfs_from_arrays(pdfs_arrx,pdfs_arrsy,titles)
-cdfs_scaled = Mod.get_cdfs(pdfs_scaled)
-pdfs_scaled_arrx, pdfs_scaled_arrsy = Mod.get_as_arrays(pdfs_scaled,Mod.scale)
-cdfs_scaled_arrx, cdfs_scaled_arrsy = Mod.get_as_arrays(cdfs_scaled,Mod.scale)
+Mod.set_all_shapes()
+pdfs              = Mod.pdfs ## dict name-->TH1D
+cdfs              = Mod.cdfs ## dict name-->TH1D
+pdfs_scaled       = Mod.pdfs_scaled ## dict name-->TH1D
+cdfs_scaled       = Mod.cdfs_scaled ## dict name-->TH1D
+pdfs_scaled_arrx  = Mod.pdfs_scaled_arrx  ## np.array
+pdfs_scaled_arrsy = Mod.pdfs_scaled_arrsy ## dict name-->np.array
+cdfs_scaled_arrx  = Mod.cdfs_scaled_arrx  ## np.array
+cdfs_scaled_arrsy = Mod.cdfs_scaled_arrsy ## dict name-->np.array
+#TODO: Rotem you only need cdfs_scaled_arrx and cdfs_scaled_arrsy["hModel"]
+
 
 
 
@@ -77,11 +78,11 @@ dEmax = 1.
 ndEbins,dEbins = bins.GetLogBinning(80,dEmin,dEmax)
 slicename  =  f"dE_E{EE}MeV_X{XX}um"
 slicetitle = f"E={EE}#pm{WW*100}% [MeV], #Deltax={XX}#pm{WW*100}% [#mum]"
-hdE     = TH1D(slicename,slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
-hdE_cnt = TH1D(slicename+"_cnt",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
-hdE_sec = TH1D(slicename+"_sec",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
-hdE_cnt_lin_eV         = TH1D(slicename+"_cnt_lin_eV",slicetitle+";#DeltaE (scale included in MC, model axis is scaled) [eV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
-hdE_cnt_lin_eV_noscale = TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE (scale removed from MC, model is unscaled) [eV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
+hdE     = ROOT.TH1D(slicename,slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
+hdE_cnt = ROOT.TH1D(slicename+"_cnt",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
+hdE_sec = ROOT.TH1D(slicename+"_sec",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
+hdE_cnt_lin_eV         = ROOT.TH1D(slicename+"_cnt_lin_eV",slicetitle+";#DeltaE (scale included in MC, model axis is scaled) [eV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
+hdE_cnt_lin_eV_noscale = ROOT.TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE (scale removed from MC, model is unscaled) [eV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
 
 
 #################################################
@@ -227,14 +228,14 @@ hBB_G4.SetLineStyle(ROOT.kDotted)
 ### plot everything
 pdf = "readtest.pdf"
 
-cnv = TCanvas("cnv","",500,500)
+cnv = ROOT.TCanvas("cnv","",500,500)
 ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetTicks(1,1)
 histos["hdEdx"].Draw("hist")
 histos["hdEdx_sec"].Draw("hist same")
 histos["hdEdx_cnt"].Draw("hist same")
-leg = TLegend(0.5,0.7,0.8,0.88)
+leg = ROOT.TLegend(0.5,0.7,0.8,0.88)
 leg.SetFillStyle(4000) # will be transparent
 leg.SetFillColor(0)
 leg.SetTextFont(42)
@@ -246,14 +247,14 @@ leg.Draw("same")
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf+"(")
 
-cnv = TCanvas("cnv","",500,500)
+cnv = ROOT.TCanvas("cnv","",500,500)
 ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetTicks(1,1)
 histos["hdE"].Draw("hist")
 histos["hdE_sec"].Draw("hist same")
 histos["hdE_cnt"].Draw("hist same")
-leg = TLegend(0.15,0.7,0.45,0.88)
+leg = ROOT.TLegend(0.15,0.7,0.45,0.88)
 leg.SetFillStyle(4000) # will be transparent
 leg.SetFillColor(0)
 leg.SetTextFont(42)
@@ -265,7 +266,7 @@ leg.Draw("same")
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
-cnv = TCanvas("cnv","",500,500)
+cnv = ROOT.TCanvas("cnv","",500,500)
 ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetTicks(1,1)
@@ -273,7 +274,7 @@ histos["hdx"].Draw("hist")
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
-cnv = TCanvas("cnv","",500,500)
+cnv = ROOT.TCanvas("cnv","",500,500)
 ROOT.gPad.SetLogy()
 # ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogz()
@@ -282,8 +283,8 @@ histos["hdx_vs_E"].Draw("colz")
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
-cnv = TCanvas("cnv","",1500,500)
-leg = TLegend(0.5,0.7,0.8,0.88)
+cnv = ROOT.TCanvas("cnv","",1500,500)
+leg = ROOT.TLegend(0.5,0.7,0.8,0.88)
 leg.SetFillStyle(4000) # will be transparent
 leg.SetFillColor(0)
 leg.SetTextFont(42)
@@ -332,13 +333,13 @@ ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
 
-cnv = TCanvas("cnv","",500,500)
+cnv = ROOT.TCanvas("cnv","",500,500)
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetTicks(1,1)
 hdE.Draw("hist")
 hdE_sec.Draw("hist same")
 hdE_cnt.Draw("hist same")
-leg = TLegend(0.55,0.7,0.8,0.88)
+leg = ROOT.TLegend(0.55,0.7,0.8,0.88)
 leg.SetFillStyle(4000) # will be transparent
 leg.SetFillColor(0)
 leg.SetTextFont(42)
@@ -361,7 +362,7 @@ legend.AddEntry(pdfs["hModel"], "Model: "+modtitle, 'L')
 
 
 
-cnv = TCanvas("cnv","",1200,500)
+cnv = ROOT.TCanvas("cnv","",1200,500)
 cnv.Divide(2,1)
 cnv.cd(1)
 ROOT.gPad.SetTicks(1,1)
@@ -392,7 +393,7 @@ ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
 
-cnv = TCanvas("cnv","",1200,500)
+cnv = ROOT.TCanvas("cnv","",1200,500)
 cnv.Divide(2,1)
 cnv.cd(1)
 ROOT.gPad.SetTicks(1,1)
@@ -423,7 +424,7 @@ ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf+")")
 
 
-# cnv = TCanvas("cnv","",500,500)
+# cnv = ROOT.TCanvas("cnv","",500,500)
 # ROOT.gPad.SetTicks(1,1)
 # ROOT.gPad.SetLogy()
 # if(Mod.doLogx): ROOT.gPad.SetLogx()
