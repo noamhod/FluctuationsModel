@@ -445,16 +445,20 @@ class Model:
         return pdfs
         
     def set_all_shapes(self):
-        self.pdfs = self.get_model_pdfs()
+        ### get the basic pdfs
+        self.cnt_pdfs = self.get_model_pdfs()
         self.sec_pdfs = self.get_secondaries_pdfs()
-        self.cdfs = self.get_cdfs(self.pdfs)
+        ### make the cdfs from the pdfs
+        self.cnt_cdfs = self.get_cdfs(self.cnt_pdfs)
         self.sec_cdfs = self.get_cdfs(self.sec_pdfs)
-        self.pdfs_arrx, self.pdfs_arrsy = self.get_as_arrays(self.pdfs, self.scale)
+        ### get as arrays
+        self.cnt_pdfs_arrx, self.cnt_pdfs_arrsy = self.get_as_arrays(self.cnt_pdfs, self.scale)
         self.sec_pdfs_arrx, self.sec_pdfs_arrsy = self.get_as_arrays(self.sec_pdfs,1)
-        self.cdfs_arrx, self.cdfs_arrsy = self.get_as_arrays(self.cdfs, self.scale)
+        self.cnt_cdfs_arrx, self.cnt_cdfs_arrsy = self.get_as_arrays(self.cnt_cdfs, self.scale)
         self.sec_cdfs_arrx, self.sec_cdfs_arrsy = self.get_as_arrays(self.sec_cdfs,1)
-        titles = self.pdfs["hModel"].GetTitle()+";"+self.pdfs["hModel"].GetXaxis().GetTitle()+";"+self.pdfs["hModel"].GetXaxis().GetTitle()
-        self.pdfs_scaled = self.get_pdfs_from_arrays(self.pdfs_arrx,self.pdfs_arrsy,titles)
-        self.cdfs_scaled = self.get_cdfs(self.pdfs_scaled)
-        self.pdfs_scaled_arrx, self.pdfs_scaled_arrsy = self.get_as_arrays(self.pdfs_scaled, self.scale)
-        self.cdfs_scaled_arrx, self.cdfs_scaled_arrsy = self.get_as_arrays(self.cdfs_scaled, self.scale)
+        ### get as scaled arrays
+        titles = self.cnt_pdfs["hModel"].GetTitle()+";"+self.cnt_pdfs["hModel"].GetXaxis().GetTitle()+";"+self.cnt_pdfs["hModel"].GetXaxis().GetTitle()
+        self.cnt_pdfs_scaled = self.get_pdfs_from_arrays(self.cnt_pdfs_arrx,self.cnt_pdfs_arrsy,titles)
+        self.cnt_cdfs_scaled = self.get_cdfs(self.cnt_pdfs_scaled)
+        self.cnt_pdfs_scaled_arrx, self.cnt_pdfs_scaled_arrsy = self.get_as_arrays(self.cnt_pdfs_scaled, self.scale)
+        self.cnt_cdfs_scaled_arrx, self.cnt_cdfs_scaled_arrsy = self.get_as_arrays(self.cnt_cdfs_scaled, self.scale)

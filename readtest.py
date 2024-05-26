@@ -52,16 +52,16 @@ print(modelpars)
 ### Build the model shapes
 Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars)
 Mod.set_all_shapes()
-pdfs              = Mod.pdfs ## dict name-->TH1D
-cdfs              = Mod.cdfs ## dict name-->TH1D
+cnt_pdfs          = Mod.cnt_pdfs ## dict name-->TH1D
+cnt_cdfs          = Mod.cnt_cdfs ## dict name-->TH1D
 sec_pdfs          = Mod.sec_pdfs ## dict name-->TH1D
 sec_cdfs          = Mod.sec_cdfs ## dict name-->TH1D
-pdfs_scaled       = Mod.pdfs_scaled ## dict name-->TH1D
-cdfs_scaled       = Mod.cdfs_scaled ## dict name-->TH1D
-pdfs_scaled_arrx  = Mod.pdfs_scaled_arrx  ## np.array
-pdfs_scaled_arrsy = Mod.pdfs_scaled_arrsy ## dict name-->np.array
-cdfs_scaled_arrx  = Mod.cdfs_scaled_arrx  ## np.array
-cdfs_scaled_arrsy = Mod.cdfs_scaled_arrsy ## dict name-->np.array
+cnt_pdfs_scaled   = Mod.cnt_pdfs_scaled ## dict name-->TH1D
+cnt_cdfs_scaled   = Mod.cnt_cdfs_scaled ## dict name-->TH1D
+cnt_pdfs_scaled_arrx  = Mod.cnt_pdfs_scaled_arrx  ## np.array
+cnt_pdfs_scaled_arrsy = Mod.cnt_pdfs_scaled_arrsy ## dict name-->np.array
+cnt_cdfs_scaled_arrx  = Mod.cnt_cdfs_scaled_arrx  ## np.array
+cnt_cdfs_scaled_arrsy = Mod.cnt_cdfs_scaled_arrsy ## dict name-->np.array
 sec_pdfs_arrx  = Mod.sec_pdfs_arrx  ## np.array
 sec_pdfs_arrsy = Mod.sec_pdfs_arrsy ## dict name-->np.array
 sec_cdfs_arrx  = Mod.sec_cdfs_arrx  ## np.array
@@ -367,7 +367,7 @@ legend.SetBorderSize(0)
 legend.SetFillStyle(0)
 legend.AddEntry(hdE_cnt_lin_eV_noscale, "GEANT4", 'L')
 modtitle = Mod.build.replace("->"," #otimes ").replace(".","")
-legend.AddEntry(pdfs["hModel"], "Model: "+modtitle, 'L')
+legend.AddEntry(cnt_pdfs["hModel"], "Model: "+modtitle, 'L')
 
 
 
@@ -378,7 +378,7 @@ ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetLogy()
 if(Mod.doLogx): ROOT.gPad.SetLogx()
 hdE_cnt_lin_eV_noscale.SetMinimum(0.5)
-pdfModel = pdfs["hModel"].Clone(pdfs["hModel"].GetName()+"_clone")
+pdfModel = cnt_pdfs["hModel"].Clone(cnt_pdfs["hModel"].GetName()+"_clone")
 pdfModel.Scale( hdE_cnt_lin_eV_noscale.GetMaximum()/pdfModel.GetMaximum() )
 hdE_cnt_lin_eV_noscale.SetLineWidth(1)
 hdE_cnt_lin_eV_noscale.SetLineColor(ROOT.kBlack)
@@ -396,7 +396,7 @@ if(Mod.doLogx): ROOT.gPad.SetLogx()
 hdE_cnt_lin_eV_noscale_clone = hdE_cnt_lin_eV_noscale.Clone(hdE_cnt_lin_eV_noscale.GetName()+"_clone")
 hdE_cnt_lin_eV_noscale_clone.Scale(1./hdE_cnt_lin_eV_noscale_clone.Integral())
 hdE_cnt_lin_eV_noscale_clone.GetCumulative().Draw("hist")
-cdfs["hModel"].Draw("hist same")
+cnt_cdfs["hModel"].Draw("hist same")
 legend.Draw("same")
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
@@ -409,7 +409,7 @@ ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetLogy()
 if(Mod.doLogx): ROOT.gPad.SetLogx()
 hdE_cnt_lin_eV.SetMinimum(0.5)
-pdfModel = pdfs_scaled["hModel"].Clone(pdfs_scaled["hModel"].GetName()+"_clone")
+pdfModel = cnt_pdfs_scaled["hModel"].Clone(cnt_pdfs_scaled["hModel"].GetName()+"_clone")
 pdfModel.Scale( hdE_cnt_lin_eV.GetMaximum()/pdfModel.GetMaximum() )
 hdE_cnt_lin_eV.SetLineWidth(1)
 hdE_cnt_lin_eV.SetLineColor(ROOT.kBlack)
@@ -427,7 +427,7 @@ if(Mod.doLogx): ROOT.gPad.SetLogx()
 hdE_cnt_lin_eV_clone = hdE_cnt_lin_eV.Clone(hdE_cnt_lin_eV.GetName()+"_clone")
 hdE_cnt_lin_eV_clone.Scale(1./hdE_cnt_lin_eV_clone.Integral())
 hdE_cnt_lin_eV_clone.GetCumulative().Draw("hist")
-cdfs_scaled["hModel"].Draw("hist same")
+cnt_cdfs_scaled["hModel"].Draw("hist same")
 legend.Draw("same")
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
@@ -476,10 +476,10 @@ cnv.SaveAs(pdf+")")
 # ROOT.gPad.SetLogy()
 # if(Mod.doLogx): ROOT.gPad.SetLogx()
 # hdE_cnt_lin_eV_noscale.Rebin(100)
-# pdfs["hModel"].Rebin(100)
-# pdfs["hModel"].Scale( hdE_cnt_lin_eV_noscale.GetMaximum()/pdfs["hModel"].GetMaximum() )
+# cnt_pdfs["hModel"].Rebin(100)
+# cnt_pdfs["hModel"].Scale( hdE_cnt_lin_eV_noscale.GetMaximum()/cnt_pdfs["hModel"].GetMaximum() )
 # hdE_cnt_lin_eV_noscale.Draw("hist")
-# pdfs["hModel"].Draw("hist same")
+# cnt_pdfs["hModel"].Draw("hist same")
 # ROOT.gPad.RedrawAxis()
 # cnv.SaveAs(pdf+")")
 
