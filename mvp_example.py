@@ -49,18 +49,22 @@ print(f"- define model:   {elapsed_model} [s]")
 print(f"- get shapes:     {elapsed_shapes} [s]")
 
 ### these are all the possible outputs (besides some other class variables)
-# pdfs              = Mod.pdfs ## dict name-->TH1D
-# cdfs              = Mod.cdfs ## dict name-->TH1D
-# pdfs_scaled       = Mod.pdfs_scaled ## dict name-->TH1D
-# cdfs_scaled       = Mod.cdfs_scaled ## dict name-->TH1D
-# pdfs_scaled_arrx  = Mod.pdfs_scaled_arrx  ## np.array
-# pdfs_scaled_arrsy = Mod.pdfs_scaled_arrsy ## dict name-->np.array
-cdfs_scaled_arrx  = Mod.cdfs_scaled_arrx  ## np.array
-cdfs_scaled_arrsy = Mod.cdfs_scaled_arrsy ## dict name-->np.array
-#TODO: Rotem you only need cdfs_scaled_arrx and cdfs_scaled_arrsy["hModel"]
-
-
-plt.plot(cdfs_scaled_arrx, cdfs_scaled_arrsy["hModel"])
-plt.title('Minimum viable example for model: '+Mod.build)
+# cnt_pdfs              = Mod.cnt_pdfs ## dict name-->TH1D
+# cnt_cdfs              = Mod.cnt_cdfs ## dict name-->TH1D
+# cnt_pdfs_scaled       = Mod.cnt_pdfs_scaled ## dict name-->TH1D
+# cnt_cdfs_scaled       = Mod.cnt_cdfs_scaled ## dict name-->TH1D
+# cnt_pdfs_scaled_arrx  = Mod.cnt_pdfs_scaled_arrx  ## np.array
+# cnt_pdfs_scaled_arrsy = Mod.cnt_pdfs_scaled_arrsy ## dict name-->np.array
+cnt_cdfs_scaled_arrx  = Mod.cnt_cdfs_scaled_arrx  ## np.array
+cnt_cdfs_scaled_arrsy = Mod.cnt_cdfs_scaled_arrsy ## dict name-->np.array
+plt.plot(cnt_cdfs_scaled_arrx, cnt_cdfs_scaled_arrsy["hModel"])
+plt.title('Minimum viable example for continuous model: '+Mod.build)
 plt.show()
+
+sec_cdfs_arrx  = Mod.sec_cdfs_arrx  ## np.array
+sec_cdfs_arrsy = Mod.sec_cdfs_arrsy ## dict name-->np.array
+plt.plot(sec_cdfs_arrx, sec_cdfs_arrsy["hBorysov_Sec"])
+plt.title('Minimum viable example for secondary model: '+Mod.build)
+plt.show()
+
 
