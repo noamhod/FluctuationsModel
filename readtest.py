@@ -54,12 +54,18 @@ Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars)
 Mod.set_all_shapes()
 pdfs              = Mod.pdfs ## dict name-->TH1D
 cdfs              = Mod.cdfs ## dict name-->TH1D
+sec_pdfs          = Mod.sec_pdfs ## dict name-->TH1D
+sec_cdfs          = Mod.sec_cdfs ## dict name-->TH1D
 pdfs_scaled       = Mod.pdfs_scaled ## dict name-->TH1D
 cdfs_scaled       = Mod.cdfs_scaled ## dict name-->TH1D
 pdfs_scaled_arrx  = Mod.pdfs_scaled_arrx  ## np.array
 pdfs_scaled_arrsy = Mod.pdfs_scaled_arrsy ## dict name-->np.array
 cdfs_scaled_arrx  = Mod.cdfs_scaled_arrx  ## np.array
 cdfs_scaled_arrsy = Mod.cdfs_scaled_arrsy ## dict name-->np.array
+sec_pdfs_arrx  = Mod.sec_pdfs_arrx  ## np.array
+sec_pdfs_arrsy = Mod.sec_pdfs_arrsy ## dict name-->np.array
+sec_cdfs_arrx  = Mod.sec_cdfs_arrx  ## np.array
+sec_cdfs_arrsy = Mod.sec_cdfs_arrsy ## dict name-->np.array
 #TODO: Rotem you only need cdfs_scaled_arrx and cdfs_scaled_arrsy["hModel"]
 
 
@@ -83,6 +89,8 @@ hdE_cnt = ROOT.TH1D(slicename+"_cnt",slicetitle+";#DeltaE [MeV];Steps",len(dEbin
 hdE_sec = ROOT.TH1D(slicename+"_sec",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
 hdE_cnt_lin_eV         = ROOT.TH1D(slicename+"_cnt_lin_eV",slicetitle+";#DeltaE (scale included in MC, model axis is scaled) [eV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
 hdE_cnt_lin_eV_noscale = ROOT.TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE (scale removed from MC, model is unscaled) [eV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
+hdE_sec_lin_eV         = ROOT.TH1D(slicename+"_sec_lin_eV",slicetitle+";#DeltaE [eV];Steps",Mod.NbinsSec,Mod.dEminSec,Mod.dEmaxSec)
+
 
 
 #################################################
@@ -147,6 +155,7 @@ for n,enrgy in enumerate(X):
         # hdE_cnt_lin.Fill(dEcnt)
         hdE_cnt_lin_eV.Fill(dEcnt*U.MeV2eV)
         hdE_cnt_lin_eV_noscale.Fill(dEcnt*U.MeV2eV if(Mod.BEBL or Mod.TGAU or Mod.TGAM) else dEcnt*U.MeV2eV/Mod.scale)
+        hdE_sec_lin_eV.Fill(dEsec*U.MeV2eV)
     
     if(n%1000000==0 and n>0): print("processed: ",n)
     if(n>NN and NN>0): break
@@ -399,7 +408,7 @@ cnv.cd(1)
 ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetLogy()
 if(Mod.doLogx): ROOT.gPad.SetLogx()
-hdE_cnt_lin_eV_noscale.SetMinimum(0.5)
+hdE_cnt_lin_eV.SetMinimum(0.5)
 pdfModel = pdfs_scaled["hModel"].Clone(pdfs_scaled["hModel"].GetName()+"_clone")
 pdfModel.Scale( hdE_cnt_lin_eV.GetMaximum()/pdfModel.GetMaximum() )
 hdE_cnt_lin_eV.SetLineWidth(1)
@@ -419,6 +428,44 @@ hdE_cnt_lin_eV_clone = hdE_cnt_lin_eV.Clone(hdE_cnt_lin_eV.GetName()+"_clone")
 hdE_cnt_lin_eV_clone.Scale(1./hdE_cnt_lin_eV_clone.Integral())
 hdE_cnt_lin_eV_clone.GetCumulative().Draw("hist")
 cdfs_scaled["hModel"].Draw("hist same")
+legend.Draw("same")
+ROOT.gPad.RedrawAxis()
+cnv.SaveAs(pdf)
+
+
+legend = ROOT.TLegend(0.15, 0.75, 0.5, 0.88)
+legend.SetTextSize(0.032)
+legend.SetBorderSize(0)
+legend.SetFillStyle(0)
+legend.AddEntry(hdE_sec_lin_eV, "GEANT4", 'L')
+legend.AddEntry(sec_pdfs["hBorysov_Sec"], "Model: Secondaries", 'L')
+
+cnv = ROOT.TCanvas("cnv","",1200,500)
+cnv.Divide(2,1)
+cnv.cd(1)
+ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetLogy()
+if(Mod.doLogx): ROOT.gPad.SetLogx()
+hdE_sec_lin_eV.SetMinimum(0.5)
+pdfModel = sec_pdfs["hBorysov_Sec"].Clone(sec_pdfs["hBorysov_Sec"].GetName()+"_clone")
+pdfModel.Scale( hdE_sec_lin_eV.GetMaximum()/pdfModel.GetMaximum() )
+hdE_sec_lin_eV.SetLineWidth(1)
+hdE_sec_lin_eV.SetLineColor(ROOT.kBlack)
+hdE_sec_lin_eV.SetMarkerColor(ROOT.kBlack)
+hdE_sec_lin_eV.SetMarkerStyle(20)
+hdE_sec_lin_eV.SetMarkerSize(0.6)
+hdE_sec_lin_eV.Draw("hist")
+pdfModel.Draw("hist same")
+legend.Draw("same")
+ROOT.gPad.RedrawAxis()
+cnv.cd(2)
+ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetLogy()
+if(Mod.doLogx): ROOT.gPad.SetLogx()
+hdE_sec_lin_eV_clone = hdE_sec_lin_eV.Clone(hdE_sec_lin_eV.GetName()+"_clone")
+hdE_sec_lin_eV_clone.Scale(1./hdE_sec_lin_eV_clone.Integral())
+hdE_sec_lin_eV_clone.GetCumulative().Draw("hist")
+sec_cdfs["hBorysov_Sec"].Draw("hist same")
 legend.Draw("same")
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf+")")

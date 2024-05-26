@@ -26,6 +26,7 @@ class ToyMC:
         print(f"Generating for slice {self.point}")
     
     def Generate(self,Nsteps):
+        SECB = self.model.SECB
         BEBL = self.model.BEBL
         IONB = self.model.IONB
         EX1B = self.model.EX1B
@@ -34,6 +35,7 @@ class ToyMC:
         
         histos = {}
         histos.update(           { "hTotal":        ROOT.TH1D("hTotal",       "Toy Data vs FULL Model for "+self.point+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
+        if(SECB): histos.update( { "hSecondaries":  ROOT.TH1D("hSecondaries", "Toy Data vs SECB Model for "+self.point+";#DeltaE [eV];Steps",self.model.NbinsSec,self.model.dEminSec,self.model.dEmaxSec) } )
         if(IONB): histos.update( { "hIon_non_gaus": ROOT.TH1D("hIon_non_gaus","Toy Data vs IONB Model for "+self.point+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
         if(EX1B): histos.update( { "hExc_non_gaus": ROOT.TH1D("hExc_non_gaus","Toy Data vs EX1B Model for "+self.point+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
         if(IONG): histos.update( { "hIon_gaus":     ROOT.TH1D("hIon_gaus",    "Toy Data vs IONG Model for "+self.point+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
@@ -49,14 +51,30 @@ class ToyMC:
             ### monitor
             if(i>0 and i%1000000==0): print(f"Processed {i} events")
             ### initialize
+            eloss_Sec          = 0
             eloss_Exc_non_gaus = 0
             eloss_Ion_non_gaus = 0
             eloss_Exc_gaus     = 0
             eloss_Ion_gaus     = 0
+            SECBCOND = False
             EX1BCOND = False
             IONBCOND = False
             EX1GCOND = False
             IONGCOND = False
+    
+            ### 
+            if(SECB):
+                x0 = self.rnd.Uniform()
+                x1 = self.rnd.Uniform()
+                f  = -1
+                while(self.model.fmax*x1>f):
+                    eloss_Sec = self.model.EkinMin*self.model.EkinMax/(self.model.EkinMin*(1.-x0)+self.model.EkinMax*x1)
+                    f = 1.-self.model.b2*eloss_Sec/self.model.Tmax
+                    if(self.model.spin>0.5):
+                        f1 = 0.5*(eloss_Sec**2)/self.model.Etot
+                        f += f1
+                    if(self.model.fmax*x1>f): break
+                histos["hSecondaries"].Fill( eloss_Sec )
     
             ### if average loss is smaller than 10 eV, take the averge loss
             if(BEBL):

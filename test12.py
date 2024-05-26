@@ -131,6 +131,19 @@ ROOT.gPad.SetRightMargin(0.1)
 if(Mod.EX1B and not Mod.BEBL):
     histos["hExc_non_gaus"].DrawNormalized("ep")
     pdfs["hBorysov_Exc"].DrawNormalized("hist same")
+
+canvas.cd(3)
+ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetGridx()
+ROOT.gPad.SetGridy()
+ROOT.gPad.SetLogy()
+if(Mod.doLogx): ROOT.gPad.SetLogx()
+ROOT.gPad.SetLeftMargin(0.15)
+ROOT.gPad.SetRightMargin(0.1)
+if(Mod.SECB and not Mod.BEBL):
+    histos["hSecondaries"].DrawNormalized("ep")
+    pdfs["hBorysov_Sec"].DrawNormalized("hist same")
+
 ROOT.gPad.RedrawAxis()
 canvas.cd(4)
 ROOT.gPad.SetTicks(1,1)
@@ -198,6 +211,21 @@ if(Mod.EX1B and not Mod.BEBL):
     histos["hExc_non_gaus"].GetCumulative().Draw("ep")
     cdfs["hBorysov_Exc"].Draw("hist same")
 ROOT.gPad.RedrawAxis()
+
+canvas.cd(3)
+ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetGridx()
+ROOT.gPad.SetGridy()
+ROOT.gPad.SetLogy()
+if(Mod.doLogx): ROOT.gPad.SetLogx()
+ROOT.gPad.SetLeftMargin(0.15)
+ROOT.gPad.SetRightMargin(0.1)
+if(Mod.SECB and not Mod.BEBL):
+    histos["hSecondaries"].Scale(1./histos["hSecondaries"].Integral())
+    histos["hSecondaries"].GetCumulative().Draw("ep")
+    cdfs["hBorysov_Sec"].Draw("hist same")
+ROOT.gPad.RedrawAxis()
+
 canvas.cd(4)
 ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetGridx()

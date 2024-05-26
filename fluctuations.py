@@ -29,6 +29,7 @@ class Parameters:
         self.name    = name
         self.m       = mass
         self.z       = charge
+        self.spin    = 0.5 ### should be passed as argument to the consturctor
         self.mat     = material
         self.dedxmod = dedxmodel
         if(self.dedxmod!="BB:Tcut" and self.dedxmod!="BB:Tmax" and self.dedxmod!="G4:Tcut"):
@@ -56,9 +57,13 @@ class Parameters:
                           ## Poisson sampling of number of the actual number of collisions,
                           ## where the actual E-loss is this number times the associated energy.
                           ## Otherwise the actual E-loss is sampled directly from a Gaussian)
+        self.Emax     = 1e308
 
         self.gBB = self.setG4BBdEdxFromTable(bbtable)
         self.hBBlow,self.hBBhig = self.setG4BBdEdx(bbfunc)
+        self.EkinMin = -1
+        self.EkinMax = -1
+        self.fmax    = -1
     
     def __str__(self):
         return f"{self.name}"
@@ -175,6 +180,10 @@ class Parameters:
         g = self.gamma(E)
         return math.sqrt(1-1/g**2)
     
+    ### total energy
+    def Etot(self,E):
+        return E+self.m
+    
     ### definition in Equation 33.4 from PDG: https://pdg.lbl.gov/2016/reviews/rpp2016-rev-passage-particles-matter.pdf
     def Wmax(self,E):
         g = self.gamma(E)
@@ -243,13 +252,32 @@ class Parameters:
     
     ### there are steps with only 1 or 0 secondaries
     ### TODO
-    def isSecondary(self,E,x):
-        return (self.dEdx(E)*x>self.mat.Tc)
-        # return ( (self.BB(E,self.Wmax(E))-self.BB(E,self.mat.Tc))*x>self.mat.Tc )
-    ### TODO
-    def elossSecondary(self,E,x):
-        return self.mat.Tc if(self.isSecondary(E,x)) else 0.
-        # return (self.Wmax(E)-self.mat.Tc)/2 if(self.isSecondary(E,x)) else 0.
+    def isSecondary(self,E):
+        self.EkinMin = min(self.mat.Tc,self.Wmax(E))
+        self.EkinMax = min(self.Wmax(E),self.Emax)
+        self.fmax = 1+0.5*(self.EkinMax/self.Etot(E))*(self.EkinMax/self.Etot(E)) if(self.spin>0) else 1
+        if(self.EkinMin>=self.EkinMax): return False
+        return True
+        
+    # ### TODO
+    # def parsSecondary(self,E):
+    #     if(not self.isSecondary(E)): return -1,-1
+    #     Tmax    = self.Wmax(E)
+    #     Emax    = 1e30
+    #     EkinMax = min(Tmax,Emax)
+    #     EkinMin = min(self.mat.Tc,Tmax)
+    #     # Etot = E+self.m
+    #     # tau  = E/self.m
+    #     # b    = self.beta(E)
+    #     # b2   = b**2 # = EkinMin*(EkinMin+2*self.m)/(Etot*Etot)
+    #     # spin = self.spin
+    #     # R    = C.me/self.m
+    #     # f1   = 0.
+    #     # fmax = 1.
+    #     # if(spin>0): fmax += 0.5*(EkinMax/Etot)*(EkinMax/Etot)
+    #     # return {"Etot":Etot, "tau":tau, "R":R, "Tmax":Tmax, "Emax":Emax, "EkinMax":EkinMax, "EkinMin":EkinMin, "b2":b2, "fmax":fmax, "spin":spin}
+    #     return EkinMin,EkinMax
+        
     
     ### default Energy Loss Fluctuations model used in main Physics List: https://geant4-userdoc.web.cern.ch/UsersGuides/PhysicsReferenceManual/html/electromagnetic/energy_loss/fluctuations.html#id230
     def g_of_dE_integral1Tup(self,E):
@@ -322,7 +350,6 @@ class Parameters:
         Tmax = self.Wmax(E)
         return math.sqrt( (Tmax/(b**2) - self.mat.Tc)/2. * (C.twopi * C.me * C.re2) * x * (self.z**2) * self.mat.electronDensity )
 
-
     #########################################
     ### get all necessary pars to build the model shape
     def GetModelPars(self,E,x):
@@ -331,25 +358,33 @@ class Parameters:
         pars = {"point":point, "build":"NONE", "scale":scl, "param":{}}
         pars["param"].update({"dx":x})
         pars["param"].update({"E":E})
+        pars["param"].update({"spin":self.spin})
         pars["param"].update({"minLoss":self.minloss})
         pars["param"].update({"meanLoss":x*self.getG4BBdEdx(E)})
-        pars["param"].update({"w3":-1})
-        pars["param"].update({"w":-1})
-        pars["param"].update({"p3":-1})
-        pars["param"].update({"e1":-1})
-        pars["param"].update({"n1":-1})
-        pars["param"].update({"e2":-1})
-        pars["param"].update({"n2":-1})
-        pars["param"].update({"ion_mean":-1})
-        pars["param"].update({"ion_sigma":-1})
-        pars["param"].update({"ex1_mean":-1})
-        pars["param"].update({"ex1_sigma":-1})
-        pars["param"].update({"ex2_mean":-1})
-        pars["param"].update({"ex2_sigma":-1})
-        pars["param"].update({"thk_mean":-1})  ## Gauss and Gamma
-        pars["param"].update({"thk_sigma":-1}) ## Gauss
-        pars["param"].update({"thk_neff":-1})  ## Gamma  
+        pars["param"].update({"Tmax":self.Wmax(E)}) ## for secondaries
+        pars["param"].update({"Etot":self.Etot(E)}) ## for secondaries
+        pars["param"].update({"b2":self.beta(E)**2}) ## for secondaries
+        pars["param"].update({"w3":-1}) ## Borysov ion
+        pars["param"].update({"w":-1}) ## Borysov ion
+        pars["param"].update({"p3":-1}) ## Borysov ion
+        pars["param"].update({"e1":-1}) ## Borysov ex1
+        pars["param"].update({"n1":-1}) ## Borysov ex1
+        pars["param"].update({"e2":-1}) ## Borysov ex2
+        pars["param"].update({"n2":-1}) ## Borysov ex2
+        pars["param"].update({"ion_mean":-1}) ## Gauss ion
+        pars["param"].update({"ion_sigma":-1}) ## Gauss ion
+        pars["param"].update({"ex1_mean":-1}) ## Gauss ex1
+        pars["param"].update({"ex1_sigma":-1}) ## Gauss ex1
+        pars["param"].update({"ex2_mean":-1}) ## Gauss ex2
+        pars["param"].update({"ex2_sigma":-1}) ## Gauss ex2
+        pars["param"].update({"thk_mean":-1})  ## Thick limit for Gauss and Gamma
+        pars["param"].update({"thk_sigma":-1}) ## Thick limit for Gauss
+        pars["param"].update({"thk_neff":-1})  ## Thick limit for Gamma  
+        pars["param"].update({"EkinMin":-1}) ## secondaries
+        pars["param"].update({"EkinMax":-1}) ## secondaries
+        pars["param"].update({"fmax":-1}) ## secondaries
         
+        SECB = False
         BEBL = False
         TGAU = False
         TGAM = False
@@ -367,6 +402,7 @@ class Parameters:
             pars["build"] = "BEBL"
             return pars
 
+
         ######################
         ### Thick models
         if(self.isThick(E,x)):
@@ -383,7 +419,18 @@ class Parameters:
                 TGAM = True
                 pars["param"]["thk_neff"] = neff
                 pars["build"] = "THK.GAMMA"
+            
+            ######################
+            ### Secondaries
+            if(self.isSecondary(E)):
+                SECB =  True
+                pars["build"] += "->SEC.B"
+                pars["param"]["EkinMin"] = self.EkinMin
+                pars["param"]["EkinMax"] = self.EkinMax
+                pars["param"]["fmax"]    = self.fmax
+            
             return pars
+            
 
         ######################
         ### Thin models
@@ -442,7 +489,14 @@ class Parameters:
         if(IONB and IONG and EX1G):                  pars["build"] = "ION.B->ION.G->EX1.G"
         if(IONB and EX1B and IONG):                  pars["build"] = "ION.B->EX1.B->ION.G"
         if(IONB and EX1B and not IONG and not EX1G): pars["build"] = "ION.B->EX1.B"
-        ### TODO are there other options??
+        ######################
+        ### Secondaries
+        if(self.isSecondary(E)):
+            SECB =  True
+            pars["build"] += "->SEC.B"
+            pars["param"]["EkinMin"] = self.EkinMin
+            pars["param"]["EkinMax"] = self.EkinMax
+            pars["param"]["fmax"]    = self.fmax
         return pars
 
     # def BBlowE(self,E,T):

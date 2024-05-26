@@ -38,9 +38,24 @@ def truncated_gaus(x,par):
     return ROOT.TMath.Gaus(x[0],par[0],par[1]) if(x[0]>0 and x[0]<2*par[0]) else 0
 
 
+### borysov_secondaries main function (see above)
+### so it can be called to construct a TF1
+def inv_sum_distribution(x,par):
+    res = 0.0
+    A = par[1] #TODO: there's a weird swap between A and B
+    B = par[0] #TODO: there's a weird swap between A and B
+    X = x[0]
+    if(abs(X)>1.0e-10):
+        xx = A*B/X
+        if(xx>0. and xx<=B):   res = xx/(A*B)
+        if(xx>B  and xx<=A):   res = 1.0/A
+        if(xx>A  and xx<=A+B): res = (A+B-xx)/(A*B)
+    return res*A*B/(X**2)
+
+
 class Model:
-    # def __init__(self,build,scale,dx,E,minLoss,meanLoss,w3,p3,w,e1,n1,ex1_mean,ex1_sigma,ion_mean,ion_sigma):
     def __init__(self,dx,E,pars):
+        self.SECB      = False
         self.TGAU      = False
         self.TGAM      = False
         self.BEBL      = False
@@ -54,8 +69,15 @@ class Model:
         self.build     = pars["build"]
         self.scale     = pars["scale"]
         self.param     = pars["param"]
+        self.spin      = self.param["spin"]      if("spin"      in self.param) else -1
         self.minLoss   = self.param["minLoss"]   if("minLoss"   in self.param) else -1
         self.meanLoss  = self.param["meanLoss"]  if("meanLoss"  in self.param) else -1
+        self.Tmax      = self.param["Tmax"]      if("Tmax"      in self.param) else -1
+        self.Etot      = self.param["Etot"]      if("Etot"      in self.param) else -1
+        self.b2        = self.param["b2"]        if("b2"        in self.param) else -1
+        self.EkinMin   = self.param["EkinMin"]   if("EkinMin"   in self.param) else -1
+        self.EkinMax   = self.param["EkinMax"]   if("EkinMax"   in self.param) else -1
+        self.fmax      = self.param["fmax"]      if("fmax"      in self.param) else -1
         self.w3        = self.param["w3"]        if("w3"        in self.param) else -1
         self.p3        = self.param["p3"]        if("p3"        in self.param) else -1
         self.w         = self.param["w"]         if("w"         in self.param) else -1
@@ -67,6 +89,7 @@ class Model:
         self.ion_sigma = self.param["ion_sigma"] if("ion_sigma" in self.param) else -1
         ### set parameters
         self.par_bethebloch_min  = [self.meanLoss]
+        self.par_borysov_sec     = [self.EkinMin, self.EkinMax]
         self.par_borysov_ion     = [self.w3, self.w, self.p3]
         self.par_borysov_exc     = [self.n1, self.e1]
         self.par_gauss_ion       = [self.ion_mean, self.ion_sigma]
@@ -77,6 +100,9 @@ class Model:
         self.dEmin      = -1
         self.dEmax      = -1
         self.Nbins      = -1
+        self.dEminSec   = -1
+        self.dEmaxSec   = -1
+        self.NbinsSec   = -1
         self.doLogx     = False
         self.plotPsi    = True
         self.convManual = True
@@ -98,6 +124,7 @@ class Model:
     
     ### get the flags from the build string
     def set_flags(self):
+        self.SECB = ("SEC.B" in self.build)
         self.TGAU = ("THK.GAUSS" in self.build)
         self.TGAM = ("THK.GAMMA" in self.build)
         self.BEBL = (self.meanLoss<self.minLoss and "BEBL" in self.build)
@@ -105,10 +132,13 @@ class Model:
         self.EX1B = ("EX1.B" in self.build)
         self.IONG = ("ION.G" in self.build)
         self.EX1G = ("EX1.G" in self.build)
-        print(f"BEBL={self.BEBL}, IONB={self.IONB}, EX1B={self.EX1B}, IONG={self.IONG}, EX1G={self.EX1G}")
+        print(f"SECB={self.SECB}, BEBL={self.BEBL}, IONB={self.IONB}, EX1B={self.EX1B}, IONG={self.IONG}, EX1G={self.EX1G}")
 
     ### make sure the parameters are passed correctly
     def validate_pars(self):
+        ## very small losses
+        if(not self.SECB): self.EkinMin = -1
+        if(not self.SECB): self.EkinMax = -1
         ## very small losses
         if(not self.BEBL): self.meanLoss = -1
         if(not self.BEBL): self.minLoss  = -1
@@ -127,6 +157,10 @@ class Model:
         if(not self.IONG): self.ion_sigma = -1
     
     def dE_binning(self):
+        if(self.SECB):
+            self.dEminSec  = 10
+            self.dEmaxSec  = 1000000.1
+            self.NbinsSec  = 20000
         if(self.BEBL):
             self.dEmin     = 0
             self.dEmax     = 11
@@ -136,13 +170,13 @@ class Model:
             self.dEmax     = 3000.1
             self.Nbins     = 6000
         if(self.IONB and not self.EX1B and self.IONG and self.EX1G): ## no Borysov Exc
-            self.dEmin     = -3000
-            self.dEmax     = 53000
-            self.Nbins     = 12500
+            self.dEmin     = 0.1 #-3000
+            self.dEmax     = 60000.1 #53000
+            self.Nbins     = 15000 # 12500
         if(self.IONB and (self.IONG and not self.EX1G) or (self.EX1G and not self.IONG)): ## only one Gauss
-            self.dEmin     = -2000
-            self.dEmax     = 12000
-            self.Nbins     = 7000
+            self.dEmin     = 0.1 #-2000
+            self.dEmax     = 15000.1 # 12000
+            self.Nbins     = 7500 #7000
         self.doLogx = True if(self.dEmin>0) else False
         print(f"dEmin={self.dEmin}, dEmax={self.dEmax}, Nbins={self.Nbins}")
     
@@ -211,6 +245,7 @@ class Model:
     def get_pdf(self,name,pdfname,par,dE_lowcut=-1):
         title = name.replace("_model","")
         h = ROOT.TH1D("h_"+name,"h_"+title,self.Nbins,self.dEmin,self.dEmax)
+        if("sec" in name): h = ROOT.TH1D("h_"+name,"h_"+title,self.NbinsSec,self.dEminSec,self.dEmaxSec)
         if(self.BEBL):
             bx = h.FindBin(par[0]) ## par[0] is meanLoss... 
             h.SetBinContent(bx,1)
@@ -218,13 +253,13 @@ class Model:
             f = None
             g = None
             isBorysovIon = (pdfname=="borysov_ionization")
-            if(pdfname=="borysov_ionization"): g = self.borysov_ionization(par) ### This is a graph!
-            if(pdfname=="borysov_excitation"): f = ROOT.TF1("f_"+name,borysov_excitation,self.dEmin,self.dEmax,len(par))
-            if(pdfname=="truncated_gaus"):     f = ROOT.TF1("f_"+name,truncated_gaus,self.dEmin,self.dEmax,len(par))
-            if(isBorysovIon):
-                g.SetLineColor(ROOT.kRed)
+            if(pdfname=="borysov_ionization"):  g = self.borysov_ionization(par) ### This is a graph!
+            if(pdfname=="borysov_secondaries"): f = ROOT.TF1("f_"+name,inv_sum_distribution,self.dEminSec,self.dEmaxSec,len(par))
+            if(pdfname=="borysov_excitation"):  f = ROOT.TF1("f_"+name,borysov_excitation,self.dEmin,self.dEmax,len(par))
+            if(pdfname=="truncated_gaus"):      f = ROOT.TF1("f_"+name,truncated_gaus,self.dEmin,self.dEmax,len(par))
+            if(isBorysovIon): g.SetLineColor(ROOT.kRed)
             else:
-                for i in range(len(par)): f.SetParameter(i,par[i])
+                for i in range(len(par)):  f.SetParameter(i,par[i])
                 f.SetNpx(self.NptsTF1)
                 f.SetLineColor(ROOT.kRed)
             for bb in range(1,h.GetNbinsX()+1):
@@ -282,9 +317,18 @@ class Model:
             pdfs["hBorysov_Exc"] = self.get_pdf("borysov_exc_model", "borysov_excitation", self.par_borysov_exc)
             print(f'PDF Integrals: hBorysov_Ion={pdfs["hBorysov_Ion"].Integral()}, hBorysov_Exc={pdfs["hBorysov_Exc"].Integral()}')
         return pdfs
+        
+    def get_secondaries_pdfs(self):
+        ### get pdfs
+        pdfs = {}
+        pdfs.update({"hBorysov_Sec":  None})
+        if(self.SECB):
+            pdfs["hBorysov_Sec"] = self.get_pdf("borysov_sec_model", "borysov_secondaries", self.par_borysov_sec)
+        return pdfs
     
+    
+    ### get the relevant pdfs
     def get_model_pdfs(self):
-        ### get the relevant pdfs
         pdfs = self.get_component_pdfs()
         
         ### if meanLoss is too small return the meanLoss as single bin PDF
@@ -292,7 +336,7 @@ class Model:
             for b in range(1,pdfs["hBEBL_Thn"].GetNbinsX()+1): pdfs["hModel"].SetBinContent(b, pdfs["hBEBL_Thn"].GetBinContent(b) )
             return pdfs
 
-        ### Otherwise, constructe the model
+        ### Otherwise, constructe the continuous model 
         aBorysov_Ion  = []
         aBorysov_Exc  = []
         aTrncGaus_Ion = []
@@ -352,6 +396,7 @@ class Model:
         print(f'hModel={pdfs["hModel"].GetNbinsX()}, aConv={len(aConv)}')
         return pdfs
     
+    
     def get_cdfs(self,pdfs):
         cdfs = {}
         for name,pdf in pdfs.items():
@@ -359,6 +404,7 @@ class Model:
             cdfs.update( {name : pdf.GetCumulative().Clone(name+"_cdf")} )
             cdfs[name].GetYaxis().SetTitle( cdfs[name].GetYaxis().GetTitle()+" (cumulative)" )
         return cdfs
+    
     
     def get_as_arrays(self,shapes,doScale=False):
         arrx  = []
@@ -400,12 +446,15 @@ class Model:
         
     def set_all_shapes(self):
         self.pdfs = self.get_model_pdfs()
+        self.sec_pdfs = self.get_secondaries_pdfs()
         self.cdfs = self.get_cdfs(self.pdfs)
+        self.sec_cdfs = self.get_cdfs(self.sec_pdfs)
         self.pdfs_arrx, self.pdfs_arrsy = self.get_as_arrays(self.pdfs, self.scale)
+        self.sec_pdfs_arrx, self.sec_pdfs_arrsy = self.get_as_arrays(self.sec_pdfs,1)
         self.cdfs_arrx, self.cdfs_arrsy = self.get_as_arrays(self.cdfs, self.scale)
+        self.sec_cdfs_arrx, self.sec_cdfs_arrsy = self.get_as_arrays(self.sec_cdfs,1)
         titles = self.pdfs["hModel"].GetTitle()+";"+self.pdfs["hModel"].GetXaxis().GetTitle()+";"+self.pdfs["hModel"].GetXaxis().GetTitle()
         self.pdfs_scaled = self.get_pdfs_from_arrays(self.pdfs_arrx,self.pdfs_arrsy,titles)
         self.cdfs_scaled = self.get_cdfs(self.pdfs_scaled)
         self.pdfs_scaled_arrx, self.pdfs_scaled_arrsy = self.get_as_arrays(self.pdfs_scaled, self.scale)
         self.cdfs_scaled_arrx, self.cdfs_scaled_arrsy = self.get_as_arrays(self.cdfs_scaled, self.scale)
-    
