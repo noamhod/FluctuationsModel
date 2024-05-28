@@ -62,7 +62,8 @@ print(modelpars)
 ######################################################
 ######################################################
 ### Build the model shapes
-Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars)
+DOTIME = True
+Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars, DOTIME)
 cnt_pdfs = Mod.get_model_pdfs()
 cnt_cdfs = Mod.get_cdfs(cnt_pdfs)
 sec_pdfs = Mod.get_secondaries_pdfs()

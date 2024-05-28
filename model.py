@@ -6,6 +6,7 @@ import units as U
 from scipy.fft import fft, fftfreq, rfft, irfft
 from scipy.special import sici, exp1
 from scipy.signal import convolve, fftconvolve
+import time
 
 # ROOT.gROOT.SetBatch(1)
 # ROOT.gStyle.SetOptFit(0)
@@ -54,7 +55,8 @@ def inv_sum_distribution(x,par):
 
 
 class Model:
-    def __init__(self,dx,E,pars):
+    def __init__(self,dx,E,pars,dotime=False):
+        self.dotime    = dotime
         self.SECB      = False
         self.TGAU      = False
         self.TGAM      = False
@@ -197,6 +199,7 @@ class Model:
         ## par[1] = w
         ## par[2] = p3 (lambda)
         ## par[3] = 0/1 Re/Im
+        start = time.time()
         a = par[0]
         b = par[0]/(1-par[1])
         t = np.linspace(self.tmin,self.tmax,self.N_t_bins)
@@ -222,9 +225,14 @@ class Model:
         h_im.SetLineColor( ROOT.kBlue )
         h_re.SetLineWidth( 1 )
         h_im.SetLineWidth( 1 )
+        end = time.time()
+        if(self.dotime):
+            elapsed = end-start
+            print(f"TIME of scipy_psi_of_t_as_h: {elapsed} [s]")
         return h_re,h_im
 
     def borysov_ionization(self,par):
+        start = time.time()
         ### get psi(t)
         self.psiRe, self.psiIm = self.scipy_psi_of_t_as_h("psi_of_t",par)
         ### The FFT
@@ -240,9 +248,15 @@ class Model:
         ### Get the integral as graph
         gFFT = ROOT.TGraph(len(xf),xf,ya)
         gFFT.SetLineColor( ROOT.kRed )
+        gFFT.SetBit(ROOT.TGraph.kIsSortedX)
+        end = time.time()
+        if(self.dotime):
+            elapsed = end-start
+            print(f"TIME of borysov_ionization: {elapsed} [s]")
         return gFFT
 
     def get_pdf(self,name,pdfname,par,dE_lowcut=-1):
+        start = time.time()
         title = name.replace("_model","")
         h = ROOT.TH1D("h_"+name,"h_"+title,self.Nbins,self.dEmin,self.dEmax)
         if("sec" in name): h = ROOT.TH1D("h_"+name,"h_"+title,self.NbinsSec,self.dEminSec,self.dEmaxSec)
@@ -272,20 +286,59 @@ class Model:
         h.Scale(1./h.Integral())
         h.SetLineColor( ROOT.kRed )
         h.SetLineWidth( 1 )
+        end = time.time()
+        if(self.dotime):
+            elapsed = end-start
+            print(f"TIME of get_pdf({name}): {elapsed} [s]")
         return h
 
+    # def manual_convolution(self,A,K):
+    #     start = time.time()
+    #     aManualConv = []
+    #     for k in range(len(K)):
+    #         S = 0
+    #         for i in range(len(A)):
+    #             if(i>k): continue
+    #             S += A[i]*K[k-i]
+    #         aManualConv.append(S)
+    #     aManualConv = np.array(aManualConv)
+    #     end = time.time()
+    #     if(self.dotime):
+    #         elapsed = end-start
+    #         print(f"TIME of manual_convolution: {elapsed} [s]")
+    #     return aManualConv
+    
+    # def manual_convolution(self,A,K):
+    #     start = time.time()
+    #     aManualConv = []
+    #     for k in range(len(K)):
+    #         S = 0
+    #         for i in range(len(A)):
+    #             S += A[i]*K[k-i]
+    #             if(i>k): break
+    #         aManualConv.append(S)
+    #     aManualConv = np.array(aManualConv)
+    #     end = time.time()
+    #     if(self.dotime):
+    #         elapsed = end-start
+    #         print(f"TIME of manual_convolution: {elapsed} [s]")
+    #     return aManualConv
+    
     def manual_convolution(self,A,K):
-        aManualConv = []
-        for k in range(len(K)):
-            S = 0
-            for i in range(len(A)):
-                if(i>k): continue
-                S += A[i]*K[k-i]
-            aManualConv.append(S)
-        aManualConv = np.array(aManualConv)
-        return aManualConv
+        start = time.time()
+        n = len(K)
+        m = len(A)
+        result = np.zeros(n)
+        for k in range(n):
+            result[k] = np.dot(A[:k+1], K[k::-1])
+        end = time.time()
+        if(self.dotime):
+            elapsed = end-start
+            print(f"TIME of manual_convolution: {elapsed} [s]")
+        return result
     
     def get_component_pdfs(self):
+        start = time.time()
         ### get pdfs
         pdfs = {}
         pdfs.update({"hModel":        None})
@@ -296,7 +349,6 @@ class Model:
         # pdfs.update({"hGauss_Thk":    None})
         # pdfs.update({"hGamma_Thk":    None})
         pdfs.update({"hBEBL_Thn":     None})
-        
         pdfs["hModel"] = ROOT.TH1D("hModel","",self.Nbins,self.dEmin,self.dEmax)
         pdfs["hModel"].SetLineColor(ROOT.kRed)
         if(self.BEBL):
@@ -316,26 +368,35 @@ class Model:
             pdfs["hBorysov_Ion"] = self.get_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
             pdfs["hBorysov_Exc"] = self.get_pdf("borysov_exc_model", "borysov_excitation", self.par_borysov_exc)
             print(f'PDF Integrals: hBorysov_Ion={pdfs["hBorysov_Ion"].Integral()}, hBorysov_Exc={pdfs["hBorysov_Exc"].Integral()}')
+        end = time.time()
+        if(self.dotime):
+            elapsed = end-start
+            print(f"TIME of get_component_pdfs: {elapsed} [s]")
         return pdfs
         
     def get_secondaries_pdfs(self):
+        start = time.time()
         ### get pdfs
         pdfs = {}
         pdfs.update({"hBorysov_Sec":  None})
         if(self.SECB):
             pdfs["hBorysov_Sec"] = self.get_pdf("borysov_sec_model", "borysov_secondaries", self.par_borysov_sec)
+        end = time.time()
+        if(self.dotime):
+            elapsed = end-start
+            print(f"TIME of get_secondaries_pdfs: {elapsed} [s]")
         return pdfs
     
     
     ### get the relevant pdfs
     def get_model_pdfs(self):
+        start = time.time()
+        ### get the pdfs of the continuous part
         pdfs = self.get_component_pdfs()
-        
         ### if meanLoss is too small return the meanLoss as single bin PDF
         if(self.BEBL):
             for b in range(1,pdfs["hBEBL_Thn"].GetNbinsX()+1): pdfs["hModel"].SetBinContent(b, pdfs["hBEBL_Thn"].GetBinContent(b) )
             return pdfs
-
         ### Otherwise, constructe the continuous model 
         aBorysov_Ion  = []
         aBorysov_Exc  = []
@@ -359,8 +420,8 @@ class Model:
                 aManualConv2 = self.manual_convolution(aTrncGaus_Ion,aManualConv1)
                 aManualConv = aManualConv2
             else:
-                aScipyConv1 = convolve(aBorysov_Ion,aBorysov_Exc, mode=self.convMode, method='auto')
-                aScipyConv2 = convolve(aTrncGaus_Ion,aScipyConv1, mode=self.convMode, method='auto')
+                aScipyConv1 = fftconvolve(aBorysov_Ion,aBorysov_Exc, mode=self.convMode)#, method='auto')
+                aScipyConv2 = fftconvolve(aTrncGaus_Ion,aScipyConv1, mode=self.convMode)#, method='auto')
                 aScipyConv = aScipyConv2
             print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}, IONG={len(aTrncGaus_Ion)}")
             print(f"sizes of convolutions for (IONB and EX1B and IONG): IONBxEX1B={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}, IONBxEX1BxIONG={len(aManualConv2) if(self.convManual) else len(aScipyConv2)}")
@@ -370,8 +431,8 @@ class Model:
                 aManualConv2 = self.manual_convolution(aTrncGaus_Exc,aManualConv1)
                 aManualConv = aManualConv2
             else:
-                aScipyConv1 = convolve(aBorysov_Ion,aTrncGaus_Ion, mode=convMode, method='auto')
-                aScipyConv2 = convolve(aTrncGaus_Exc,aScipyConv1,  mode=convMode, method='auto')
+                aScipyConv1 = fftconvolve(aBorysov_Ion,aTrncGaus_Ion, mode=self.convMode)#, method='auto')
+                aScipyConv2 = fftconvolve(aTrncGaus_Exc,aScipyConv1,  mode=self.convMode)#, method='auto')
                 aScipyConv = aScipyConv2
             print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, IONG={len(aTrncGaus_Ion)}, EX1G={len(aTrncGaus_Exc)}")
             print(f"sizes of convolutions for (IONB and IONG and EX1G): IONBxIONG={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}, IONBxIONGxEX1G={len(aManualConv2) if(self.convManual) else len(aScipyConv2)}")
@@ -380,7 +441,7 @@ class Model:
                 aManualConv1 = self.manual_convolution(aBorysov_Ion,aBorysov_Exc)
                 aManualConv = aManualConv1
             else:
-                aScipyConv1 = convolve(aBorysov_Ion,aBorysov_Exc, mode=convMode, method='auto')
+                aScipyConv1 = fftconvolve(aBorysov_Ion,aBorysov_Exc, mode=self.convMode)#, method='auto')
                 aScipyConv = aScipyConv1
             print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}")
             print(f"sizes of convolutions for (IONB and EX1B and not IONG and not EX1G): IONBxEX1B={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}")
@@ -388,25 +449,36 @@ class Model:
         aConv = aManualConv if(self.convManual) else aScipyConv
         xConv = np.linspace(start=self.dEmin,stop=self.dEmax,num=len(aConv))
         gConv = ROOT.TGraph(len(aConv),xConv, aConv)
+        gConv.SetBit(ROOT.TGraph.kIsSortedX)
         for b in range(1,pdfs["hBorysov_Ion"].GetNbinsX()+1):
             # pdfs["hModel"].SetBinContent(b, aManualConv[b-1] if(self.convManual) else aScipyConv[b-1])
             xb = pdfs["hModel"].GetBinCenter(b)
             pdfs["hModel"].SetBinContent(b, gConv.Eval(xb+2*abs(self.dEmin)) )
         pdfs["hModel"].Scale(1./pdfs["hModel"].Integral())
         print(f'hModel={pdfs["hModel"].GetNbinsX()}, aConv={len(aConv)}')
+        end = time.time()
+        if(self.dotime):
+            elapsed = end-start
+            print(f"TIME of get_model_pdfs: {elapsed} [s]")
         return pdfs
     
     
     def get_cdfs(self,pdfs):
+        start = time.time()
         cdfs = {}
         for name,pdf in pdfs.items():
             if(pdf==None): continue
             cdfs.update( {name : pdf.GetCumulative().Clone(name+"_cdf")} )
             cdfs[name].GetYaxis().SetTitle( cdfs[name].GetYaxis().GetTitle()+" (cumulative)" )
+        end = time.time()
+        if(self.dotime):
+            elapsed = end-start
+            print(f"TIME of get_cdfs: {elapsed} [s]")
         return cdfs
     
     
     def get_as_arrays(self,shapes,doScale=False):
+        start = time.time()
         arrx  = []
         arrsy = {}
         rescale = (doScale and (self.IONB or self.EX1B or self.IONG or self.EX1G))
@@ -423,9 +495,14 @@ class Model:
                 arry.append( shape.GetBinContent(b) )
             arry = np.array(arry)
             arrsy.update( {name : arry} )
+        end = time.time()
+        if(self.dotime):
+            elapsed = end-start
+            print(f"TIME of get_as_arrays: {elapsed} [s]")
         return arrx,arrsy
         
     def get_pdfs_from_arrays(self,arrx,arrsy,titles):
+        start = time.time()
         pdfs = {}
         Nbins = len(arrx)
         dEbin = arrx[1]-arrx[0]
@@ -442,9 +519,14 @@ class Model:
             h.Scale(1./h.Integral())
             h.SetLineColor( ROOT.kRed )
             h.SetLineWidth( 1 )
+        end = time.time()
+        if(self.dotime):
+            elapsed = end-start
+            print(f"TIME of get_pdfs_from_arrays: {elapsed} [s]")
         return pdfs
         
     def set_all_shapes(self):
+        start = time.time()
         ### get the basic pdfs
         self.cnt_pdfs = self.get_model_pdfs()
         self.sec_pdfs = self.get_secondaries_pdfs()
@@ -462,3 +544,7 @@ class Model:
         self.cnt_cdfs_scaled = self.get_cdfs(self.cnt_pdfs_scaled)
         self.cnt_pdfs_scaled_arrx, self.cnt_pdfs_scaled_arrsy = self.get_as_arrays(self.cnt_pdfs_scaled, self.scale)
         self.cnt_cdfs_scaled_arrx, self.cnt_cdfs_scaled_arrsy = self.get_as_arrays(self.cnt_cdfs_scaled, self.scale)
+        end = time.time()
+        if(self.dotime):
+            elapsed = end-start
+            print(f"TIME of set_all_shapes: {elapsed} [s]")

@@ -50,7 +50,8 @@ print(modelpars)
 ######################################################
 ######################################################
 ### Build the model shapes
-Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars)
+DOTIME = True
+Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars, DOTIME)
 Mod.set_all_shapes()
 cnt_pdfs          = Mod.cnt_pdfs ## dict name-->TH1D
 cnt_cdfs          = Mod.cnt_cdfs ## dict name-->TH1D

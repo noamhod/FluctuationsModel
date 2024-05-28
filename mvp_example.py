@@ -35,18 +35,21 @@ got_params = time.time()
 elapsed_params = got_params - start
 
 ### Build the model shapes
-Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars)
+DOTIME = True
+Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars, DOTIME)
 defined_model = time.time()
 elapsed_model = defined_model - got_params
 Mod.set_all_shapes()
 got_shapes = time.time()
 elapsed_shapes = got_shapes - defined_model
 
+elapsed_full = got_shapes - start
 
 print(f"Elapsed times are")
 print(f"- get parameters: {elapsed_params} [s]")
 print(f"- define model:   {elapsed_model} [s]")
 print(f"- get shapes:     {elapsed_shapes} [s]")
+print(f"- full process:   {elapsed_full} [s]")
 
 ### these are all the possible outputs (besides some other class variables)
 # cnt_pdfs              = Mod.cnt_pdfs ## dict name-->TH1D
@@ -66,5 +69,3 @@ sec_cdfs_arrsy = Mod.sec_cdfs_arrsy ## dict name-->np.array
 plt.plot(sec_cdfs_arrx, sec_cdfs_arrsy["hBorysov_Sec"])
 plt.title('Minimum viable example for secondary model: '+Mod.build)
 plt.show()
-
-
