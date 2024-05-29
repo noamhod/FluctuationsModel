@@ -1,9 +1,9 @@
+import time
 import pickle
 import math
 import array
 import numpy as np
 import ROOT
-from ROOT import TH1D, TH2D, TCanvas, TFile, TLine, TLatex
 import units as U
 import constants as C
 import material as mat
@@ -11,6 +11,7 @@ import bins
 import fluctuations as flct
 import shapes
 import hist
+import model
 
 ROOT.gErrorIgnoreLevel = ROOT.kError
 # ROOT.gErrorIgnoreLevel = ROOT.kWarning
@@ -108,7 +109,7 @@ for n,enrgy in enumerate(X):
 
 pdf = "out.pdf"
 
-cnv = TCanvas("cnv","",1000,1000)
+cnv = ROOT.TCanvas("cnv","",1000,1000)
 cnv.Divide(2,2)
 cnv.cd(1)
 histos["hE"].Draw("hist")
@@ -136,7 +137,7 @@ ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf+"(")
 
-cnv = TCanvas("cnv","",1000,1000)
+cnv = ROOT.TCanvas("cnv","",1000,1000)
 cnv.Divide(2,2)
 cnv.cd(1)
 histos["hE"].Draw("hist")
@@ -164,7 +165,7 @@ ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
-cnv = TCanvas("cnv","",1000,500)
+cnv = ROOT.TCanvas("cnv","",1000,500)
 cnv.Divide(2,1)
 cnv.cd(1)
 histos["hdEdx"].Draw("hist")
@@ -180,7 +181,7 @@ ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
-cnv = TCanvas("cnv","",1000,500)
+cnv = ROOT.TCanvas("cnv","",1000,500)
 cnv.Divide(2,1)
 cnv.cd(1)
 histos["hdE_vs_dx"].Draw("colz")
@@ -198,7 +199,7 @@ ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
-cnv = TCanvas("cnv","",500,500)
+cnv = ROOT.TCanvas("cnv","",500,500)
 histos["hdx_vs_E"].Draw("colz")
 gridx,gridy = hist.getGrid(histos["SMALL_hdx_vs_E"])
 for line in gridx:
@@ -215,7 +216,7 @@ ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
-cnv = TCanvas("cnv","",500,500)
+cnv = ROOT.TCanvas("cnv","",500,500)
 histos["SMALL_hdx_vs_E"].SetMarkerSize(0.2)
 histos["SMALL_hdx_vs_E"].Draw("colz text")
 gridx,gridy = hist.getGrid(histos["SMALL_hdx_vs_E"])
@@ -232,7 +233,7 @@ ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
 
-cnv = TCanvas("cnv","",500,500)
+cnv = ROOT.TCanvas("cnv","",500,500)
 histos["hdxinv_vs_E"].Draw("colz")
 gridx,gridy = hist.getGrid(histos["SMALL_hdxinv_vs_E"])
 for line in gridx:
@@ -249,7 +250,7 @@ ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
-cnv = TCanvas("cnv","",500,500)
+cnv = ROOT.TCanvas("cnv","",500,500)
 histos["SMALL_hdxinv_vs_E"].SetMarkerSize(0.2)
 histos["SMALL_hdxinv_vs_E"].Draw("colz text")
 gridx,gridy = hist.getGrid(histos["SMALL_hdxinv_vs_E"])
@@ -263,7 +264,7 @@ ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogz()
 ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.RedrawAxis()
-cnv.SaveAs(pdf)
+cnv.SaveAs(pdf+")")
 
 
 ### first normalize
@@ -273,36 +274,26 @@ hmin_dxinv,hmax_dxinv = hist.hNorm(histos,"SMALL_hdxinv_vs_E","E","dxinv","dxinv
 hmin_dx,hmax_dx       = hist.hNorm(histos,"SMALL_hdxinv_vs_E","E","dx","dx")
 
 
-rho_Al = 2.699     # Aluminum, g/cm3
-Z_Al   = [13]      # Aluminum atomic number (Z)
-A_Al   = [26.98]   # Aluminum atomic mass (A)
-I_Al   = 166.0     # Aluminum mean excitation energy (I), eV
-Ep_Al  = 32.86     # Aluminum plasma energy (E_p), eV
-Tc_Al  = 990       # Aluminum production threshold for delta ray, eV
-den_Al = [32.86, 2.18, 4.2395, 0.1708, 3.0127, 0.08024, 3.6345, 0.12, 0.061, 166.]
-nel_Al = 1
-Al = mat.Material("Aluminum","Al",rho_Al,Z_Al,A_Al,I_Al,Tc_Al,den_Al,nel_Al)
-
-rho_Si = 2.329     # Silicon, g/cm3
-Z_Si   = [14]      # Silicon atomic number (Z)
-A_Si   = [28.0855] # Silicon atomic mass (A)
-I_Si   = 173.0     # Silicon mean excitation energy (I), eV
-Ep_Si  = 31.05     # Silicon plasma energy (E_p), eV
-Tc_Si  = 990       # Silicon, production threshold for delta ray, eV
-den_Si = [31.055, 2.103, 4.4351, 0.2014, 2.8715, 0.14921, 3.2546, 0.14, 0.059, 173.]
-nel_Si = 1
-Si = mat.Material("Silicon","Si",rho_Si,Z_Si,A_Si,I_Si,Tc_Si,den_Si,nel_Si)
+#############################################################
+#############################################################
+#############################################################
+TargetMat = mat.Si # or e.g. mat.Al
+ParticleN = "Proton"
+ParticleM = C.mp
+ParticleQ = +1
+ParamName = ParticleN+"_on_"+TargetMat.name
+dEdxModel = "G4:Tcut" # or "BB:Tcut"
+par       = flct.Parameters(ParamName,ParticleM,ParticleQ,TargetMat,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
+#############################################################
+#############################################################
+#############################################################
 
 
-dEdxModel = "BB:Tcut"
-par = flct.Parameters("Silicon parameters",C.mp,+1,Si,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
-func = shapes.Functions("Landau")
 
-
-test0 = TH1D("test0",";Theory_{#sigma}/Hist_{#sigma}",100,0,2)
-test1 = TH1D("test1",";Theory_{MPV}/Hist_{MPV}",100,0,2)
-test2 = TH1D("test2",";Theory_{Mean}/Hist_{Mean}",100,0,2)
-test3 = TH1D("test3",";Theory_{MPV}/PDG_{MPV}",100,0,2)
+test0 = ROOT.TH1D("test0",";Theory_{#sigma}/Hist_{#sigma}",100,0,2)
+test1 = ROOT.TH1D("test1",";Theory_{MPV}/Hist_{MPV}",100,0,2)
+test2 = ROOT.TH1D("test2",";Theory_{Mean}/Hist_{Mean}",100,0,2)
+test3 = ROOT.TH1D("test3",";Theory_{MPV}/PDG_{MPV}",100,0,2)
 
 
 ### make gif for all bins
@@ -319,75 +310,35 @@ for ie in range(1,histos["SMALL_hdxinv_vs_E"].GetNbinsX()+1):
         label = "E"+label_E+"_dxinv"+label_dxinv
         name = "hdE_"+label
         NrawSteps = histos["SMALL_hdxinv_vs_E"].GetBinContent(ie,ixinv)
+        ### skip E-x bin if there are too few raw steps
+        # if(NrawSteps<10): continue
 
-        ### get the E and x before skippong ay E-X bin
+        ### get the E and x before skipping ay E-X bin
         midRangeE = (histos["hE_"+label].GetXaxis().GetXmax()-histos["hE_"+label].GetXaxis().GetXmin())/2.
         midRangeX = (histos["hdx_"+label].GetXaxis().GetXmax()-histos["hdx_"+label].GetXaxis().GetXmin())/2.
         E = histos["hE_"+label].GetMean()*U.MeV2eV if(NrawSteps>=NminRawSteps) else midRangeE*U.MeV2eV # eV
         x = histos["hdx_"+label].GetMean()*U.um2cm if(NrawSteps>=NminRawSteps) else midRangeX*U.um2cm  # cm
 
-        ### before skipping any E-x bins
-        binNi = histos["hN1_E"+label_E].FindBin(x*U.cm2um)
-        # print(f"label={label}, E={E*U.eV2MeV}, x={x*U.cm2um}, binNi={binNi}")
-        histos["hN1_E"+label_E].SetBinContent(binNi, par.n12_mean(E,x,1))
-        histos["hN3_E"+label_E].SetBinContent(binNi, par.n3_mean(E,x))
-        histos["hN0_E"+label_E].SetBinContent(binNi, par.n_0dE_mean(E,x))
-
-        ### skip E-x bin if there are too few raw steps
-        if(NrawSteps<10): continue
+        ######################################
+        ### Build the model shapes
+        modelpars = par.GetModelPars(E,x)
+        Mod = model.Model(x,E,modelpars)
+        Mod.set_all_shapes()
+        cnt_pdfs_scaled = Mod.cnt_pdfs_scaled
+        sec_pdfs        = Mod.sec_pdfs
+        ######################################
         
-        cgif = TCanvas("gif","",1000,1000)
+        cgif = ROOT.TCanvas("gif","",1000,1000)
         cgif.Divide(2,2)
         cgif.cd(1)
         ROOT.gPad.SetLogx()
-        # ROOT.gPad.SetLogy()
+        ROOT.gPad.SetLogy()
         ROOT.gPad.SetTicks(1,1)
-        dEmaximum = histos[name].GetBinCenter( histos[name].GetMaximumBin() )
-        hdEmaximum = histos[name].GetBinContent( histos[name].GetMaximumBin() )
-        # histos[name].SetMinimum(hmin_dE)
-        # histos[name].SetMaximum(hmax_dE)
-        histos[name].Draw("hist")
-        
-        dEmin = histos[name].GetXaxis().GetXmin()
-        dEmax = histos[name].GetXaxis().GetXmax()
-        
-        mean_dEdx_hist = histos[name].GetMean() ## akready in MeV
-        sigma_dEdx_hist = histos[name].GetStdDev() ## akready in MeV
-        # mean_dEdx_bbpdg = x*(par.BB(E,par.Wmax(E))*(1-par.Rsec(E)))*U.eV2MeV  # x*par.getG4BBdEdx(E)*U.eV2MeV
-        mean_dEdx_bbpdg = x*par.BB(E,par.Wmax(E))*U.eV2MeV  # x*par.getG4BBdEdx(E)*U.eV2MeV
-        mean_dEdx_modl = par.Mean(E,x)*U.eV2MeV
-        mean_dEdx = par.Mean(E,x)*U.eV2MeV
-        Delta_p,Width,Model = par.Model(E,x)
-        Delta_p = Delta_p*U.eV2MeV
-        Width   = Width*U.eV2MeV
-        f = None
-        if(Model=="Gaus"):   f = func.fGaus(dEmin,dEmax,[Delta_p, Width, 1],label)
-        if(Model=="Landau"): f = func.fLandau(dEmin,dEmax,[Delta_p, Width, 1],label)
-        
-        # f = func.fLandau(dEmin,dEmax,[Delta_p, Width, 1],label)
-        h = func.f2h(f,histos[name])
-        hmin_f2h,hmax_f2h = hist.getH1minmax(h)
-        h.Scale(hdEmaximum/hmax_f2h)
-        h.SetFillColorAlpha(h.GetLineColor(),0.30)
-        # f.Draw("same")
-        h.Draw("hist same")
-        histos[name].Draw("hist same") ## redraw the hist on top
+        histos[name].DrawNormalized("hist")
+        sec_pdfs["hModel"].SetFillColorAlpha(sec_pdfs["hModel"].GetLineColor(),0.30)
+        sec_pdfs["hModel"].DrawNormalized("hist same")
+        histos[name].DrawNormalized("hist same") ## redraw the hist on top
         ROOT.gPad.RedrawAxis()
-        
-        Widthratio = Width/sigma_dEdx_hist if(sigma_dEdx_hist>0) else -999
-        MPVratio = Delta_p/dEmaximum
-        MVPratio_PDG = Delta_p/(par.Delta_p_PDG(E,x)*U.eV2MeV)
-        Meanratio = mean_dEdx_bbpdg/mean_dEdx_hist
-        # print(f'{label}: E={E*U.eV2MeV} [MeV], x={x*U.cm2um} [um] --> Delta_p={Delta_p}, Width={Width}, Delta_p/hXmax:{Delta_p/dEmaximum} N={histos[name].GetEntries()}')
-        if(histos[name].GetEntries()>10):
-            test0.Fill(Widthratio)
-            test1.Fill(MPVratio)
-            test2.Fill(Meanratio)
-            test3.Fill(MVPratio_PDG)
-            binR1 = histos["hMPVratio_E"+label_E].FindBin(x*U.cm2um)
-            histos["hMPVratio_E"+label_E].SetBinContent(binR1,MPVratio)
-            binR2 = histos["hMeanratio_E"+label_E].FindBin(x*U.cm2um)
-            histos["hMeanratio_E"+label_E].SetBinContent(binR2,Meanratio)
         
         cgif.cd(2)
         name = "hE_"+label
@@ -400,17 +351,7 @@ for ie in range(1,histos["SMALL_hdxinv_vs_E"].GetNbinsX()+1):
         ROOT.gPad.Update()
 
         cgif.cd(3)
-        # name = "hdxinv_"+label
-        # ROOT.gPad.SetLogy()
-        # ROOT.gPad.SetTicks(1,1)
-        # # print(f'Integral of {label} is {histos[name].Integral("width")}')
-        # histos[name].SetMinimum(hmin_dxinv)
-        # histos[name].SetMaximum(hmax_dxinv)
-        # histos[name].Draw("hist")
-        # ROOT.gPad.RedrawAxis()
-
-        ### the text
-        s = ROOT.TLatex()
+        s = ROOT.ROOT.TLatex() ### the text
         s.SetNDC(1);
         s.SetTextAlign(13);
         s.SetTextFont(22);
@@ -419,14 +360,6 @@ for ie in range(1,histos["SMALL_hdxinv_vs_E"].GetNbinsX()+1):
         s.DrawLatex(0.3,0.90,ROOT.Form("E #in [%.3e, %.3e) [MeV]" % (histos["hE_"+label].GetXaxis().GetXmin(), histos["hE_"+label].GetXaxis().GetXmax())))
         s.DrawLatex(0.3,0.84,ROOT.Form("dx #in [%.3e, %.3e) [#mum]" % (histos["hdx_"+label].GetXaxis().GetXmin(), histos["hdx_"+label].GetXaxis().GetXmax())))
         s.DrawLatex(0.3,0.78,ROOT.Form("N raw steps = %d" % (NrawSteps)))
-        s.DrawLatex(0.3,0.72,ROOT.Form("E_{mean} = %.3e [MeV]" % (E*U.eV2MeV)))
-        s.DrawLatex(0.3,0.66,ROOT.Form("dx_{mean} = %.3e [#mum]" % (x*U.cm2um)))
-        s.DrawLatex(0.3,0.60,ROOT.Form("MPV_{model} = %.3e [MeV]" % (Delta_p)))
-        s.DrawLatex(0.3,0.54,ROOT.Form("#sigma_{model} = %.3e [MeV]" % (Width)))
-        s.DrawLatex(0.3,0.48,ROOT.Form("#sigma_{data} = %.3e [MeV]" % (sigma_dEdx_hist)))
-        s.DrawLatex(0.3,0.42,ROOT.Form("<dE>_{data} = %.3e [MeV]" % (mean_dEdx_hist)))
-        s.DrawLatex(0.3,0.36,ROOT.Form("<dE>_{pdg} = %.3e [MeV]" % (mean_dEdx_bbpdg)))
-        s.DrawLatex(0.3,0.30,ROOT.Form("<dE>_{model} = %.3e [MeV]" % (mean_dEdx_modl)))
         ROOT.gPad.RedrawAxis()
         ROOT.gPad.Update()
         
@@ -434,7 +367,6 @@ for ie in range(1,histos["SMALL_hdxinv_vs_E"].GetNbinsX()+1):
         name = "hdx_"+label
         ROOT.gPad.SetLogy()
         ROOT.gPad.SetTicks(1,1)
-        # print(f'Integral of {label} is {histos[name].Integral("width")}')
         histos[name].SetMinimum(hmin_dx)
         histos[name].SetMaximum(hmax_dx)
         histos[name].Draw("hist")
@@ -448,162 +380,8 @@ print("Making gif...")
 ROOT.gSystem.Exec("convert -delay 20 $(ls /Users/noamtalhod/tmp/png/*.png | sort -V) out.gif")
 
 
-pdfdeltapvsdx = "Ratios_vs_dx.pdf"
-cnv = TCanvas("cnv","",500,500)
-cnv.SaveAs(pdfdeltapvsdx+"(")
-for ie in range(1,histos["SMALL_hdxinv_vs_E"].GetNbinsX()+1):
-    label_E = str(ie)
-    cnv = TCanvas("cnv","",500,500)
-    cnv.Divide(2,2)
-    
-    cnv.cd(1)
-    ROOT.gPad.SetLogx()
-    ROOT.gPad.SetTicks(1,1)
-    histos["hMPVratio_E"+label_E].SetMinimum(0)
-    histos["hMPVratio_E"+label_E].SetMaximum(10)
-    histos["hMPVratio_E"+label_E].Draw("hist")    
-    ### the text
-    s = ROOT.TLatex()
-    s.SetNDC(1);
-    s.SetTextAlign(13);
-    s.SetTextFont(22);
-    s.SetTextColor(ROOT.kBlack)
-    s.SetTextSize(0.03)
-    s.DrawLatex(0.4,0.85,ROOT.Form("E #in [%.3e, %.3e) [MeV]" % (histos["SMALL_hdxinv_vs_E"].GetXaxis().GetBinLowEdge(ie), histos["SMALL_hdxinv_vs_E"].GetXaxis().GetBinUpEdge(ie))))
-    ROOT.gPad.RedrawAxis()
-    
-    cnv.cd(2)
-    ROOT.gPad.SetLogx()
-    ROOT.gPad.SetTicks(1,1)
-    histos["hMeanratio_E"+label_E].SetMinimum(0)
-    histos["hMeanratio_E"+label_E].SetMaximum(2)
-    histos["hMeanratio_E"+label_E].Draw("hist")
-    s.DrawLatex(0.4,0.85,ROOT.Form("E #in [%.3e, %.3e) [MeV]" % (histos["SMALL_hdxinv_vs_E"].GetXaxis().GetBinLowEdge(ie), histos["SMALL_hdxinv_vs_E"].GetXaxis().GetBinUpEdge(ie))))
-    ROOT.gPad.RedrawAxis()
-    
-    cnv.cd(3)
-    ROOT.gPad.SetLogx()
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetTicks(1,1)
-    hmaxs = []
-    hmaxs.append( histos["hN1_E"+label_E].GetMaximum() )
-    hmaxs.append( histos["hN3_E"+label_E].GetMaximum() )
-    hmaxs.append( histos["hN0_E"+label_E].GetMaximum() )
-    hmax = -1e20
-    for m in hmaxs:
-        hmax = m if(m>hmax) else hmax
-    hmins = []
-    hmins.append( histos["hN1_E"+label_E].GetMinimum() )
-    hmins.append( histos["hN3_E"+label_E].GetMinimum() )
-    hmins.append( histos["hN0_E"+label_E].GetMinimum() )
-    hmin = +1e20
-    for m in hmins:
-        hmin = m if(m<hmin) else hmin
-    hmin = 0.5 if(hmin==0) else hmin
-    histos["hN1_E"+label_E].SetMaximum(hmax*2.0)
-    histos["hN3_E"+label_E].SetMaximum(hmax*2.0)
-    histos["hN0_E"+label_E].SetMaximum(hmax*2.0)
-    histos["hN1_E"+label_E].SetMinimum(hmin*0.5)
-    histos["hN3_E"+label_E].SetMinimum(hmin*0.5)
-    histos["hN0_E"+label_E].SetMinimum(hmin*0.5)
-    histos["hN1_E"+label_E].SetLineColor(ROOT.kBlack)
-    histos["hN3_E"+label_E].SetLineColor(ROOT.kRed)
-    histos["hN0_E"+label_E].SetLineColor(ROOT.kGreen)
-    histos["hN1_E"+label_E].Draw("hist")
-    histos["hN3_E"+label_E].Draw("hist same")
-    histos["hN0_E"+label_E].Draw("hist same")
-    s.DrawLatex(0.4,0.85,ROOT.Form("E #in [%.3e, %.3e) [MeV]" % (histos["SMALL_hdxinv_vs_E"].GetXaxis().GetBinLowEdge(ie), histos["SMALL_hdxinv_vs_E"].GetXaxis().GetBinUpEdge(ie))))
-    ROOT.gPad.RedrawAxis()
-    
-    cnv.SaveAs(pdfdeltapvsdx)
-cnv = TCanvas("cnv","",500,500)
-cnv.SaveAs(pdfdeltapvsdx+")")    
-
-
-for ie in range(1,histos["SMALL_hdx_vs_E_isGauss_N1"].GetNbinsX()+1):
-    E = U.MeV2eV * histos["SMALL_hdx_vs_E_isGauss_N1"].GetXaxis().GetBinCenter(ie)
-    for ix in range(1,histos["SMALL_hdx_vs_E_isGauss_N1"].GetNbinsY()+1):
-        x = U.um2cm * histos["SMALL_hdx_vs_E_isGauss_N1"].GetYaxis().GetBinCenter(ix)
-        isG1 = 1 if(par.isGauss(E,x,1)) else 1e-6
-        isG3 = 1 if(par.isGauss(E,x,3)) else 1e-6
-        isG0 = 1 if(par.isGauss(E,x,0)) else 1e-6
-        n1 = par.n12_mean(E,x,1)
-        n3 = par.n3_mean(E,x)
-        n0 = par.n_0dE_mean(E,x)
-        histos["SMALL_hdx_vs_E_isGauss_N1"].SetBinContent(ie,ix,isG1)
-        histos["SMALL_hdx_vs_E_isGauss_N3"].SetBinContent(ie,ix,isG3)
-        histos["SMALL_hdx_vs_E_isGauss_N0"].SetBinContent(ie,ix,isG0)
-        histos["SMALL_hdx_vs_E_N1"].SetBinContent(ie,ix,n1)
-        histos["SMALL_hdx_vs_E_N3"].SetBinContent(ie,ix,n3)
-        histos["SMALL_hdx_vs_E_N0"].SetBinContent(ie,ix,n0)
-histos["SMALL_hdx_vs_E_isGauss_N1"].SetMinimum(0)
-histos["SMALL_hdx_vs_E_isGauss_N3"].SetMinimum(0)
-histos["SMALL_hdx_vs_E_isGauss_N0"].SetMinimum(0)
-histos["SMALL_hdx_vs_E_isGauss_N1"].SetMaximum(1)
-histos["SMALL_hdx_vs_E_isGauss_N3"].SetMaximum(1)
-histos["SMALL_hdx_vs_E_isGauss_N0"].SetMaximum(1)
-
-
-cnv = TCanvas("cnv","",1500,1000)
-cnv.Divide(3,2)
-cnv.cd(1)
-ROOT.gPad.SetLogy()
-ROOT.gPad.SetTicks(1,1)
-histos["SMALL_hdx_vs_E_isGauss_N1"].Draw("colz")
-ROOT.gPad.RedrawAxis()
-cnv.cd(2)
-ROOT.gPad.SetLogy()
-ROOT.gPad.SetTicks(1,1)
-histos["SMALL_hdx_vs_E_isGauss_N3"].Draw("colz")
-ROOT.gPad.RedrawAxis()
-cnv.cd(3)
-ROOT.gPad.SetLogy()
-ROOT.gPad.SetTicks(1,1)
-histos["SMALL_hdx_vs_E_isGauss_N0"].Draw("colz")
-ROOT.gPad.RedrawAxis()
-cnv.cd(4)
-ROOT.gPad.SetLogy()
-ROOT.gPad.SetLogz()
-ROOT.gPad.SetTicks(1,1)
-histos["SMALL_hdx_vs_E_N1"].Draw("colz")
-ROOT.gPad.RedrawAxis()
-cnv.cd(5)
-ROOT.gPad.SetLogy()
-ROOT.gPad.SetLogz()
-ROOT.gPad.SetTicks(1,1)
-histos["SMALL_hdx_vs_E_N3"].Draw("colz")
-ROOT.gPad.RedrawAxis()
-cnv.cd(6)
-ROOT.gPad.SetLogy()
-ROOT.gPad.SetLogz()
-ROOT.gPad.SetTicks(1,1)
-histos["SMALL_hdx_vs_E_N0"].Draw("colz")
-ROOT.gPad.RedrawAxis()
-cnv.SaveAs(pdf)
-
-
-cnv = TCanvas("cnv","",500,500)
-cnv.Divide(2,2)
-cnv.cd(1)
-ROOT.gPad.SetTicks(1,1)
-test0.Draw("hist")
-ROOT.gPad.RedrawAxis()
-cnv.cd(2)
-ROOT.gPad.SetTicks(1,1)
-test1.Draw("hist")
-ROOT.gPad.RedrawAxis()
-cnv.cd(3)
-ROOT.gPad.SetTicks(1,1)
-test2.Draw("hist")
-ROOT.gPad.RedrawAxis()
-cnv.cd(4)
-ROOT.gPad.SetTicks(1,1)
-test3.Draw("hist")
-ROOT.gPad.RedrawAxis()
-cnv.SaveAs(pdf+")")
-
 print("Writing root file...")
-tfout = TFile("out.root","RECREATE")
+tfout = ROOT.TFile("out.root","RECREATE")
 tfout.cd()
 for name,h in histos.items(): h.Write()
 tfout.Write()

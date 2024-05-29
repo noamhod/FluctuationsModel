@@ -6,6 +6,7 @@ import units as U
 from scipy.fft import fft, fftfreq, rfft, irfft
 from scipy.special import sici, exp1
 from scipy.signal import convolve, fftconvolve
+from scipy import interpolate
 import time
 
 # ROOT.gROOT.SetBatch(1)
@@ -97,8 +98,8 @@ class Model:
         self.par_gauss_ion       = [self.ion_mean, self.ion_sigma]
         self.par_gauss_exc       = [self.ex1_mean, self.ex1_sigma]
         
-        self.NptsTF1    = 1000000
-        self.N_t_bins   = 1000000
+        self.NptsTF1    = 100000
+        self.N_t_bins   = 100000
         self.dEmin      = -1
         self.dEmax      = -1
         self.Nbins      = -1
@@ -122,7 +123,11 @@ class Model:
         self.fSampling = -1
         self.TSampling = -1
         if(self.IONB): self.set_fft_sampling_pars(self.par_borysov_ion)
-        
+
+    def TimeIt(self,start,end,name):
+        if(self.dotime):
+            elapsed = end-start
+            print(f"TIME of {name} is: {elapsed} [s]")
     
     ### get the flags from the build string
     def set_flags(self):
@@ -226,9 +231,7 @@ class Model:
         h_re.SetLineWidth( 1 )
         h_im.SetLineWidth( 1 )
         end = time.time()
-        if(self.dotime):
-            elapsed = end-start
-            print(f"TIME of scipy_psi_of_t_as_h: {elapsed} [s]")
+        self.TimeIt(start,end,"scipy_psi_of_t_as_h")
         return h_re,h_im
 
     def borysov_ionization(self,par):
@@ -236,12 +239,11 @@ class Model:
         ### get psi(t)
         self.psiRe, self.psiIm = self.scipy_psi_of_t_as_h("psi_of_t",par)
         ### The FFT
-        y_lst = []
+        y = np.empty(self.N_t_bins).astype(complex)
         for bb in range(1,self.N_t_bins+1):
             re = self.psiRe.GetBinContent(bb)
             im = self.psiIm.GetBinContent(bb)
-            y_lst.append( re + im*1.j )
-        y = np.array(y_lst)
+            y[bb-1] = re + im*1.j
         yf = fft(y)
         xf = fftfreq(self.N_t_bins, self.TSampling)[:self.N_t_bins//2] ## remove the last M elements, where M=floor(N/2)
         ya = np.abs(yf[0:self.N_t_bins//2])*(2/self.N_t_bins)
@@ -249,10 +251,10 @@ class Model:
         gFFT = ROOT.TGraph(len(xf),xf,ya)
         gFFT.SetLineColor( ROOT.kRed )
         gFFT.SetBit(ROOT.TGraph.kIsSortedX)
+        # print(f"size of xf={len(xf)}, and ya={len(ya)}, xfdim={xf.ndim} and yadim={ya.ndim}")
+        # gFFT = interpolate.interp1d(xf,ya)
         end = time.time()
-        if(self.dotime):
-            elapsed = end-start
-            print(f"TIME of borysov_ionization: {elapsed} [s]")
+        self.TimeIt(start,end,"borysov_ionization")
         return gFFT
 
     def get_pdf(self,name,pdfname,par,dE_lowcut=-1):
@@ -273,12 +275,13 @@ class Model:
             if(pdfname=="truncated_gaus"):      f = ROOT.TF1("f_"+name,truncated_gaus,self.dEmin,self.dEmax,len(par))
             if(isBorysovIon): g.SetLineColor(ROOT.kRed)
             else:
-                for i in range(len(par)):  f.SetParameter(i,par[i])
+                for i in range(len(par)): f.SetParameter(i,par[i])
                 f.SetNpx(self.NptsTF1)
                 f.SetLineColor(ROOT.kRed)
             for bb in range(1,h.GetNbinsX()+1):
                 x = h.GetBinCenter(bb)
                 y = g.Eval(x) if(isBorysovIon) else f.Eval(x)
+                # y = g(x) if(isBorysovIon) else f.Eval(x)
                 if(x<dE_lowcut and dE_lowcut>0): y = 0 #TODO: is this cutoff physical?
                 if(x<=0 and isBorysovIon):       y = 0 #TODO: is this OK?
                 h.SetBinContent(bb,y)
@@ -287,42 +290,8 @@ class Model:
         h.SetLineColor( ROOT.kRed )
         h.SetLineWidth( 1 )
         end = time.time()
-        if(self.dotime):
-            elapsed = end-start
-            print(f"TIME of get_pdf({name}): {elapsed} [s]")
+        self.TimeIt(start,end,f"get_pdf({name})")
         return h
-
-    # def manual_convolution(self,A,K):
-    #     start = time.time()
-    #     aManualConv = []
-    #     for k in range(len(K)):
-    #         S = 0
-    #         for i in range(len(A)):
-    #             if(i>k): continue
-    #             S += A[i]*K[k-i]
-    #         aManualConv.append(S)
-    #     aManualConv = np.array(aManualConv)
-    #     end = time.time()
-    #     if(self.dotime):
-    #         elapsed = end-start
-    #         print(f"TIME of manual_convolution: {elapsed} [s]")
-    #     return aManualConv
-    
-    # def manual_convolution(self,A,K):
-    #     start = time.time()
-    #     aManualConv = []
-    #     for k in range(len(K)):
-    #         S = 0
-    #         for i in range(len(A)):
-    #             S += A[i]*K[k-i]
-    #             if(i>k): break
-    #         aManualConv.append(S)
-    #     aManualConv = np.array(aManualConv)
-    #     end = time.time()
-    #     if(self.dotime):
-    #         elapsed = end-start
-    #         print(f"TIME of manual_convolution: {elapsed} [s]")
-    #     return aManualConv
     
     def manual_convolution(self,A,K):
         start = time.time()
@@ -332,9 +301,7 @@ class Model:
         for k in range(n):
             result[k] = np.dot(A[:k+1], K[k::-1])
         end = time.time()
-        if(self.dotime):
-            elapsed = end-start
-            print(f"TIME of manual_convolution: {elapsed} [s]")
+        self.TimeIt(start,end,"manual_convolution")
         return result
     
     def get_component_pdfs(self):
@@ -369,9 +336,7 @@ class Model:
             pdfs["hBorysov_Exc"] = self.get_pdf("borysov_exc_model", "borysov_excitation", self.par_borysov_exc)
             print(f'PDF Integrals: hBorysov_Ion={pdfs["hBorysov_Ion"].Integral()}, hBorysov_Exc={pdfs["hBorysov_Exc"].Integral()}')
         end = time.time()
-        if(self.dotime):
-            elapsed = end-start
-            print(f"TIME of get_component_pdfs: {elapsed} [s]")
+        self.TimeIt(start,end,"get_component_pdfs")
         return pdfs
         
     def get_secondaries_pdfs(self):
@@ -382,9 +347,7 @@ class Model:
         if(self.SECB):
             pdfs["hBorysov_Sec"] = self.get_pdf("borysov_sec_model", "borysov_secondaries", self.par_borysov_sec)
         end = time.time()
-        if(self.dotime):
-            elapsed = end-start
-            print(f"TIME of get_secondaries_pdfs: {elapsed} [s]")
+        self.TimeIt(start,end,"get_secondaries_pdfs")
         return pdfs
     
     
@@ -398,20 +361,16 @@ class Model:
             for b in range(1,pdfs["hBEBL_Thn"].GetNbinsX()+1): pdfs["hModel"].SetBinContent(b, pdfs["hBEBL_Thn"].GetBinContent(b) )
             return pdfs
         ### Otherwise, constructe the continuous model 
-        aBorysov_Ion  = []
-        aBorysov_Exc  = []
-        aTrncGaus_Ion = []
-        aTrncGaus_Exc = []
+        aBorysov_Ion  = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
+        aBorysov_Exc  = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
+        aTrncGaus_Ion = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
+        aTrncGaus_Exc = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
         if(not self.BEBL):
             for b in range(1,pdfs["hBorysov_Ion"].GetNbinsX()+1):
-                if(pdfs["hBorysov_Ion"]  is not None): aBorysov_Ion.append(pdfs["hBorysov_Ion"].GetBinContent(b))
-                if(pdfs["hBorysov_Exc"]  is not None): aBorysov_Exc.append(pdfs["hBorysov_Exc"].GetBinContent(b))
-                if(pdfs["hTrncGaus_Ion"] is not None): aTrncGaus_Ion.append(pdfs["hTrncGaus_Ion"].GetBinContent(b))
-                if(pdfs["hTrncGaus_Exc"] is not None): aTrncGaus_Exc.append(pdfs["hTrncGaus_Exc"].GetBinContent(b))
-        aBorysov_Ion  = np.array(aBorysov_Ion)
-        aBorysov_Exc  = np.array(aBorysov_Exc)
-        aTrncGaus_Ion = np.array(aTrncGaus_Ion)
-        aTrncGaus_Exc = np.array(aTrncGaus_Exc)
+                if(pdfs["hBorysov_Ion"]  is not None): aBorysov_Ion[b-1] = pdfs["hBorysov_Ion"].GetBinContent(b)
+                if(pdfs["hBorysov_Exc"]  is not None): aBorysov_Exc[b-1] = pdfs["hBorysov_Exc"].GetBinContent(b)
+                if(pdfs["hTrncGaus_Ion"] is not None): aTrncGaus_Ion[b-1] = pdfs["hTrncGaus_Ion"].GetBinContent(b)
+                if(pdfs["hTrncGaus_Exc"] is not None): aTrncGaus_Exc[b-1] = pdfs["hTrncGaus_Exc"].GetBinContent(b)
         aScipyConv  = None
         aManualConv = None
         if(self.IONB and self.EX1B and self.IONG):
@@ -457,11 +416,8 @@ class Model:
         pdfs["hModel"].Scale(1./pdfs["hModel"].Integral())
         print(f'hModel={pdfs["hModel"].GetNbinsX()}, aConv={len(aConv)}')
         end = time.time()
-        if(self.dotime):
-            elapsed = end-start
-            print(f"TIME of get_model_pdfs: {elapsed} [s]")
+        self.TimeIt(start,end,"get_model_pdfs")
         return pdfs
-    
     
     def get_cdfs(self,pdfs):
         start = time.time()
@@ -471,11 +427,8 @@ class Model:
             cdfs.update( {name : pdf.GetCumulative().Clone(name+"_cdf")} )
             cdfs[name].GetYaxis().SetTitle( cdfs[name].GetYaxis().GetTitle()+" (cumulative)" )
         end = time.time()
-        if(self.dotime):
-            elapsed = end-start
-            print(f"TIME of get_cdfs: {elapsed} [s]")
+        self.TimeIt(start,end,"get_cdfs")
         return cdfs
-    
     
     def get_as_arrays(self,shapes,doScale=False):
         start = time.time()
@@ -485,20 +438,17 @@ class Model:
         for name,shape in shapes.items():
             if(shape==None): continue
             if(len(arrx)==0):
+                arrx = np.zeros( shape.GetNbinsX() )
                 for b in range(1,shape.GetNbinsX()+1):
                     x = shape.GetBinCenter(b)
                     if(rescale): x *= self.scale
-                    arrx.append(x)
-                arrx = np.array(arrx)
-            arry = []
+                    arrx[b-1] = x
+            arry = np.zeros(shape.GetNbinsX())
             for b in range(1,shape.GetNbinsX()+1):
-                arry.append( shape.GetBinContent(b) )
-            arry = np.array(arry)
+                arry[b-1] = shape.GetBinContent(b)
             arrsy.update( {name : arry} )
         end = time.time()
-        if(self.dotime):
-            elapsed = end-start
-            print(f"TIME of get_as_arrays: {elapsed} [s]")
+        self.TimeIt(start,end,"get_as_arrays")
         return arrx,arrsy
         
     def get_pdfs_from_arrays(self,arrx,arrsy,titles):
@@ -513,16 +463,14 @@ class Model:
             for i in range(len(arrx)):
                 xa = arrx[i]
                 xh = h.GetBinCenter(i+1)
-                if(abs(xa-xh)/xa>1e-6): print(f"xa={xa}, xh={xh}")
+                if(abs(xa-xh)/xa>1e-6): print(f"WARNING: xa={xa}, xh={xh}")
                 y = h.SetBinContent(i+1, arry[i])
             pdfs.update({name:h})
             h.Scale(1./h.Integral())
             h.SetLineColor( ROOT.kRed )
             h.SetLineWidth( 1 )
         end = time.time()
-        if(self.dotime):
-            elapsed = end-start
-            print(f"TIME of get_pdfs_from_arrays: {elapsed} [s]")
+        self.TimeIt(start,end,"get_pdfs_from_arrays")
         return pdfs
         
     def set_all_shapes(self):
@@ -545,6 +493,4 @@ class Model:
         self.cnt_pdfs_scaled_arrx, self.cnt_pdfs_scaled_arrsy = self.get_as_arrays(self.cnt_pdfs_scaled, self.scale)
         self.cnt_cdfs_scaled_arrx, self.cnt_cdfs_scaled_arrsy = self.get_as_arrays(self.cnt_cdfs_scaled, self.scale)
         end = time.time()
-        if(self.dotime):
-            elapsed = end-start
-            print(f"TIME of set_all_shapes: {elapsed} [s]")
+        self.TimeIt(start,end,"set_all_shapes")
