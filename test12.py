@@ -64,12 +64,27 @@ print(modelpars)
 ### Build the model shapes
 DOTIME = True
 Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars, DOTIME)
-cnt_pdfs = Mod.get_model_pdfs()
-cnt_cdfs = Mod.get_cdfs(cnt_pdfs)
-sec_pdfs = Mod.get_secondaries_pdfs()
-sec_cdfs = Mod.get_cdfs(sec_pdfs)
-# cnt_pdf_arrx,pdf_arrsy = Mod.get_as_arrays(cnt_pdfs,Mod.scale)
-# cnt_cdf_arrx,cdf_arrsy = Mod.get_as_arrays(cnt_cdfs,Mod.scale)
+Mod.set_fft_sampling_pars(N_t_bins=5000000,frac=0.05)
+Mod.set_all_shapes()
+cnt_pdfs = Mod.cnt_pdfs ## dict name-->TH1D
+cnt_cdfs = Mod.cnt_cdfs ## dict name-->TH1D
+sec_pdfs = Mod.sec_pdfs ## dict name-->TH1D
+sec_cdfs = Mod.sec_cdfs ## dict name-->TH1D
+# cnt_pdfs_scaled   = Mod.cnt_pdfs_scaled ## dict name-->TH1D
+# cnt_cdfs_scaled   = Mod.cnt_cdfs_scaled ## dict name-->TH1D
+# cnt_pdfs_scaled_arrx  = Mod.cnt_pdfs_scaled_arrx  ## np.array
+# cnt_pdfs_scaled_arrsy = Mod.cnt_pdfs_scaled_arrsy ## dict name-->np.array
+# cnt_cdfs_scaled_arrx  = Mod.cnt_cdfs_scaled_arrx  ## np.array
+# cnt_cdfs_scaled_arrsy = Mod.cnt_cdfs_scaled_arrsy ## dict name-->np.array
+# sec_pdfs_arrx  = Mod.sec_pdfs_arrx  ## np.array
+# sec_pdfs_arrsy = Mod.sec_pdfs_arrsy ## dict name-->np.array
+# sec_cdfs_arrx  = Mod.sec_cdfs_arrx  ## np.array
+# sec_cdfs_arrsy = Mod.sec_cdfs_arrsy ## dict name-->np.array
+
+# cnt_pdfs = Mod.get_model_pdfs()
+# cnt_cdfs = Mod.get_cdfs(cnt_pdfs)
+# sec_pdfs = Mod.get_secondaries_pdfs()
+# sec_cdfs = Mod.get_cdfs(sec_pdfs)
 
 ######################################################
 ######################################################
@@ -87,6 +102,9 @@ if(Mod.BEBL):
     canvas = ROOT.TCanvas("canvas", "canvas", 500,500)
     canvas.SaveAs("test12.pdf(")
 else:
+    if(Mod.psiRe is None or Mod.psiIm is None):
+        trange,psiRe,psiIm = Mod.scipy_psi_of_t("psi_of_t")
+    hpsiRe,hpsiIm = Mod.scipy_psi_of_t_as_h("psi_of_t")
     canvas = ROOT.TCanvas("canvas", "canvas", 1000,500)
     canvas.Divide(2,1)
     canvas.cd(1)
@@ -95,7 +113,7 @@ else:
     ROOT.gPad.SetGridy()
     ROOT.gPad.SetLeftMargin(0.15)
     ROOT.gPad.SetRightMargin(0.1)
-    Mod.psiRe.Draw("hist")
+    hpsiRe.Draw("hist")
     ROOT.gPad.RedrawAxis()
     canvas.cd(2)
     ROOT.gPad.SetTicks(1,1)
@@ -103,7 +121,7 @@ else:
     ROOT.gPad.SetGridy()
     ROOT.gPad.SetLeftMargin(0.15)
     ROOT.gPad.SetRightMargin(0.1)
-    Mod.psiIm.Draw("hist")
+    hpsiIm.Draw("hist")
     ROOT.gPad.RedrawAxis()
     canvas.SaveAs("test12.pdf(")
 

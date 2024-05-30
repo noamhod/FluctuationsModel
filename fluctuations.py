@@ -200,8 +200,8 @@ class Parameters:
     def isThick(self,E,x):
         dEmean = self.correctG4BBdEdx(E,x)
         Tmax   = self.Wmax(E)
-        print(f"Tmax={Tmax}, Tcut={self.mat.Tc}")
-        print(f"isThick={(self.m>C.me and dEmean>=self.NminBohr*self.mat.Tc and Tmax<=2.*self.mat.Tc)}: (m>me)={(self.m>C.me)}, (dEmean>NminBohr*Tcut)={(dEmean>self.NminBohr*self.mat.Tc)}, (Tmax<=2Tcut)={(Tmax<=2.*self.mat.Tc)}")
+        # print(f"Tmax={Tmax}, Tcut={self.mat.Tc}")
+        # print(f"isThick={(self.m>C.me and dEmean>=self.NminBohr*self.mat.Tc and Tmax<=2.*self.mat.Tc)}: (m>me)={(self.m>C.me)}, (dEmean>NminBohr*Tcut)={(dEmean>self.NminBohr*self.mat.Tc)}, (Tmax<=2Tcut)={(Tmax<=2.*self.mat.Tc)}")
         return (self.m>C.me and dEmean>=self.NminBohr*self.mat.Tc and Tmax<=2.*self.mat.Tc)
 
     def isGauss(self,E,x,i):
@@ -361,6 +361,7 @@ class Parameters:
         pars["param"].update({"spin":self.spin})
         pars["param"].update({"minLoss":self.minloss})
         pars["param"].update({"meanLoss":x*self.getG4BBdEdx(E)})
+        pars["param"].update({"Tcut":self.mat.Tc}) ## for secondaries
         pars["param"].update({"Tmax":self.Wmax(E)}) ## for secondaries
         pars["param"].update({"Etot":self.Etot(E)}) ## for secondaries
         pars["param"].update({"b2":self.beta(E)**2}) ## for secondaries

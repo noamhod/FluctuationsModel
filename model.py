@@ -57,6 +57,7 @@ def inv_sum_distribution(x,par):
 
 class Model:
     def __init__(self,dx,E,pars,dotime=False):
+        self.doprint   = False  
         self.dotime    = dotime
         self.SECB      = False
         self.TGAU      = False
@@ -75,6 +76,7 @@ class Model:
         self.spin      = self.param["spin"]      if("spin"      in self.param) else -1
         self.minLoss   = self.param["minLoss"]   if("minLoss"   in self.param) else -1
         self.meanLoss  = self.param["meanLoss"]  if("meanLoss"  in self.param) else -1
+        self.Tcut      = self.param["Tcut"]      if("Tcut"      in self.param) else -1
         self.Tmax      = self.param["Tmax"]      if("Tmax"      in self.param) else -1
         self.Etot      = self.param["Etot"]      if("Etot"      in self.param) else -1
         self.b2        = self.param["b2"]        if("b2"        in self.param) else -1
@@ -99,7 +101,7 @@ class Model:
         self.par_gauss_exc       = [self.ex1_mean, self.ex1_sigma]
         
         self.NptsTF1    = 100000
-        self.N_t_bins   = 100000
+        
         self.dEmin      = -1
         self.dEmax      = -1
         self.Nbins      = -1
@@ -107,22 +109,25 @@ class Model:
         self.dEmaxSec   = -1
         self.NbinsSec   = -1
         self.doLogx     = False
-        self.plotPsi    = True
+        
         self.convManual = True
         self.convMode   = "full"
-        self.psiRe      = None
-        self.psiIm      = None
         
         ### intialize everything else
         self.set_flags()
         self.validate_pars()
         self.dE_binning()
         ### for the frequencies spacing
-        self.tmin = -1
-        self.tmax = -1
+        self.min_N_t_bins = 500000
+        self.N_t_bins  = -1
+        self.tmin      = -1
+        self.tmax      = -1
+        self.psiRe     = None
+        self.psiIm     = None
+        self.plotPsi   = True
         self.fSampling = -1
         self.TSampling = -1
-        if(self.IONB): self.set_fft_sampling_pars(self.par_borysov_ion)
+        
 
     def TimeIt(self,start,end,name):
         if(self.dotime):
@@ -139,7 +144,7 @@ class Model:
         self.EX1B = ("EX1.B" in self.build)
         self.IONG = ("ION.G" in self.build)
         self.EX1G = ("EX1.G" in self.build)
-        print(f"SECB={self.SECB}, BEBL={self.BEBL}, IONB={self.IONB}, EX1B={self.EX1B}, IONG={self.IONG}, EX1G={self.EX1G}")
+        if(self.doprint): print(f"SECB={self.SECB}, BEBL={self.BEBL}, IONB={self.IONB}, EX1B={self.EX1B}, IONG={self.IONG}, EX1G={self.EX1G}")
 
     ### make sure the parameters are passed correctly
     def validate_pars(self):
@@ -165,46 +170,60 @@ class Model:
     
     def dE_binning(self):
         if(self.SECB):
-            self.dEminSec  = 10
-            self.dEmaxSec  = 1000000.1
-            self.NbinsSec  = 20000
+            self.dEminSec  = 0.8*self.Tcut #10
+            self.dEmaxSec  = 5000000.1
+            self.NbinsSec  = 25000
         if(self.BEBL):
             self.dEmin     = 0
             self.dEmax     = 11
             self.Nbins     = 1100
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G): ## Borysov only, no Gauss
-            self.dEmin     = 0.1
-            self.dEmax     = 3000.1
-            self.Nbins     = 6000
+            self.dEmin     = 0.05
+            self.dEmax     = 10000.05
+            self.Nbins     = 10000
         if(self.IONB and not self.EX1B and self.IONG and self.EX1G): ## no Borysov Exc
-            self.dEmin     = 0.1 #-3000
-            self.dEmax     = 60000.1 #53000
-            self.Nbins     = 15000 # 12500
+            self.dEmin     = 10
+            self.dEmax     = 1000010
+            self.Nbins     = 25000
         if(self.IONB and (self.IONG and not self.EX1G) or (self.EX1G and not self.IONG)): ## only one Gauss
-            self.dEmin     = 0.1 #-2000
-            self.dEmax     = 15000.1 # 12000
-            self.Nbins     = 7500 #7000
+            self.dEmin     = 10
+            self.dEmax     = 100010
+            self.Nbins     = 10000
         self.doLogx = True if(self.dEmin>0) else False
-        print(f"dEmin={self.dEmin}, dEmax={self.dEmax}, Nbins={self.Nbins}")
+        if(self.doprint): print(f"dEmin={self.dEmin}, dEmax={self.dEmax}, Nbins={self.Nbins}")
     
-    def set_fft_sampling_pars(self,par):
-        # for the frequencies spacing
-        if(self.dx_um>1.0): ## in microns
-            self.tmin = -2
-            self.tmax = +2
-        else:
-            self.tmin = -50
-            self.tmax = +50
+    def set_fft_sampling_pars(self,N_t_bins,frac):
+        if(not self.IONB): return
+        self.N_t_bins = N_t_bins
+        self.tmin = -500
+        self.tmax = +500
+        ### first find the t range
+        trange, psiRe, psiIm = self.scipy_psi_of_t()
+        psiRe_mean = np.mean(psiRe)
+        psiIm_mean = np.mean(psiIm)
+        psiRe_stdv = np.std(psiRe)
+        psiIm_stdv = np.std(psiIm)
+        for k,t in enumerate(trange):
+            if((psiRe[k]>psiRe_mean+psiRe_stdv*frac) or (psiRe[k]<psiRe_mean-psiRe_stdv*frac) or (psiIm[k]>psiIm_mean+psiIm_stdv*frac) or (psiIm[k]<psiIm_mean-psiIm_stdv*frac)):
+                self.tmin = t
+                self.tmax = abs(t)
+                if(k>0):
+                    self.N_t_bins = (N_t_bins-2*k)
+                    if(self.N_t_bins<self.min_N_t_bins): self.N_t_bins = self.min_N_t_bins
+                if(self.doprint): print(f"Changing to tmin=-500-->{self.tmin}, tmax=+500-->{self.tmax}, N_t_bins={N_t_bins}-->{self.N_t_bins}")
+                break
         self.fSampling = (2*np.pi)*(self.N_t_bins/(self.tmax-self.tmin))
         self.TSampling = 1./self.fSampling
-        print(f"tmin={self.tmin}, tmax={self.tmax}, TSampling={self.TSampling}")
-
-    def scipy_psi_of_t_as_h(self,name,par):
+        if(self.doprint): print(f"tmin={self.tmin}, tmax={self.tmax}, N_t_bins={self.N_t_bins}, TSampling={self.TSampling}")
+    
+    def scipy_psi_of_t(self):
+        if(not self.IONB or self.N_t_bins<0): return
         ## par[0] = w3
         ## par[1] = w
         ## par[2] = p3 (lambda)
         ## par[3] = 0/1 Re/Im
         start = time.time()
+        par = self.par_borysov_ion
         a = par[0]
         b = par[0]/(1-par[1])
         t = np.linspace(self.tmin,self.tmax,self.N_t_bins)
@@ -216,16 +235,25 @@ class Model:
         psi = (1./(2*np.pi))*np.exp(C*A-par[2])*( np.cos(C*B) + 1j*np.sin(C*B) )
         psi_re = np.real( psi )
         psi_im = np.imag( psi )
+        end = time.time()
+        self.TimeIt(start,end,"scipy_psi_of_t")
+        return t, psi_re, psi_im
+    
+    def scipy_psi_of_t_as_h(self,name):
+        if(self.psiRe is None or self.psiIm is None):
+            print("psiRe/psiIm are None. Quit.")
+            quit()
+        start = time.time()
         h_re = ROOT.TH1D("h_re_"+name,"Borysov Re[#psi(t)];t [1/eV];Re[#psi(t)]",self.N_t_bins,self.tmin,self.tmax)
         h_im = ROOT.TH1D("h_im_"+name,"Borysov Im[#psi(t)];t [1/eV];Im[#psi(t)]",self.N_t_bins,self.tmin,self.tmax)
         for bb in range(1,h_re.GetNbinsX()+1):
             x = h_re.GetBinCenter(bb)
-            y_re = psi_re[bb-1]
-            y_im = psi_im[bb-1]
+            y_re = self.psiRe[bb-1]
+            y_im = self.psiIm[bb-1]
             h_re.SetBinContent(bb,y_re)
             h_im.SetBinContent(bb,y_im)
-        h_re.Scale(1./h_re.Integral())
-        h_im.Scale(1./h_im.Integral())
+        # h_re.Scale(1./h_re.Integral())
+        # h_im.Scale(1./h_im.Integral())
         h_re.SetLineColor( ROOT.kRed )
         h_im.SetLineColor( ROOT.kBlue )
         h_re.SetLineWidth( 1 )
@@ -237,13 +265,9 @@ class Model:
     def borysov_ionization(self,par):
         start = time.time()
         ### get psi(t)
-        self.psiRe, self.psiIm = self.scipy_psi_of_t_as_h("psi_of_t",par)
+        t, self.psiRe, self.psiIm = self.scipy_psi_of_t()
         ### The FFT
-        y = np.empty(self.N_t_bins).astype(complex)
-        for bb in range(1,self.N_t_bins+1):
-            re = self.psiRe.GetBinContent(bb)
-            im = self.psiIm.GetBinContent(bb)
-            y[bb-1] = re + im*1.j
+        y = self.psiRe + 1.j*self.psiIm
         yf = fft(y)
         xf = fftfreq(self.N_t_bins, self.TSampling)[:self.N_t_bins//2] ## remove the last M elements, where M=floor(N/2)
         ya = np.abs(yf[0:self.N_t_bins//2])*(2/self.N_t_bins)
@@ -251,8 +275,6 @@ class Model:
         gFFT = ROOT.TGraph(len(xf),xf,ya)
         gFFT.SetLineColor( ROOT.kRed )
         gFFT.SetBit(ROOT.TGraph.kIsSortedX)
-        # print(f"size of xf={len(xf)}, and ya={len(ya)}, xfdim={xf.ndim} and yadim={ya.ndim}")
-        # gFFT = interpolate.interp1d(xf,ya)
         end = time.time()
         self.TimeIt(start,end,"borysov_ionization")
         return gFFT
@@ -320,21 +342,21 @@ class Model:
         pdfs["hModel"].SetLineColor(ROOT.kRed)
         if(self.BEBL):
             pdfs["hBEBL_Thn"] = self.get_pdf("bethebloch_min_model", "bethebloch_min_model", self.par_bethebloch_min)
-            print(f'PDF Integral: hBEBL_Thn={pdfs["hBEBL_Thn"].Integral()}')
+            if(self.doprint): print(f'PDF Integral: hBEBL_Thn={pdfs["hBEBL_Thn"].Integral()}')
         if(self.IONB and self.EX1B and self.IONG):
             pdfs["hBorysov_Ion"]  = self.get_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
             pdfs["hBorysov_Exc"]  = self.get_pdf("borysov_exc_model", "borysov_excitation", self.par_borysov_exc)
             pdfs["hTrncGaus_Ion"] = self.get_pdf("gauss_ion_model",   "truncated_gaus",     self.par_gauss_ion)
-            print(f'PDF Integrals: hBorysov_Ion={pdfs["hBorysov_Ion"].Integral()}, hBorysov_Exc={pdfs["hBorysov_Exc"].Integral()}, hTrncGaus_Ion={pdfs["hTrncGaus_Ion"].Integral()}')
+            if(self.doprint): print(f'PDF Integrals: hBorysov_Ion={pdfs["hBorysov_Ion"].Integral()}, hBorysov_Exc={pdfs["hBorysov_Exc"].Integral()}, hTrncGaus_Ion={pdfs["hTrncGaus_Ion"].Integral()}')
         if(self.IONB and self.IONG and self.EX1G):
             pdfs["hBorysov_Ion"]  = self.get_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
             pdfs["hTrncGaus_Ion"] = self.get_pdf("gauss_ion_model",   "truncated_gaus",     self.par_gauss_ion)
             pdfs["hTrncGaus_Exc"] = self.get_pdf("gauss_exc_model",   "truncated_gaus",     self.par_gauss_exc)
-            print(f'PDF Integrals: hBorysov_Ion={pdfs["hBorysov_Ion"].Integral()}, hTrncGaus_Ion={pdfs["hTrncGaus_Ion"].Integral()}, hTrncGaus_Exc={pdfs["hTrncGaus_Exc"].Integral()}')
+            if(self.doprint): print(f'PDF Integrals: hBorysov_Ion={pdfs["hBorysov_Ion"].Integral()}, hTrncGaus_Ion={pdfs["hTrncGaus_Ion"].Integral()}, hTrncGaus_Exc={pdfs["hTrncGaus_Exc"].Integral()}')
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G):
             pdfs["hBorysov_Ion"] = self.get_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
             pdfs["hBorysov_Exc"] = self.get_pdf("borysov_exc_model", "borysov_excitation", self.par_borysov_exc)
-            print(f'PDF Integrals: hBorysov_Ion={pdfs["hBorysov_Ion"].Integral()}, hBorysov_Exc={pdfs["hBorysov_Exc"].Integral()}')
+            if(self.doprint): print(f'PDF Integrals: hBorysov_Ion={pdfs["hBorysov_Ion"].Integral()}, hBorysov_Exc={pdfs["hBorysov_Exc"].Integral()}')
         end = time.time()
         self.TimeIt(start,end,"get_component_pdfs")
         return pdfs
@@ -382,8 +404,8 @@ class Model:
                 aScipyConv1 = fftconvolve(aBorysov_Ion,aBorysov_Exc, mode=self.convMode)#, method='auto')
                 aScipyConv2 = fftconvolve(aTrncGaus_Ion,aScipyConv1, mode=self.convMode)#, method='auto')
                 aScipyConv = aScipyConv2
-            print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}, IONG={len(aTrncGaus_Ion)}")
-            print(f"sizes of convolutions for (IONB and EX1B and IONG): IONBxEX1B={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}, IONBxEX1BxIONG={len(aManualConv2) if(self.convManual) else len(aScipyConv2)}")
+            if(self.doprint): print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}, IONG={len(aTrncGaus_Ion)}")
+            if(self.doprint): print(f"sizes of convolutions for (IONB and EX1B and IONG): IONBxEX1B={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}, IONBxEX1BxIONG={len(aManualConv2) if(self.convManual) else len(aScipyConv2)}")
         if(self.IONB and self.IONG and self.EX1G):
             if(self.convManual):
                 aManualConv1 = self.manual_convolution(aBorysov_Ion,aTrncGaus_Ion)
@@ -393,8 +415,8 @@ class Model:
                 aScipyConv1 = fftconvolve(aBorysov_Ion,aTrncGaus_Ion, mode=self.convMode)#, method='auto')
                 aScipyConv2 = fftconvolve(aTrncGaus_Exc,aScipyConv1,  mode=self.convMode)#, method='auto')
                 aScipyConv = aScipyConv2
-            print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, IONG={len(aTrncGaus_Ion)}, EX1G={len(aTrncGaus_Exc)}")
-            print(f"sizes of convolutions for (IONB and IONG and EX1G): IONBxIONG={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}, IONBxIONGxEX1G={len(aManualConv2) if(self.convManual) else len(aScipyConv2)}")
+            if(self.doprint): print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, IONG={len(aTrncGaus_Ion)}, EX1G={len(aTrncGaus_Exc)}")
+            if(self.doprint): print(f"sizes of convolutions for (IONB and IONG and EX1G): IONBxIONG={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}, IONBxIONGxEX1G={len(aManualConv2) if(self.convManual) else len(aScipyConv2)}")
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G):
             if(self.convManual):
                 aManualConv1 = self.manual_convolution(aBorysov_Ion,aBorysov_Exc)
@@ -402,8 +424,8 @@ class Model:
             else:
                 aScipyConv1 = fftconvolve(aBorysov_Ion,aBorysov_Exc, mode=self.convMode)#, method='auto')
                 aScipyConv = aScipyConv1
-            print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}")
-            print(f"sizes of convolutions for (IONB and EX1B and not IONG and not EX1G): IONBxEX1B={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}")
+            if(self.doprint): print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}")
+            if(self.doprint): print(f"sizes of convolutions for (IONB and EX1B and not IONG and not EX1G): IONBxEX1B={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}")
         ### fill the model hist pdf
         aConv = aManualConv if(self.convManual) else aScipyConv
         xConv = np.linspace(start=self.dEmin,stop=self.dEmax,num=len(aConv))
@@ -414,7 +436,7 @@ class Model:
             xb = pdfs["hModel"].GetBinCenter(b)
             pdfs["hModel"].SetBinContent(b, gConv.Eval(xb+2*abs(self.dEmin)) )
         pdfs["hModel"].Scale(1./pdfs["hModel"].Integral())
-        print(f'hModel={pdfs["hModel"].GetNbinsX()}, aConv={len(aConv)}')
+        if(self.doprint): print(f'hModel={pdfs["hModel"].GetNbinsX()}, aConv={len(aConv)}')
         end = time.time()
         self.TimeIt(start,end,"get_model_pdfs")
         return pdfs
@@ -423,7 +445,9 @@ class Model:
         start = time.time()
         cdfs = {}
         for name,pdf in pdfs.items():
-            if(pdf==None): continue
+            if(pdf==None):
+                cdfs.update( {name : None} )
+                continue
             cdfs.update( {name : pdf.GetCumulative().Clone(name+"_cdf")} )
             cdfs[name].GetYaxis().SetTitle( cdfs[name].GetYaxis().GetTitle()+" (cumulative)" )
         end = time.time()

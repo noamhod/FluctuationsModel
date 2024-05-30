@@ -31,25 +31,16 @@ dEdxModel = "G4:Tcut" # or "BB:Tcut"
 par       = flct.Parameters(ParamName,ParticleM,ParticleQ,TargetMat,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
 modelpars = par.GetModelPars(EE*U.MeV2eV,XX*U.um2cm)
 print(modelpars)
-got_params = time.time()
-elapsed_params = got_params - start
 
 ### Build the model shapes
 DOTIME = True
 Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars, DOTIME)
-defined_model = time.time()
-elapsed_model = defined_model - got_params
+Mod.set_fft_sampling_pars(N_t_bins=5000000,frac=0.01)
 Mod.set_all_shapes()
-got_shapes = time.time()
-elapsed_shapes = got_shapes - defined_model
 
-elapsed_full = got_shapes - start
-
-print(f"Elapsed times are")
-print(f"- get parameters: {elapsed_params} [s]")
-print(f"- define model:   {elapsed_model} [s]")
-print(f"- get shapes:     {elapsed_shapes} [s]")
-print(f"- full process:   {elapsed_full} [s]")
+end = time.time()
+elapsed = end - start
+print(f"Elapsed time is {elapsed} [s]")
 
 ### these are all the possible outputs (besides some other class variables)
 # cnt_pdfs              = Mod.cnt_pdfs ## dict name-->TH1D
