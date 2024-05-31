@@ -35,7 +35,7 @@ print(modelpars)
 ### Build the model shapes
 DOTIME = True
 Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars, DOTIME)
-Mod.set_fft_sampling_pars(N_t_bins=5000000,frac=0.01)
+Mod.set_fft_sampling_pars(N_t_bins=10000000,frac=0.01)
 Mod.set_all_shapes()
 
 end = time.time()

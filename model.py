@@ -6,7 +6,7 @@ import units as U
 from scipy.fft import fft, fftfreq, rfft, irfft
 from scipy.special import sici, exp1
 from scipy.signal import convolve, fftconvolve
-from scipy import interpolate
+from scipy.interpolate import interp1d
 import time
 
 # ROOT.gROOT.SetBatch(1)
@@ -110,9 +110,6 @@ class Model:
         self.NbinsSec   = -1
         self.doLogx     = False
         
-        self.convManual = True
-        self.convMode   = "full"
-        
         ### intialize everything else
         self.set_flags()
         self.validate_pars()
@@ -170,9 +167,9 @@ class Model:
     
     def dE_binning(self):
         if(self.SECB):
-            self.dEminSec  = 0.8*self.Tcut #10
+            self.dEminSec  = 0.5*self.Tcut #10
             self.dEmaxSec  = 5000000.1
-            self.NbinsSec  = 25000
+            self.NbinsSec  = 50000
         if(self.BEBL):
             self.dEmin     = 0
             self.dEmax     = 11
@@ -180,11 +177,11 @@ class Model:
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G): ## Borysov only, no Gauss
             self.dEmin     = 0.05
             self.dEmax     = 10000.05
-            self.Nbins     = 10000
+            self.Nbins     = 5000
         if(self.IONB and not self.EX1B and self.IONG and self.EX1G): ## no Borysov Exc
             self.dEmin     = 10
             self.dEmax     = 1000010
-            self.Nbins     = 25000
+            self.Nbins     = 50000
         if(self.IONB and (self.IONG and not self.EX1G) or (self.EX1G and not self.IONG)): ## only one Gauss
             self.dEmin     = 10
             self.dEmax     = 100010
@@ -315,16 +312,33 @@ class Model:
         self.TimeIt(start,end,f"get_pdf({name})")
         return h
     
-    def manual_convolution(self,A,K):
+    # def manual_convolution(self,A,K):
+    #     start = time.time()
+    #     n = len(K)
+    #     m = len(A)
+    #     result = np.zeros(n)
+    #     for k in range(n):
+    #         result[k] = np.dot(A[:k+1], K[k::-1])
+    #     end = time.time()
+    #     self.TimeIt(start,end,"manual_convolution")
+    #     return result
+    
+    def fft_convolution(self,X,A,K):
         start = time.time()
-        n = len(K)
-        m = len(A)
-        result = np.zeros(n)
-        for k in range(n):
-            result[k] = np.dot(A[:k+1], K[k::-1])
+        N = len(K)
+        if(len(A)!=N):
+            print("Arrays size does not match. Quit")
+            quit()
+        Y = fftconvolve(A,K)
+        DX = X[1]-X[0]
+        ## the extended x range where the convolution is defiend in:
+        X_extended = np.linspace(X[0], X[-1]+DX*(N-1), 2*N-1)
+        # now interpolate Y to the original X range
+        interp_func = interp1d(X_extended,Y,kind='linear') 
+        Y_interpolated = interp_func(X)
         end = time.time()
-        self.TimeIt(start,end,"manual_convolution")
-        return result
+        self.TimeIt(start,end,"fft_convolution")
+        return Y_interpolated
     
     def get_component_pdfs(self):
         start = time.time()
@@ -387,52 +401,39 @@ class Model:
         aBorysov_Exc  = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
         aTrncGaus_Ion = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
         aTrncGaus_Exc = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
+        aX            = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
         if(not self.BEBL):
             for b in range(1,pdfs["hBorysov_Ion"].GetNbinsX()+1):
-                if(pdfs["hBorysov_Ion"]  is not None): aBorysov_Ion[b-1] = pdfs["hBorysov_Ion"].GetBinContent(b)
-                if(pdfs["hBorysov_Exc"]  is not None): aBorysov_Exc[b-1] = pdfs["hBorysov_Exc"].GetBinContent(b)
+                if(pdfs["hBorysov_Ion"]  is not None): aX[b-1]            = pdfs["hBorysov_Ion"].GetBinCenter(b)
+                if(pdfs["hBorysov_Ion"]  is not None): aBorysov_Ion[b-1]  = pdfs["hBorysov_Ion"].GetBinContent(b)
+                if(pdfs["hBorysov_Exc"]  is not None): aBorysov_Exc[b-1]  = pdfs["hBorysov_Exc"].GetBinContent(b)
                 if(pdfs["hTrncGaus_Ion"] is not None): aTrncGaus_Ion[b-1] = pdfs["hTrncGaus_Ion"].GetBinContent(b)
                 if(pdfs["hTrncGaus_Exc"] is not None): aTrncGaus_Exc[b-1] = pdfs["hTrncGaus_Exc"].GetBinContent(b)
         aScipyConv  = None
-        aManualConv = None
+        aFFTConv = None
         if(self.IONB and self.EX1B and self.IONG):
-            if(self.convManual):
-                aManualConv1 = self.manual_convolution(aBorysov_Ion,aBorysov_Exc)
-                aManualConv2 = self.manual_convolution(aTrncGaus_Ion,aManualConv1)
-                aManualConv = aManualConv2
-            else:
-                aScipyConv1 = fftconvolve(aBorysov_Ion,aBorysov_Exc, mode=self.convMode)#, method='auto')
-                aScipyConv2 = fftconvolve(aTrncGaus_Ion,aScipyConv1, mode=self.convMode)#, method='auto')
-                aScipyConv = aScipyConv2
+            aFFTConv1 = self.fft_convolution(aX,aBorysov_Ion,aBorysov_Exc)
+            aFFTConv2 = self.fft_convolution(aX,aTrncGaus_Ion,aFFTConv1)
+            aFFTConv = aFFTConv2
             if(self.doprint): print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}, IONG={len(aTrncGaus_Ion)}")
-            if(self.doprint): print(f"sizes of convolutions for (IONB and EX1B and IONG): IONBxEX1B={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}, IONBxEX1BxIONG={len(aManualConv2) if(self.convManual) else len(aScipyConv2)}")
+            if(self.doprint): print(f"sizes of convolutions for (IONB and EX1B and IONG): IONBxEX1B={len(aFFTConv1)}, IONBxEX1BxIONG={len(aFFTConv2)}")
         if(self.IONB and self.IONG and self.EX1G):
-            if(self.convManual):
-                aManualConv1 = self.manual_convolution(aBorysov_Ion,aTrncGaus_Ion)
-                aManualConv2 = self.manual_convolution(aTrncGaus_Exc,aManualConv1)
-                aManualConv = aManualConv2
-            else:
-                aScipyConv1 = fftconvolve(aBorysov_Ion,aTrncGaus_Ion, mode=self.convMode)#, method='auto')
-                aScipyConv2 = fftconvolve(aTrncGaus_Exc,aScipyConv1,  mode=self.convMode)#, method='auto')
-                aScipyConv = aScipyConv2
+            aFFTConv1 = self.fft_convolution(aX,aBorysov_Ion,aTrncGaus_Ion)
+            aFFTConv2 = self.fft_convolution(aX,aTrncGaus_Exc,aFFTConv1)
+            aFFTConv = aFFTConv2
             if(self.doprint): print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, IONG={len(aTrncGaus_Ion)}, EX1G={len(aTrncGaus_Exc)}")
-            if(self.doprint): print(f"sizes of convolutions for (IONB and IONG and EX1G): IONBxIONG={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}, IONBxIONGxEX1G={len(aManualConv2) if(self.convManual) else len(aScipyConv2)}")
+            if(self.doprint): print(f"sizes of convolutions for (IONB and IONG and EX1G): IONBxIONG={len(aFFTConv1)}, IONBxIONGxEX1G={len(aFFTConv2)}")
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G):
-            if(self.convManual):
-                aManualConv1 = self.manual_convolution(aBorysov_Ion,aBorysov_Exc)
-                aManualConv = aManualConv1
-            else:
-                aScipyConv1 = fftconvolve(aBorysov_Ion,aBorysov_Exc, mode=self.convMode)#, method='auto')
-                aScipyConv = aScipyConv1
+            aFFTConv1 = self.fft_convolution(aX,aBorysov_Ion,aBorysov_Exc)
+            aFFTConv = aFFTConv1
             if(self.doprint): print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}")
-            if(self.doprint): print(f"sizes of convolutions for (IONB and EX1B and not IONG and not EX1G): IONBxEX1B={len(aManualConv1) if(self.convManual) else len(aScipyConv1)}")
+            if(self.doprint): print(f"sizes of convolutions for (IONB and EX1B and not IONG and not EX1G): IONBxEX1B={len(aFFTConv1)}")
         ### fill the model hist pdf
-        aConv = aManualConv if(self.convManual) else aScipyConv
+        aConv = aFFTConv
         xConv = np.linspace(start=self.dEmin,stop=self.dEmax,num=len(aConv))
         gConv = ROOT.TGraph(len(aConv),xConv, aConv)
         gConv.SetBit(ROOT.TGraph.kIsSortedX)
         for b in range(1,pdfs["hBorysov_Ion"].GetNbinsX()+1):
-            # pdfs["hModel"].SetBinContent(b, aManualConv[b-1] if(self.convManual) else aScipyConv[b-1])
             xb = pdfs["hModel"].GetBinCenter(b)
             pdfs["hModel"].SetBinContent(b, gConv.Eval(xb+2*abs(self.dEmin)) )
         pdfs["hModel"].Scale(1./pdfs["hModel"].Integral())

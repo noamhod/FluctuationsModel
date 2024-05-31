@@ -38,9 +38,9 @@ ndRinvbins,dRinvbins = GetLogBinning(500,dRinvmin,dRinvmax)
 ndEdxbins,dEdxbins   = GetLogBinning(500,dEdxmin,dEdxmax)
 
 n_small_dE    = 200
-n_small_E     = 60
-n_small_dx    = 60
-n_small_dxinv = 60
+n_small_E     = 120
+n_small_dx    = 120
+n_small_dxinv = 120
 nEbins_small,Ebins_small         = GetLogBinning(n_small_E,Emin,Emax)
 ndxbins_small,dxbins_small       = GetLogBinning(n_small_dx,dxmin,dxmax)
 ndxinvbins_small,dxinvbins_small = GetLogBinning(n_small_dxinv,dxinvmin,dxinvmax)
