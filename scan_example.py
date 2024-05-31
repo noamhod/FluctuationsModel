@@ -196,7 +196,7 @@ if __name__ == "__main__":
 
     ##########################################################
     ### plot the basic diagnostics histos (not yet the slices)
-    pdf = "scan.pdf"
+    pdf = "scan_example.pdf"
     cnv = ROOT.TCanvas("cnv","",1000,1000)
     cnv.Divide(2,2)
     cnv.cd(1)
@@ -596,7 +596,7 @@ if __name__ == "__main__":
     ###################################
     ### write everything to a root file
     print("Writing root file...")
-    tfout = ROOT.TFile("scan.root","RECREATE")
+    tfout = ROOT.TFile("scan_example.root","RECREATE")
     tfout.cd()
     for name,h in histos.items(): h.Write()
     for name,h in slices.items(): h.Write()

@@ -237,7 +237,7 @@ hBB_G4.SetLineStyle(ROOT.kDotted)
 #################################################
 #################################################
 ### plot everything
-pdf = "readtest.pdf"
+pdf = "slice_example.pdf"
 
 cnv = ROOT.TCanvas("cnv","",500,500)
 ROOT.gPad.SetLogy()
@@ -474,21 +474,6 @@ if(sec_cdfs["hBorysov_Sec"] is not None):
 legend.Draw("same")
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf+")")
-
-
-# cnv = ROOT.TCanvas("cnv","",500,500)
-# ROOT.gPad.SetTicks(1,1)
-# ROOT.gPad.SetLogy()
-# if(Mod.doLogx): ROOT.gPad.SetLogx()
-# hdE_cnt_lin_eV_noscale.Rebin(100)
-# cnt_pdfs["hModel"].Rebin(100)
-# cnt_pdfs["hModel"].Scale( hdE_cnt_lin_eV_noscale.GetMaximum()/cnt_pdfs["hModel"].GetMaximum() )
-# hdE_cnt_lin_eV_noscale.Draw("hist")
-# cnt_pdfs["hModel"].Draw("hist same")
-# ROOT.gPad.RedrawAxis()
-# cnv.SaveAs(pdf+")")
-
-
 
 
 ### write to root file

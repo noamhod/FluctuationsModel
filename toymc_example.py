@@ -100,7 +100,7 @@ histos = ToyMC.Generate(Nsteps=1000000)
 ### plot psi(t)
 if(Mod.BEBL):
     canvas = ROOT.TCanvas("canvas", "canvas", 500,500)
-    canvas.SaveAs("test12.pdf(")
+    canvas.SaveAs("toymc_example.pdf(")
 else:
     if(Mod.psiRe is None or Mod.psiIm is None):
         trange,psiRe,psiIm = Mod.scipy_psi_of_t("psi_of_t")
@@ -123,7 +123,7 @@ else:
     ROOT.gPad.SetRightMargin(0.1)
     hpsiIm.Draw("hist")
     ROOT.gPad.RedrawAxis()
-    canvas.SaveAs("test12.pdf(")
+    canvas.SaveAs("toymc_example.pdf(")
 
 
 
@@ -199,7 +199,7 @@ ROOT.gPad.SetRightMargin(0.1)
 histos["hTotal"].DrawNormalized("ep")
 cnt_pdfs["hModel"].DrawNormalized("hist same")
 ROOT.gPad.RedrawAxis()
-canvas.SaveAs("test12.pdf")
+canvas.SaveAs("toymc_example.pdf")
 
 
 canvas = ROOT.TCanvas("canvas", "canvas", 1400,1000)
@@ -281,7 +281,7 @@ histos["hTotal"].Scale(1./histos["hTotal"].Integral())
 histos["hTotal"].GetCumulative().Draw("ep")
 cnt_cdfs["hModel"].Draw("hist same")
 ROOT.gPad.RedrawAxis()
-canvas.SaveAs("test12.pdf)")
+canvas.SaveAs("toymc_example.pdf)")
 
 
 print(f"Done")
