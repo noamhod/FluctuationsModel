@@ -15,7 +15,7 @@ import model
 import multiprocessing as mp
 
 import argparse
-parser = argparse.ArgumentParser(description='readtest.py...')
+parser = argparse.ArgumentParser(description='scan_example.py...')
 parser.add_argument('-N', metavar='N steps to process if less than all, for all put 0', required=True,  help='N steps to process if les than all, for all put 0')
 argus = parser.parse_args()
 NN = int(argus.N)

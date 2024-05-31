@@ -12,7 +12,7 @@ import model
 import hist
 
 import argparse
-parser = argparse.ArgumentParser(description='readtest.py...')
+parser = argparse.ArgumentParser(description='slice_example.py...')
 parser.add_argument('-E', metavar='incoming particle energy [MeV]', required=True,  help='incoming particle energy [MeV]')
 parser.add_argument('-X', metavar='step size in x [um]', required=True,  help='step size in x [um]')
 parser.add_argument('-W', metavar='fractional size in of the window around X:E', required=False,  help='fractional size of the window around X:E')
