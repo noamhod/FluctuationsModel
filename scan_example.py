@@ -448,7 +448,6 @@ if __name__ == "__main__":
             s.SetTextSize(0.04)
             modtitle = builds[label].replace("->"," #otimes ").replace(".","")
             modtitle = modtitle.replace(" #otimes SECB","")
-            print(f"build={builds[label]}-->{modtitle}")
             s.DrawLatex(0.18,0.25,modtitle)
             ROOT.gPad.RedrawAxis()
             ##########################
@@ -527,7 +526,6 @@ if __name__ == "__main__":
             s.SetTextSize(0.04)
             modtitle = builds[label].replace("->"," #otimes ").replace(".","")
             modtitle = modtitle.replace(" #otimes SECB","")
-            print(f"build={builds[label]}-->{modtitle}")
             s.DrawLatex(0.18,0.25,modtitle)
             ROOT.gPad.RedrawAxis()
             ##########################
