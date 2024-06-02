@@ -9,7 +9,6 @@ import units as U
 import constants as C
 import material as mat
 import bins
-import shapes
 
 ROOT.gROOT.SetBatch(1)
 ROOT.gStyle.SetOptFit(0)

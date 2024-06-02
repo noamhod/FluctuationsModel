@@ -102,12 +102,19 @@ class Model:
         
         self.NptsTF1    = 100000
         
+        ### continuous, unscaled dE axis
         self.dEmin      = -1
         self.dEmax      = -1
         self.Nbins      = -1
+        ### continuous, scaled dE axis
+        self.NbinsScl   = -1
+        self.dEminScl   = -1
+        self.dEmaxScl   = -1
+        ### secondaries, unscaled dE axis (always the case)
         self.dEminSec   = -1
         self.dEmaxSec   = -1
         self.NbinsSec   = -1
+        ### relevant for everything
         self.doLogx     = False
         
         ### intialize everything else
@@ -169,15 +176,15 @@ class Model:
         if(self.SECB):
             self.dEminSec  = 0.5*self.Tcut #10
             self.dEmaxSec  = 5000000.1
-            self.NbinsSec  = 50000
+            self.NbinsSec  = 100000
         if(self.BEBL):
             self.dEmin     = 0
             self.dEmax     = 11
-            self.Nbins     = 1100
+            self.Nbins     = 110
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G): ## Borysov only, no Gauss
             self.dEmin     = 0.05
             self.dEmax     = 10000.05
-            self.Nbins     = 5000
+            self.Nbins     = 10000
         if(self.IONB and not self.EX1B and self.IONG and self.EX1G): ## no Borysov Exc
             self.dEmin     = 10
             self.dEmax     = 1000010
@@ -186,6 +193,7 @@ class Model:
             self.dEmin     = 10
             self.dEmax     = 100010
             self.Nbins     = 10000
+        self.set_scaled_xaxis_binning() ### only for continuous, non-BEBL
         self.doLogx = True if(self.dEmin>0) else False
         if(self.doprint): print(f"dEmin={self.dEmin}, dEmax={self.dEmax}, Nbins={self.Nbins}")
     
@@ -454,6 +462,13 @@ class Model:
         end = time.time()
         self.TimeIt(start,end,"get_cdfs")
         return cdfs
+    
+    ### for defining histos as in the scaled model
+    def set_scaled_xaxis_binning(self):
+        rescale = (self.IONB or self.EX1B or self.IONG or self.EX1G)
+        self.NbinsScl = self.Nbins
+        self.dEminScl = self.dEmin*self.scale if(rescale) else self.dEmin
+        self.dEmaxScl = self.dEmax*self.scale if(rescale) else self.dEmax
     
     def get_as_arrays(self,shapes,doScale=False):
         start = time.time()

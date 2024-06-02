@@ -15,14 +15,16 @@ import argparse
 parser = argparse.ArgumentParser(description='slice_example.py...')
 parser.add_argument('-E', metavar='incoming particle energy [MeV]', required=True,  help='incoming particle energy [MeV]')
 parser.add_argument('-X', metavar='step size in x [um]', required=True,  help='step size in x [um]')
-parser.add_argument('-W', metavar='fractional size in of the window around X:E', required=False,  help='fractional size of the window around X:E')
+parser.add_argument('-WE', metavar='fractional size in of the window around E', required=False,  help='fractional size of the window around E')
+parser.add_argument('-WX', metavar='fractional size in of the window around X', required=False,  help='fractional size of the window around X')
 parser.add_argument('-N', metavar='N steps to process', required=False,  help='N steps to process')
 argus = parser.parse_args()
 EE = float(argus.E)
 XX = float(argus.X)
-WW = 0.01 if(argus.W is None) else float(argus.W)
+WE = 0.01 if(argus.WE is None) else float(argus.WE)
+WX = 0.01 if(argus.WX is None) else float(argus.WX)
 NN = 0 if(argus.N is None) else int(argus.N)
-print(f"Model with energy: {EE} [MeV], dx: {XX} [um], window: {WW*100} [%]")
+print(f"Model with energy: {EE} [MeV], dx: {XX} [um], window in E: {WE*100} [%], window in X: {WX*100} [%]")
 
 
 
@@ -85,11 +87,11 @@ dEmin = 1e-4
 dEmax = 1.
 ndEbins,dEbins = bins.GetLogBinning(80,dEmin,dEmax)
 slicename  =  f"dE_E{EE}MeV_X{XX}um"
-slicetitle = f"E={EE}#pm{WW*100}% [MeV], #Deltax={XX}#pm{WW*100}% [#mum]"
+slicetitle = f"E={EE}#pm{WE*100}% [MeV], #Deltax={XX}#pm{WX*100}% [#mum]"
 hdE     = ROOT.TH1D(slicename,slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
 hdE_cnt = ROOT.TH1D(slicename+"_cnt",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
 hdE_sec = ROOT.TH1D(slicename+"_sec",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
-hdE_cnt_lin_eV         = ROOT.TH1D(slicename+"_cnt_lin_eV",slicetitle+";#DeltaE (scale included in MC, model axis is scaled) [eV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
+hdE_cnt_lin_eV         = ROOT.TH1D(slicename+"_cnt_lin_eV",slicetitle+";#DeltaE (scale included in MC, model axis is scaled) [eV];Steps",Mod.NbinsScl,Mod.dEminScl,Mod.dEmaxScl)
 hdE_cnt_lin_eV_noscale = ROOT.TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE (scale removed from MC, model is unscaled) [eV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
 hdE_sec_lin_eV         = ROOT.TH1D(slicename+"_sec_lin_eV",slicetitle+";#DeltaE [eV];Steps",Mod.NbinsSec,Mod.dEminSec,Mod.dEmaxSec)
 
@@ -150,7 +152,7 @@ for n,enrgy in enumerate(X):
     histos["hdEdx_vs_E_small_cnt"].Fill(E,dEcnt/dx)
     histos["hdEdx_vs_E_small_sec"].Fill(E,dEsec/dx)
     
-    if((dx>=(1-WW)*XX and dx<=(1+WW)*XX) and (E>=(1-WW)*EE and E<=(1+WW)*EE)):
+    if((dx>=(1-WX)*XX and dx<=(1+WX)*XX) and (E>=(1-WE)*EE and E<=(1+WE)*EE)):
         hdE.Fill(dE)
         hdE_sec.Fill(dEsec)
         hdE_cnt.Fill(dEcnt)

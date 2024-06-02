@@ -130,33 +130,6 @@ def book(histos,emin=-1): ### must pass by reference!
     histos.update({"SMALL_hdx_vs_E_isGauss_N3" : ROOT.TH2D("SMALL_hdx_vs_E_isGauss_N3",";E [MeV];dx [#mum];Gaussian for <n_{3}>", bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxbins_small)-1,array.array("d",bins.dxbins_small))})
     histos.update({"SMALL_hdx_vs_E_isGauss_N0" : ROOT.TH2D("SMALL_hdx_vs_E_isGauss_N0",";E [MeV];dx [#mum];Gaussian for <n_{0}>", bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxbins_small)-1,array.array("d",bins.dxbins_small))})
     
-    histos.update({"SMALL_hdx_vs_E" : ROOT.TH2D("SMALL_h_dx_vs_E",";E [MeV];dx [#mum];Steps", bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxbins_small)-1,array.array("d",bins.dxbins_small))})
-    # for ie in range(1,histos["SMALL_hdx_vs_E"].GetNbinsX()+1):
-    #     label_E = str(ie)
-    #     Emin = histos["SMALL_hdx_vs_E"].GetXaxis().GetBinLowEdge(ie)
-    #     Emax = histos["SMALL_hdx_vs_E"].GetXaxis().GetBinUpEdge(ie)
-    #     for ix in range(1,histos["SMALL_hdx_vs_E"].GetNbinsY()+1):
-    #         label_dx = str(ix)
-    #         dxmin = histos["SMALL_hdx_vs_E"].GetYaxis().GetBinLowEdge(ix)
-    #         dxmax = histos["SMALL_hdx_vs_E"].GetYaxis().GetBinUpEdge(ix)
-    #         label = "E"+label_E+"_dx"+label_dx
-    #         histos.update({"hdE_"+label: ROOT.TH1D("hdE_"+label,label+";#DeltaE [MeV];Steps", len(bins.dEbins_small)-1,array.array("d",bins.dEbins_small))})
-    #         # histos.update({"hdE_"+label: ROOT.TH1D("hdE_"+label,label+";#DeltaE [MeV];Steps", 50000,bins.dEmin,bins.dEmax)})
-    #         histos.update({"hE_"+label:  ROOT.TH1D("hE_"+label,label+";E [MeV];Steps", bins.n_small_E,Emin,Emax)})
-    #         histos.update({"hdx_"+label: ROOT.TH1D("hdx_"+label,label+";dx [#mum];Steps", bins.n_small_dx,dxmin,dxmax)})
-    
+    histos.update({"SMALL_hdx_vs_E"    : ROOT.TH2D("SMALL_h_dx_vs_E",";E [MeV];dx [#mum];Steps",        bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxbins_small)-1,array.array("d",bins.dxbins_small))})    
     histos.update({"SMALL_hdxinv_vs_E" : ROOT.TH2D("SMALL_h_dxinv_vs_E",";E [MeV];1/dx [1/#mum];Steps", bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxinvbins_small)-1,array.array("d",bins.dxinvbins_small))})
-    # for ie in range(1,histos["SMALL_hdxinv_vs_E"].GetNbinsX()+1):
-    #     label_E = str(ie)
-    #     Emin = histos["SMALL_hdxinv_vs_E"].GetXaxis().GetBinLowEdge(ie)
-    #     Emax = histos["SMALL_hdxinv_vs_E"].GetXaxis().GetBinUpEdge(ie)
-    #     for ixinv in range(1,histos["SMALL_hdxinv_vs_E"].GetNbinsY()+1):
-    #         label_dxinv = str(ixinv)
-    #         dxinvmin = histos["SMALL_hdxinv_vs_E"].GetYaxis().GetBinLowEdge(ixinv)
-    #         dxinvmax = histos["SMALL_hdxinv_vs_E"].GetYaxis().GetBinUpEdge(ixinv)
-    #         label = "E"+label_E+"_dxinv"+label_dxinv
-    #         histos.update({"hE_"+label:  ROOT.TH1D("hE_"+label,label+";E [MeV];Steps", bins.n_small_E,Emin,Emax)})
-    #         histos.update({"hdxinv_"+label: ROOT.TH1D("hdxinv_"+label,label+";1/dx [1/#mum];Steps", bins.n_small_dxinv,dxinvmin,dxinvmax)})
-    #         histos.update({"hdx_"+label: ROOT.TH1D("hdx_"+label,label+";dx [#mum];Steps", bins.n_small_dx,1./dxinvmax,1./dxinvmin)})
-    #         # histos.update({"hdE_"+label: ROOT.TH1D("hdE_"+label,label+";#DeltaE [MeV];Steps", 50000,bins.dEmin,bins.dEmax)})
-    #         histos.update({"hdE_"+label: ROOT.TH1D("hdE_"+label,label+";#DeltaE [MeV];Steps", len(bins.dEbins_small)-1,array.array("d",bins.dEbins_small))})
+
