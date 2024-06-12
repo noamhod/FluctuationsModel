@@ -1,21 +1,19 @@
 import array
 import math
 import numpy as np
-# import scipy.integrate as integrate
-# import scipy as sp
 import ROOT
-from ROOT import TH1D, TH2D, TMath, TF1, TCanvas, TLegend, TGraph
 import units as U
 import constants as C
 import material as mat
+import particle as prt
 import bins
 
-ROOT.gROOT.SetBatch(1)
-ROOT.gStyle.SetOptFit(0)
-ROOT.gStyle.SetOptStat(0)
-ROOT.gStyle.SetPadBottomMargin(0.15)
-ROOT.gStyle.SetPadLeftMargin(0.13)
-ROOT.gStyle.SetPadRightMargin(0.15)
+# ROOT.gROOT.SetBatch(1)
+# ROOT.gStyle.SetOptFit(0)
+# ROOT.gStyle.SetOptStat(0)
+# ROOT.gStyle.SetPadBottomMargin(0.15)
+# ROOT.gStyle.SetPadLeftMargin(0.13)
+# ROOT.gStyle.SetPadRightMargin(0.15)
 
 
 #####################################################################
@@ -24,11 +22,11 @@ ROOT.gStyle.SetPadRightMargin(0.15)
 
 
 class Parameters:
-    def __init__(self,name,mass,charge,material,dedxmodel,bbtable,bbfunc):
-        self.name    = name
-        self.m       = mass
-        self.z       = charge
-        self.spin    = 0.5 ### should be passed as argument to the consturctor
+    def __init__(self,primprt,material,dedxmodel,bbtable,bbfunc):
+        self.m       = primprt.meV
+        self.z       = primprt.chrg
+        self.spin    = primprt.spin
+        self.primprt = primprt
         self.mat     = material
         self.dedxmod = dedxmodel
         if(self.dedxmod!="BB:Tcut" and self.dedxmod!="BB:Tmax" and self.dedxmod!="G4:Tcut"):
@@ -64,8 +62,8 @@ class Parameters:
         self.EkinMax = -1
         self.fmax    = -1
     
-    def __str__(self):
-        return f"{self.name}"
+    # def __str__(self):
+    #     return f"{self.name}"
         
     def setG4BBdEdxFromTable(self,fname):
         hname = fname
@@ -81,7 +79,7 @@ class Parameters:
                 arr_dEdx.append( float(words[1]) )
         npts = len(arr_E)
         print(f"Read {npts} points from file {fname}")
-        gBB = TGraph(npts,arr_E,arr_dEdx)
+        gBB = ROOT.TGraph(npts,arr_E,arr_dEdx)
         gBB.SetLineColor(ROOT.kBlue)
         gBB.GetXaxis().SetTitle("E [MeV]")
         gBB.GetYaxis().SetTitle("dE/dx [MeV/mm]")
@@ -105,8 +103,8 @@ class Parameters:
         emax = arr_E[npts-1]
         de   = arr_E[1]-arr_E[0]
         print(f"Read {npts} points from file {fname}")
-        hBBlow = TH1D(hname+"_low",";E [MeV];dE/dx [MeV*cm^{2}/g]",npts,emin-de/2,emax+de/2)
-        hBBhig = TH1D(hname+"_hig",";E [MeV];dE/dx [MeV*cm^{2}/g]",npts,emin-de/2,emax+de/2)
+        hBBlow = ROOT.TH1D(hname+"_low",";E [MeV];dE/dx [MeV*cm^{2}/g]",npts,emin-de/2,emax+de/2)
+        hBBhig = ROOT.TH1D(hname+"_hig",";E [MeV];dE/dx [MeV*cm^{2}/g]",npts,emin-de/2,emax+de/2)
         hBBlow.SetLineColor(ROOT.kRed)
         hBBhig.SetLineColor(ROOT.kBlack)
         for i,E in enumerate(arr_E):
@@ -258,25 +256,6 @@ class Parameters:
         if(self.EkinMin>=self.EkinMax): return False
         return True
         
-    # ### TODO
-    # def parsSecondary(self,E):
-    #     if(not self.isSecondary(E)): return -1,-1
-    #     Tmax    = self.Wmax(E)
-    #     Emax    = 1e30
-    #     EkinMax = min(Tmax,Emax)
-    #     EkinMin = min(self.mat.Tc,Tmax)
-    #     # Etot = E+self.m
-    #     # tau  = E/self.m
-    #     # b    = self.beta(E)
-    #     # b2   = b**2 # = EkinMin*(EkinMin+2*self.m)/(Etot*Etot)
-    #     # spin = self.spin
-    #     # R    = C.me/self.m
-    #     # f1   = 0.
-    #     # fmax = 1.
-    #     # if(spin>0): fmax += 0.5*(EkinMax/Etot)*(EkinMax/Etot)
-    #     # return {"Etot":Etot, "tau":tau, "R":R, "Tmax":Tmax, "Emax":Emax, "EkinMax":EkinMax, "EkinMin":EkinMin, "b2":b2, "fmax":fmax, "spin":spin}
-    #     return EkinMin,EkinMax
-        
     
     ### default Energy Loss Fluctuations model used in main Physics List: https://geant4-userdoc.web.cern.ch/UsersGuides/PhysicsReferenceManual/html/electromagnetic/energy_loss/fluctuations.html#id230
     def g_of_dE_integral1Tup(self,E):
@@ -357,7 +336,10 @@ class Parameters:
         pars = {"point":point, "build":"NONE", "scale":scl, "param":{}}
         pars["param"].update({"dx":x})
         pars["param"].update({"E":E})
-        pars["param"].update({"spin":self.spin})
+        # pars["param"].update({"pname":self.pname})
+        # pars["param"].update({"spin":self.spin})
+        # pars["param"].update({"mass":self.m})
+        pars["param"].update({"primprt":self.primprt})
         pars["param"].update({"minLoss":self.minloss})
         pars["param"].update({"meanLoss":x*self.getG4BBdEdx(E)})
         pars["param"].update({"Tcut":self.mat.Tc}) ## for secondaries

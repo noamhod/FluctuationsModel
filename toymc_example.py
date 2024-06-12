@@ -10,6 +10,7 @@ import ROOT
 import constants as C
 import units as U
 import material as mat
+import particle as prt
 import bins
 import fluctuations as flct
 import hist
@@ -52,10 +53,11 @@ ROOT.gErrorIgnoreLevel = ROOT.kError
 #################################################
 #################################################
 ### GENERAL MODEL
-Mat = mat.Si # or e.g. mat.Al
-dEdxModel = "G4:Tcut" # or "BB:Tcut"
-par = flct.Parameters(Mat.name+" parameters",C.mp,+1,Mat,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
-modelpars = par.GetModelPars(EE*U.MeV2eV,XX*U.um2cm)
+dEdxModel  = "G4:Tcut" # or "BB:Tcut"
+TargetMat  = mat.Si # or e.g. mat.Al
+PrimaryPrt = prt.Particle(name="proton",meV=938.27208816*U.MeV2eV,mamu=1.007276466621,chrg=+1.,spin=0.5,lepn=0,magm=2.79284734463)
+par        = flct.Parameters(PrimaryPrt,TargetMat,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
+modelpars  = par.GetModelPars(EE*U.MeV2eV,XX*U.um2cm)
 print(modelpars)
 
 ######################################################
@@ -97,10 +99,12 @@ histos = ToyMC.Generate(Nsteps=1000000)
 ######################################################
 ######################################################
 
+pdffile = "toymc_example.pdf"
+
 ### plot psi(t)
 if(Mod.BEBL):
     canvas = ROOT.TCanvas("canvas", "canvas", 500,500)
-    canvas.SaveAs("toymc_example.pdf(")
+    canvas.SaveAs(pdffile+"(")
 else:
     if(Mod.psiRe is None or Mod.psiIm is None):
         trange,psiRe,psiIm = Mod.scipy_psi_of_t("psi_of_t")
@@ -123,7 +127,7 @@ else:
     ROOT.gPad.SetRightMargin(0.1)
     hpsiIm.Draw("hist")
     ROOT.gPad.RedrawAxis()
-    canvas.SaveAs("toymc_example.pdf(")
+    canvas.SaveAs(pdffile+"(")
 
 
 
@@ -199,7 +203,7 @@ ROOT.gPad.SetRightMargin(0.1)
 histos["hTotal"].DrawNormalized("ep")
 cnt_pdfs["hModel"].DrawNormalized("hist same")
 ROOT.gPad.RedrawAxis()
-canvas.SaveAs("toymc_example.pdf")
+canvas.SaveAs(pdffile)
 
 
 canvas = ROOT.TCanvas("canvas", "canvas", 1400,1000)
@@ -281,7 +285,23 @@ histos["hTotal"].Scale(1./histos["hTotal"].Integral())
 histos["hTotal"].GetCumulative().Draw("ep")
 cnt_cdfs["hModel"].Draw("hist same")
 ROOT.gPad.RedrawAxis()
-canvas.SaveAs("toymc_example.pdf)")
+canvas.SaveAs(pdffile+")")
 
+
+### write to root file
+fOut = ROOT.TFile(pdffile.replace("pdf","root"), "RECREATE")
+fOut.cd()
+for name,h in histos.items():
+    if(h is not None): h.Write()
+for name,p in cnt_pdfs.items(): 
+    if(p is not None): p.Write()
+for name,p in sec_pdfs.items(): 
+    if(p is not None): p.Write()
+for name,c in cnt_cdfs.items(): 
+    if(c is not None): c.Write()
+for name,c in sec_cdfs.items(): 
+    if(c is not None): c.Write()
+fOut.Write()
+fOut.Close()
 
 print(f"Done")

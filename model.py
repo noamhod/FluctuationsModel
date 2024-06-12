@@ -3,6 +3,7 @@ import array
 import numpy as np
 import ROOT
 import units as U
+import particle as prt
 from scipy.fft import fft, fftfreq, rfft, irfft
 from scipy.special import sici, exp1
 from scipy.signal import convolve, fftconvolve
@@ -73,7 +74,9 @@ class Model:
         self.build     = pars["build"]
         self.scale     = pars["scale"]
         self.param     = pars["param"]
-        self.spin      = self.param["spin"]      if("spin"      in self.param) else -1
+        # self.mass      = self.param["mass"]      if("mass"      in self.param) else -1
+        # self.spin      = self.param["spin"]      if("spin"      in self.param) else -1
+        self.primprt   = self.param["primprt"]   if("primprt"   in self.param) else prt.Particle(name="NONE",meV=-999,mamu=-999,chrg=-999,spin=-999,lepn=-999,magm=-999)
         self.minLoss   = self.param["minLoss"]   if("minLoss"   in self.param) else -1
         self.meanLoss  = self.param["meanLoss"]  if("meanLoss"  in self.param) else -1
         self.Tcut      = self.param["Tcut"]      if("Tcut"      in self.param) else -1

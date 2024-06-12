@@ -7,6 +7,7 @@ import ROOT
 import units as U
 import constants as C
 import material as mat
+import particle as prt
 import bins
 import fluctuations as flct
 import hist
@@ -280,18 +281,39 @@ def plot_slices(slices,shapes,builds,label,E,x,NrawSteps,count):
 
 
 if __name__ == "__main__":
-    ##################################################
-    ### open a file, where you stored the pickled data
-    fileX = open('data/without_E2MeV_cut/with_multiple_scattering/X.pkl', 'rb')
-    fileY = open('data/without_E2MeV_cut/with_multiple_scattering/Y.pkl', 'rb')
-    #################################
-    ### dump information to that file
-    X = pickle.load(fileX)
+    # ##################################################
+    # ### open a file, where you stored the pickled data
+    # fileX = open('data/without_E2MeV_cut/with_multiple_scattering/X.pkl', 'rb')
+    # fileY = open('data/without_E2MeV_cut/with_multiple_scattering/Y.pkl', 'rb')
+    # #################################
+    # ### dump information to that file
+    # X = pickle.load(fileX)
+    # Y = pickle.load(fileY)
+    # ##################
+    # ### close the file
+    # fileX.close()
+    # fileY.close()
+
+    # open a file, where you stored the pickled data
+    fileY = open('data/with_secondaries/step_info_df_no_msc.pkl', 'rb')
+    # dump information to that file
     Y = pickle.load(fileY)
-    ##################
-    ### close the file
-    fileX.close()
+    # close the file
     fileY.close()
+    df = pd.DataFrame(Y)
+    # print(df)
+    arr_dx     = df['dX'].to_numpy()
+    arr_dy     = df['dY'].to_numpy()
+    arr_dz     = df['dZ'].to_numpy()
+    arr_dEcnt  = df['ContinuousLoss'].to_numpy()
+    arr_dEtot  = df['TotalEnergyLoss'].to_numpy()
+    arr_E      = df['KineticEnergy'].to_numpy()
+    arr_dR     = df['dR'].to_numpy()
+    arr_dL     = df['dL'].to_numpy()
+    arr_dTheta = df['dTheta'].to_numpy()
+    arr_dPhi   = df['dPhi'].to_numpy()
+
+
     ###################
     ### general histos:
     histos = {}
@@ -299,13 +321,10 @@ if __name__ == "__main__":
     
     ###################################
     ### get the parameters of the model
-    TargetMat = mat.Si # or e.g. mat.Al
-    ParticleN = "Proton"
-    ParticleM = C.mp
-    ParticleQ = +1
-    ParamName = ParticleN+"_on_"+TargetMat.name
-    dEdxModel = "G4:Tcut" # or "BB:Tcut"
-    par       = flct.Parameters(ParamName,ParticleM,ParticleQ,TargetMat,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
+    dEdxModel  = "G4:Tcut" # or "BB:Tcut"
+    TargetMat  = mat.Si # or e.g. mat.Al
+    PrimaryPrt = prt.Particle(name="proton",meV=938.27208816*U.MeV2eV,mamu=1.007276466621,chrg=+1.,spin=0.5,lepn=0,magm=2.79284734463)
+    par        = flct.Parameters(PrimaryPrt,TargetMat,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
     
     #####################################################
     ### first define the slice histos to hold the MC data
@@ -336,18 +355,33 @@ if __name__ == "__main__":
     #######################################
     ### Run the MC data and fill the histos
     print("\nStart the loop over GEANT4 data...")
-    for n,enrgy in enumerate(X):
-        E     = enrgy*U.eV2MeV
-        dx    = Y[n][0]*U.m2um
-        dxinv = 1/dx if(dx>0) else -999
-        dR    = Y[n][1]*U.m2um
+    # for n,enrgy in enumerate(X):
+    #     E     = enrgy*U.eV2MeV
+    #     dx    = Y[n][0]*U.m2um
+    #     dxinv = 1/dx if(dx>0) else -999
+    #     dR    = Y[n][1]*U.m2um
+    #     dRinv = 1/dR if(dR>0) else -999 ## this happens for the primary particles...
+    #     dEcnt = Y[n][2]*U.eV2MeV
+    #     dEsec = Y[n][3]*U.eV2MeV
+    #     dEtot = dEcnt+dEsec
+    #     dE    = dEtot
+    
+    for n in range(len(arr_dx)):
+        dx     = arr_dx[n]*U.m2um
+        dxinv  = 1/dx if(dx>0) else -999
+        dy     = arr_dy[n]*U.m2um
+        dz     = arr_dz[n]*U.m2um
+        dEcnt  = arr_dEcnt[n]*U.eV2MeV
+        dEtot  = arr_dEtot[n]*U.eV2MeV
+        dEsec  = dEtot - dEcnt
+        dE     = dEtot
+        E      = arr_E[n]*U.eV2MeV
+        dR     = arr_dR[n]*U.m2um
         dRinv = 1/dR if(dR>0) else -999 ## this happens for the primary particles...
-        dEcnt = Y[n][2]*U.eV2MeV
-        # dEtot = Y[n][3]*U.eV2MeV
-        # dEsec = dEtot-dEcnt
-        dEsec = Y[n][3]*U.eV2MeV
-        dEtot = dEcnt+dEsec
-        dE    = dEtot
+        dL     = arr_dL[n]*U.m2um
+        dTheta = arr_dTheta[n]
+        dPhi   = arr_dPhi[n]
+    
         ################
         ### valideations
         if(E>=bins.Emax):   continue ## skip the primary particles

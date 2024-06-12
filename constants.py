@@ -15,3 +15,7 @@ K        = 0.307075*U.MeV2eV         # MeV mol−1 cm2 # 4pi N_A r_e^2 m_e c^2
 j        = 0.200                     # from the PDG implementation
 Avogadro = 6.02214179e+23            # 1/mole
 twoln10  = 2.*math.log(10.)
+c_light   = 2.99792458e+8*U.m2cm     # cm/s
+c2        = c_light**2               # (cm/s)^2
+h_Planck  = 4.135667696e-15          # eV*s
+hbar_Planck = h_Planck/twopi         # eV*s

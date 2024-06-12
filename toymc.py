@@ -4,6 +4,7 @@ import numpy as np
 import ROOT
 import bins
 import units as U
+import constants as C
 import model
 
 # ROOT.gROOT.SetBatch(1)
@@ -64,17 +65,33 @@ class ToyMC:
     
             ### 
             if(SECB):
-                x0 = self.rnd.Uniform()
-                x1 = self.rnd.Uniform()
-                f  = -1
-                while(self.model.fmax*x1>f):
-                    eloss_Sec = self.model.EkinMin*self.model.EkinMax/(self.model.EkinMin*(1.-x0)+self.model.EkinMax*x1)
+                r0 = self.rnd.Uniform()
+                r1 = self.rnd.Uniform()
+                f  = 0
+                f1 = 0
+                fmax = 1.
+                if(self.model.primprt.spin>0.):
+                    fmax += 0.5*((self.model.EkinMax/self.model.Etot)**2)
+                while(fmax*r1>f):
+                    # print(f"fmax={fmax}, r1={r1}, f={f}, spin={self.model.primprt.spin}")
+                    eloss_Sec = self.model.EkinMin*self.model.EkinMax/(self.model.EkinMin*(1.-r0)+self.model.EkinMax*r0)
                     f = 1.-self.model.b2*eloss_Sec/self.model.Tmax
-                    if(self.model.spin>0.5):
+                    if(self.model.primprt.spin>0.):
                         f1 = 0.5*(eloss_Sec**2)/self.model.Etot
                         f += f1
-                    if(self.model.fmax*x1>f): break
-                histos["hSecondaries"].Fill( eloss_Sec )
+                    if(fmax*r1>f): break
+                ### tail cutoff:
+                GENSEC = True
+                x = self.model.primprt.ffact*eloss_Sec        
+                if(x>1.e-6):
+                    x1 = 1.+x
+                    grej = 1./(x1**2)
+                    if(self.model.primprt.spin>0.):
+                        x2 = 0.5*C.me*eloss_Sec/(self.model.primprt.meV**2);
+                        grej *= (1.+self.model.primprt.magm2*(x2-f1/f)/(1.+x2))
+                    if(self.rnd.Uniform()>grej): GENSEC = False
+                # print(f"GENSEC={GENSEC}: mgm2={self.model.primprt.magm2}, ffact={self.model.primprt.ffact}, x={x}, grej={grej}")
+                if(GENSEC): histos["hSecondaries"].Fill( eloss_Sec )
     
             ### if average loss is smaller than 10 eV, take the averge loss
             if(BEBL):

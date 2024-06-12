@@ -7,6 +7,7 @@ import ROOT
 import constants as C
 import units as U
 import material as mat
+import particle as prt
 import bins
 import fluctuations as flct
 import model
@@ -22,14 +23,11 @@ print(f"Model with energy: {EE} [MeV], dx: {XX} [um], window: {WW*100} [%]")
 
 start = time.time()
 ### calculate the model's parameters
-TargetMat = mat.Si # or e.g. mat.Al
-ParticleN = "Proton"
-ParticleM = C.mp
-ParticleQ = +1
-ParamName = ParticleN+"_on_"+TargetMat.name
-dEdxModel = "G4:Tcut" # or "BB:Tcut"
-par       = flct.Parameters(ParamName,ParticleM,ParticleQ,TargetMat,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
-modelpars = par.GetModelPars(EE*U.MeV2eV,XX*U.um2cm)
+dEdxModel  = "G4:Tcut" # or "BB:Tcut"
+TargetMat  = mat.Si # or e.g. mat.Al
+PrimaryPrt = prt.Particle(name="proton",meV=938.27208816*U.MeV2eV,mamu=1.007276466621,chrg=+1.,spin=0.5,lepn=0,magm=2.79284734463)
+par        = flct.Parameters(PrimaryPrt,TargetMat,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
+modelpars  = par.GetModelPars(EE*U.MeV2eV,XX*U.um2cm)
 print(modelpars)
 
 ### Build the model shapes
