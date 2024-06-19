@@ -2,11 +2,11 @@ import array
 import math
 import numpy as np
 import ROOT
-import units as U
-import constants as C
-import material as mat
-import particle as prt
-import bins
+from FluctuationsModel import units as U
+from FluctuationsModel import constants as C
+from FluctuationsModel import material  as mat
+from FluctuationsModel import particle  as prt
+from FluctuationsModel import bins
 
 # ROOT.gROOT.SetBatch(1)
 # ROOT.gStyle.SetOptFit(0)
@@ -22,19 +22,18 @@ import bins
 
 
 class Parameters:
-    def __init__(self,primprt,material,dedxmodel,bbtable,bbfunc):
+    def __init__(self, primprt: prt.Particle, material: mat.Material, dedxmodel: str, bbtable: str, bbfunc: str):
         self.m       = primprt.meV
         self.z       = primprt.chrg
         self.spin    = primprt.spin
         self.primprt = primprt
         self.mat     = material
         self.dedxmod = dedxmodel
-        if(self.dedxmod!="BB:Tcut" and self.dedxmod!="BB:Tmax" and self.dedxmod!="G4:Tcut"):
-            print(f"Unknown model named {self.dedxmod}. Quitting")
-            quit()
+
+        assert self.dedxmod in ["BB:Tcut","BB:Tmax","G4:Tcut"], f"Unknown model named {self.dedxmod}. Quitting"
         print(f"Using dE/dx model: {self.dedxmod}")
         
-        ### default Energy Loss Fluctuations model used in main Physics List:
+        # default Energy Loss Fluctuations model used in main Physics List:
         self.r        = 0.56 #0.55 ## rate (fraction) of the ionization part of the total loss (excitation+ionization)
         self.kap      = 10 ## lower limit of the number of interactions of the particle in a step
         self.minloss  = 10. ## eV

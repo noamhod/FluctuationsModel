@@ -1,8 +1,8 @@
 import array
 import math
 import numpy as np
-import units as U
-import constants as C
+from FluctuationsModel import units as U
+from FluctuationsModel import constants as C
 
 
 #####################################################################
@@ -43,6 +43,9 @@ class Particle:
         return ffact
         
 
+proton = Particle(
+    name="proton", meV=C.mp, mamu=1.007276466621, chrg=+1., spin=0.5, lepn=0, magm=2.79284734463
+)
 
 # prt = Particle(name="proton",meV=938.27208816*U.MeV2eV,mamu=1.007276466621,chrg=+1.,spin=0.5,lepn=0,magm=2.79284734463)
 # print(f"name={prt.name}")

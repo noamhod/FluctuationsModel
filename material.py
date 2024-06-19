@@ -1,8 +1,8 @@
 import array
 import math
 import numpy as np
-import units as U
-import constants as C
+from FluctuationsModel import units as U
+from FluctuationsModel import constants as C
 
 
 class Material:

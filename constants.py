@@ -1,5 +1,5 @@
 import math
-import units as U
+from FluctuationsModel import units as U
 
 pi       = 3.14159265358979323846
 twopi    = 2*pi

@@ -2,8 +2,8 @@ import math
 import array
 import numpy as np
 import ROOT
-import units as U
-import particle as prt
+from FluctuationsModel import units as U
+from FluctuationsModel import particle as prt
 from scipy.fft import fft, fftfreq, rfft, irfft
 from scipy.special import sici, exp1
 from scipy.signal import convolve, fftconvolve
@@ -200,41 +200,56 @@ class Model:
         self.doLogx = True if(self.dEmin>0) else False
         if(self.doprint): print(f"dEmin={self.dEmin}, dEmax={self.dEmax}, Nbins={self.Nbins}")
     
-    def set_fft_sampling_pars(self,N_t_bins,frac):
+    def set_fft_sampling_pars(self, N_t_bins, frac):
         if(not self.IONB): return
-        self.N_t_bins = N_t_bins
         self.tmin = -500
         self.tmax = +500
-        ### first find the t range
+        self.N_t_bins = N_t_bins
+
+        # first find the trange
         trange, psiRe, psiIm = self.scipy_psi_of_t()
+
         psiRe_mean = np.mean(psiRe)
         psiIm_mean = np.mean(psiIm)
         psiRe_stdv = np.std(psiRe)
         psiIm_stdv = np.std(psiIm)
-        for k,t in enumerate(trange):
-            if((psiRe[k]>psiRe_mean+psiRe_stdv*frac) or (psiRe[k]<psiRe_mean-psiRe_stdv*frac) or (psiIm[k]>psiIm_mean+psiIm_stdv*frac) or (psiIm[k]<psiIm_mean-psiIm_stdv*frac)):
-                self.tmin = t
-                self.tmax = abs(t)
-                if(k>0):
-                    self.N_t_bins = (N_t_bins-2*k)
-                    if(self.N_t_bins<self.min_N_t_bins): self.N_t_bins = self.min_N_t_bins
-                if(self.doprint): print(f"Changing to tmin=-500-->{self.tmin}, tmax=+500-->{self.tmax}, N_t_bins={N_t_bins}-->{self.N_t_bins}")
-                break
+
+        psiRe_plus_stdv  = psiRe_mean+psiRe_stdv*frac
+        psiRe_minus_stdv = psiRe_mean-psiRe_stdv*frac
+        psiIm_plus_stdv  = psiIm_mean+psiIm_stdv*frac
+        psiIm_minus_stdv = psiIm_mean-psiIm_stdv*frac
+
+        locs_psiRe_plus_stdv  = psiRe > psiRe_plus_stdv
+        locs_psiRe_minus_stdv = psiRe < psiRe_minus_stdv
+        locs_psiIm_plus_stdv  = psiIm > psiIm_plus_stdv
+        locs_psiIm_minus_stdv = psiIm < psiIm_minus_stdv
+
+        locs = locs_psiRe_plus_stdv | locs_psiRe_minus_stdv | locs_psiIm_plus_stdv | locs_psiIm_minus_stdv
+        first_true_loc = np.argmax(locs)  # first True value in 'locs'
+
+        self.tmin = trange[first_true_loc]
+        self.tmax = abs(trange[first_true_loc])
+
+        if (first_true_loc > 0):
+            self.N_t_bins = (N_t_bins - 2 * first_true_loc)
+            if (self.N_t_bins < self.min_N_t_bins):
+                self.N_t_bins = self.min_N_t_bins
+        if (self.doprint):
+            print(
+                f"Changing to tmin=-500-->{self.tmin}, tmax=+500-->{self.tmax}, N_t_bins={N_t_bins}-->{self.N_t_bins}")
+
         self.fSampling = (2*np.pi)*(self.N_t_bins/(self.tmax-self.tmin))
         self.TSampling = 1./self.fSampling
         if(self.doprint): print(f"tmin={self.tmin}, tmax={self.tmax}, N_t_bins={self.N_t_bins}, TSampling={self.TSampling}")
     
     def scipy_psi_of_t(self):
         if(not self.IONB or self.N_t_bins<0): return
-        ## par[0] = w3
-        ## par[1] = w
-        ## par[2] = p3 (lambda)
-        ## par[3] = 0/1 Re/Im
+
         start = time.time()
         par = self.par_borysov_ion
         a = par[0]
         b = par[0]/(1-par[1])
-        t = np.linspace(self.tmin,self.tmax,self.N_t_bins)
+        t = np.linspace(self.tmin, self.tmax, self.N_t_bins)
         aSi, aCi = sici(a*t)
         bSi, bCi = sici(b*t)
         A = np.cos(a*t)/a - np.cos(b*t)/b + t*aSi - t*bSi
@@ -248,9 +263,8 @@ class Model:
         return t, psi_re, psi_im
     
     def scipy_psi_of_t_as_h(self,name):
-        if(self.psiRe is None or self.psiIm is None):
-            print("psiRe/psiIm are None. Quit.")
-            quit()
+        assert (self.psiRe is not None) and (self.psiIm is not None), "psiRe/psiIm are None. Quit."
+
         start = time.time()
         h_re = ROOT.TH1D("h_re_"+name,"Borysov Re[#psi(t)];t [1/eV];Re[#psi(t)]",self.N_t_bins,self.tmin,self.tmax)
         h_im = ROOT.TH1D("h_im_"+name,"Borysov Im[#psi(t)];t [1/eV];Im[#psi(t)]",self.N_t_bins,self.tmin,self.tmax)
@@ -320,7 +334,7 @@ class Model:
         h.SetLineColor( ROOT.kRed )
         h.SetLineWidth( 1 )
         end = time.time()
-        self.TimeIt(start,end,f"get_pdf({name})")
+        self.TimeIt(start, end, f"get_pdf({name})")
         return h
     
     # def manual_convolution(self,A,K):
@@ -473,18 +487,18 @@ class Model:
         self.dEminScl = self.dEmin*self.scale if(rescale) else self.dEmin
         self.dEmaxScl = self.dEmax*self.scale if(rescale) else self.dEmax
     
-    def get_as_arrays(self,shapes,doScale=False):
+    def get_as_arrays(self,shapes, scale = 1.0):
         start = time.time()
         arrx  = []
         arrsy = {}
-        rescale = (doScale and (self.IONB or self.EX1B or self.IONG or self.EX1G))
+        rescale = (not np.isclose(scale, 1.0)) and (self.IONB or self.EX1B or self.IONG or self.EX1G)
         for name,shape in shapes.items():
-            if(shape==None): continue
+            if(shape is None): continue
             if(len(arrx)==0):
                 arrx = np.zeros( shape.GetNbinsX() )
                 for b in range(1,shape.GetNbinsX()+1):
                     x = shape.GetBinCenter(b)
-                    if(rescale): x *= self.scale
+                    if(rescale): x *= scale
                     arrx[b-1] = x
             arry = np.zeros(shape.GetNbinsX())
             for b in range(1,shape.GetNbinsX()+1):
@@ -493,7 +507,7 @@ class Model:
         end = time.time()
         self.TimeIt(start,end,"get_as_arrays")
         return arrx,arrsy
-        
+
     def get_pdfs_from_arrays(self,arrx,arrsy,titles):
         start = time.time()
         pdfs = {}
@@ -525,9 +539,9 @@ class Model:
         self.cnt_cdfs = self.get_cdfs(self.cnt_pdfs)
         self.sec_cdfs = self.get_cdfs(self.sec_pdfs)
         ### get as arrays
-        self.cnt_pdfs_arrx, self.cnt_pdfs_arrsy = self.get_as_arrays(self.cnt_pdfs, self.scale)
+        self.cnt_pdfs_arrx, self.cnt_pdfs_arrsy = self.get_as_arrays(self.cnt_pdfs, 1)
         self.sec_pdfs_arrx, self.sec_pdfs_arrsy = self.get_as_arrays(self.sec_pdfs,1)
-        self.cnt_cdfs_arrx, self.cnt_cdfs_arrsy = self.get_as_arrays(self.cnt_cdfs, self.scale)
+        self.cnt_cdfs_arrx, self.cnt_cdfs_arrsy = self.get_as_arrays(self.cnt_cdfs, 1)
         self.sec_cdfs_arrx, self.sec_cdfs_arrsy = self.get_as_arrays(self.sec_cdfs,1)
         ### get as scaled arrays
         titles = self.cnt_pdfs["hModel"].GetTitle()+";"+self.cnt_pdfs["hModel"].GetXaxis().GetTitle()+";"+self.cnt_pdfs["hModel"].GetXaxis().GetTitle()

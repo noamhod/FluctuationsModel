@@ -50,6 +50,9 @@ print(f"Elapsed time is {elapsed} [s]")
 cnt_cdfs_scaled_arrx  = Mod.cnt_cdfs_scaled_arrx  ## np.array
 cnt_cdfs_scaled_arrsy = Mod.cnt_cdfs_scaled_arrsy ## dict name-->np.array
 plt.plot(cnt_cdfs_scaled_arrx, cnt_cdfs_scaled_arrsy["hModel"])
+plt.xscale('log')
+plt.yscale('log')
+plt.ylim(1e-2,1.2)
 plt.title('Minimum viable example for continuous model: '+Mod.build)
 plt.show()
 
