@@ -3,6 +3,7 @@ import pickle
 import math
 import array
 import numpy as np
+import pandas as pd
 import ROOT
 import units as U
 import constants as C
@@ -13,6 +14,7 @@ import fluctuations as flct
 import hist
 import model
 import multiprocessing as mp
+
 
 import argparse
 parser = argparse.ArgumentParser(description='scan_example.py...')
@@ -52,19 +54,23 @@ pngpath = "/Users/noamtalhod/tmp/png"
 ##############################################################
 ### functions for the submission of model calculation
 
-def get_slice(ie,ix):
+# def get_slice(ie,ix):
+def get_slice(ie,il):
     NminRawSteps = 25
     label_E   = str(ie)
-    label_dx  = str(ix)
-    label     = "E"+label_E+"_dx"+label_dx
-    NrawSteps = histos["SMALL_hdx_vs_E"].GetBinContent(ie,ix)
+    # label_dx  = str(ix)
+    label_dL  = str(il)
+    # label     = "E"+label_E+"_dx"+label_dx
+    label     = "E"+label_E+"_dL"+label_dL
+    # NrawSteps = histos["SMALL_hdx_vs_E"].GetBinContent(ie,ix)
+    NrawSteps = histos["SMALL_hdL_vs_E"].GetBinContent(ie,il)
     midRangeE = slices["hE_"+label].GetXaxis().GetXmin()  + (slices["hE_"+label].GetXaxis().GetXmax()-slices["hE_"+label].GetXaxis().GetXmin())/2.
-    midRangeX = slices["hdx_"+label].GetXaxis().GetXmin() + (slices["hdx_"+label].GetXaxis().GetXmax()-slices["hdx_"+label].GetXaxis().GetXmin())/2.
-    # E = slices["hE_"+label].GetMean()*U.MeV2eV if(NrawSteps>=NminRawSteps) else midRangeE*U.MeV2eV # eV
-    # x = slices["hdx_"+label].GetMean()*U.um2cm if(NrawSteps>=NminRawSteps) else midRangeX*U.um2cm  # cm
+    # midRangeX = slices["hdx_"+label].GetXaxis().GetXmin() + (slices["hdx_"+label].GetXaxis().GetXmax()-slices["hdx_"+label].GetXaxis().GetXmin())/2.
+    midRangeL = slices["hdL_"+label].GetXaxis().GetXmin() + (slices["hdL_"+label].GetXaxis().GetXmax()-slices["hdL_"+label].GetXaxis().GetXmin())/2.
     E = midRangeE*U.MeV2eV # eV
-    x = midRangeX*U.um2cm  # cm
-    return label, E, x, NrawSteps
+    # x = midRangeX*U.um2cm  # cm
+    L = midRangeL*U.um2cm  # cm
+    return label, E, L, NrawSteps
 
 def add_slice_shapes(E,x,pars,N,label):
     if(parallelize): 
@@ -72,7 +78,8 @@ def add_slice_shapes(E,x,pars,N,label):
         lock.acquire()
     start = time.time()
     Mod = model.Model(x,E,pars)
-    Mod.set_fft_sampling_pars(N_t_bins=10000000,frac=0.01)
+    # Mod.set_fft_sampling_pars(N_t_bins=10000000,frac=0.01)
+    Mod.set_fft_sampling_pars_rotem(N_t_bins=10000000,frac=0.01)
     Mod.set_all_shapes()
     local_shapes = {label:{"cnt_pdf":Mod.cnt_pdfs_scaled["hModel"], "sec_pdf":Mod.sec_pdfs["hBorysov_Sec"], "cnt_cdf":Mod.cnt_cdfs_scaled["hModel"], "sec_cdf":Mod.sec_cdfs["hBorysov_Sec"]}}
     end = time.time()
@@ -99,7 +106,8 @@ def collect_shapes(local_shapes):
 ##############################################################
 ### functions for the submission of plotting of png's
 
-def plot_slices(slices,shapes,builds,label,E,x,NrawSteps,count):
+# def plot_slices(slices,shapes,builds,label,E,x,NrawSteps,count):
+def plot_slices(slices,shapes,builds,label,E,L,NrawSteps,count):
     if(parallelize): 
         lock = mp.Lock()
         lock.acquire()
@@ -151,7 +159,7 @@ def plot_slices(slices,shapes,builds,label,E,x,NrawSteps,count):
     ROOT.gPad.Update()
     ##########################
     cgif_pdfs.cd(3)
-    ROOT.gPad.SetLogx()
+    if(slices[namesec].GetXaxis().GetXmin()>0): ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
     slices[namesec].Draw("hist")
@@ -171,7 +179,8 @@ def plot_slices(slices,shapes,builds,label,E,x,NrawSteps,count):
     ROOT.gPad.Update()
     ##########################
     cgif_pdfs.cd(4)
-    name = "hdx_"+label
+    # name = "hdx_"+label
+    name = "hdL_"+label
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
     slices[name].Draw("hist")
@@ -181,7 +190,8 @@ def plot_slices(slices,shapes,builds,label,E,x,NrawSteps,count):
     s.SetTextFont(22);
     s.SetTextColor(ROOT.kBlack)
     s.SetTextSize(0.04)
-    s.DrawLatex(0.15,0.86,ROOT.Form("#Deltax=%.3e #in [%.3e, %.3e) [#mum]" % (x*U.cm2um,slices["hdx_"+label].GetXaxis().GetXmin(), slices["hdx_"+label].GetXaxis().GetXmax())))
+    # s.DrawLatex(0.15,0.86,ROOT.Form("#Deltax=%.3e #in [%.3e, %.3e) [#mum]" % (x*U.cm2um,slices["hdx_"+label].GetXaxis().GetXmin(), slices["hdx_"+label].GetXaxis().GetXmax())))
+    s.DrawLatex(0.15,0.86,ROOT.Form("#DeltaL=%.3e #in [%.3e, %.3e) [#mum]" % (L*U.cm2um,slices["hdL_"+label].GetXaxis().GetXmin(), slices["hdL_"+label].GetXaxis().GetXmax())))
     s.DrawLatex(0.15,0.81,ROOT.Form("N raw steps = %d" % (NrawSteps)))
     ROOT.gPad.RedrawAxis()
     ROOT.gPad.Update()
@@ -229,10 +239,10 @@ def plot_slices(slices,shapes,builds,label,E,x,NrawSteps,count):
     ROOT.gPad.Update()
     ##########################
     cgif_cdfs.cd(3)
-    ROOT.gPad.SetLogx()
+    sec_slice = slices[namesec].Clone("sec_slice_clone")
+    if(sec_slice.GetXaxis().GetXmin()>0): ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
-    sec_slice = slices[namesec].Clone("sec_slice_clone")
     if(sec_slice.Integral()>0):
         sec_slice.Scale(1./sec_slice.Integral())
         sec_slice.GetCumulative().Draw("hist")
@@ -249,7 +259,8 @@ def plot_slices(slices,shapes,builds,label,E,x,NrawSteps,count):
     ROOT.gPad.Update()
     ##########################
     cgif_cdfs.cd(4)
-    name = "hdx_"+label
+    # name = "hdx_"+label
+    name = "hdL_"+label
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
     slices[name].Draw("hist")
@@ -259,7 +270,8 @@ def plot_slices(slices,shapes,builds,label,E,x,NrawSteps,count):
     s.SetTextFont(22);
     s.SetTextColor(ROOT.kBlack)
     s.SetTextSize(0.04)
-    s.DrawLatex(0.15,0.86,ROOT.Form("#Deltax=%.3e #in [%.3e, %.3e) [#mum]" % (x*U.cm2um,slices["hdx_"+label].GetXaxis().GetXmin(), slices["hdx_"+label].GetXaxis().GetXmax())))
+    # s.DrawLatex(0.15,0.86,ROOT.Form("#Deltax=%.3e #in [%.3e, %.3e) [#mum]" % (x*U.cm2um,slices["hdx_"+label].GetXaxis().GetXmin(), slices["hdx_"+label].GetXaxis().GetXmax())))
+    s.DrawLatex(0.15,0.86,ROOT.Form("#DeltaL=%.3e #in [%.3e, %.3e) [#mum]" % (L*U.cm2um,slices["hdL_"+label].GetXaxis().GetXmin(), slices["hdL_"+label].GetXaxis().GetXmax())))
     s.DrawLatex(0.15,0.81,ROOT.Form("N raw steps = %d" % (NrawSteps)))
     ROOT.gPad.RedrawAxis()
     ROOT.gPad.Update()
@@ -281,19 +293,6 @@ def plot_slices(slices,shapes,builds,label,E,x,NrawSteps,count):
 
 
 if __name__ == "__main__":
-    # ##################################################
-    # ### open a file, where you stored the pickled data
-    # fileX = open('data/without_E2MeV_cut/with_multiple_scattering/X.pkl', 'rb')
-    # fileY = open('data/without_E2MeV_cut/with_multiple_scattering/Y.pkl', 'rb')
-    # #################################
-    # ### dump information to that file
-    # X = pickle.load(fileX)
-    # Y = pickle.load(fileY)
-    # ##################
-    # ### close the file
-    # fileX.close()
-    # fileY.close()
-
     # open a file, where you stored the pickled data
     fileY = open('data/with_secondaries/step_info_df_no_msc.pkl', 'rb')
     # dump information to that file
@@ -329,43 +328,45 @@ if __name__ == "__main__":
     #####################################################
     ### first define the slice histos to hold the MC data
     print("\nDefine slices with the proper binning as determined by the model...")
-    for ie in range(1,histos["SMALL_hdx_vs_E"].GetNbinsX()+1):
+    # for ie in range(1,histos["SMALL_hdx_vs_E"].GetNbinsX()+1):
+    for ie in range(1,histos["SMALL_hdL_vs_E"].GetNbinsX()+1):
         label_E = str(ie)
-        EE   = histos["SMALL_hdx_vs_E"].GetXaxis().GetBinCenter(ie)
-        Emin = histos["SMALL_hdx_vs_E"].GetXaxis().GetBinLowEdge(ie)
-        Emax = histos["SMALL_hdx_vs_E"].GetXaxis().GetBinUpEdge(ie)
-        for ix in range(1,histos["SMALL_hdx_vs_E"].GetNbinsY()+1):
-            label_dx = str(ix)
-            XX    = histos["SMALL_hdx_vs_E"].GetYaxis().GetBinCenter(ix)
-            dxmin = histos["SMALL_hdx_vs_E"].GetYaxis().GetBinLowEdge(ix)
-            dxmax = histos["SMALL_hdx_vs_E"].GetYaxis().GetBinUpEdge(ix)
-            label = "E"+label_E+"_dx"+label_dx
+        # EE   = histos["SMALL_hdx_vs_E"].GetXaxis().GetBinCenter(ie)
+        EE   = histos["SMALL_hdL_vs_E"].GetXaxis().GetBinCenter(ie)
+        # Emin = histos["SMALL_hdx_vs_E"].GetXaxis().GetBinLowEdge(ie)
+        Emin = histos["SMALL_hdL_vs_E"].GetXaxis().GetBinLowEdge(ie)
+        # Emax = histos["SMALL_hdx_vs_E"].GetXaxis().GetBinUpEdge(ie)
+        Emax = histos["SMALL_hdL_vs_E"].GetXaxis().GetBinUpEdge(ie)
+        # for ix in range(1,histos["SMALL_hdx_vs_E"].GetNbinsY()+1):
+        for il in range(1,histos["SMALL_hdL_vs_E"].GetNbinsY()+1):
+            # label_dx = str(ix)
+            label_dL = str(il)
+            # XX    = histos["SMALL_hdx_vs_E"].GetYaxis().GetBinCenter(ix)
+            LL    = histos["SMALL_hdL_vs_E"].GetYaxis().GetBinCenter(il)
+            # dxmin = histos["SMALL_hdx_vs_E"].GetYaxis().GetBinLowEdge(ix)
+            dLmin = histos["SMALL_hdL_vs_E"].GetYaxis().GetBinLowEdge(il)
+            # dxmax = histos["SMALL_hdx_vs_E"].GetYaxis().GetBinUpEdge(ix)
+            dLmax = histos["SMALL_hdL_vs_E"].GetYaxis().GetBinUpEdge(il)
+            # label = "E"+label_E+"_dx"+label_dx
+            label = "E"+label_E+"_dL"+label_dL
             #######################################################
             ### find the parameters (mostly histos limits and bins)
-            modelpars = par.GetModelPars(EE*U.MeV2eV,XX*U.um2cm)
-            Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars)
+            # modelpars = par.GetModelPars(EE*U.MeV2eV,XX*U.um2cm)
+            modelpars = par.GetModelPars(EE*U.MeV2eV,LL*U.um2cm)
+            # Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars)
+            Mod = model.Model(LL*U.um2cm, EE*U.MeV2eV, modelpars)
             ############################################
             ### now define the histos of the the MC data
-            slices.update({"hE_"+label:  ROOT.TH1D("hE_"+label,label+";E [MeV];Steps", bins.n_small_E,Emin,Emax)})
-            slices.update({"hdx_"+label: ROOT.TH1D("hdx_"+label,label+";#Deltax [#mum];Steps", bins.n_small_dx,dxmin,dxmax)})
-            slices.update({"hdxinv_"+label: ROOT.TH1D("hdxinv_"+label,label+";1/#Deltax [1/#mum];Steps", bins.n_small_dx,1/dxmax,1/dxmin)})
+            slices.update({"hE_"+label:  ROOT.TH1D("hE_"+label,label+";E [MeV];Steps", bins.n_E,Emin,Emax)})
+            # slices.update({"hdx_"+label: ROOT.TH1D("hdx_"+label,label+";#Deltax [#mum];Steps", int(bins.n_dx/10),dxmin,dxmax)})
+            slices.update({"hdL_"+label: ROOT.TH1D("hdL_"+label,label+";#DeltaL [#mum];Steps", int(bins.n_dL/10),dLmin,dLmax)})
+            # slices.update({"hdxinv_"+label: ROOT.TH1D("hdxinv_"+label,label+";1/#Deltax [1/#mum];Steps", bins.n_small_dx,1/dxmax,1/dxmin)})
             slices.update({"hdEcnt_"+label: ROOT.TH1D("hdEcnt_"+label,label+";#DeltaE [eV];Steps", Mod.NbinsScl,Mod.dEminScl,Mod.dEmaxScl)})
             slices.update({"hdEsec_"+label: ROOT.TH1D("hdEsec_"+label,label+";#DeltaE [eV];Steps", Mod.NbinsSec,Mod.dEminSec,Mod.dEmaxSec)})
 
     #######################################
     ### Run the MC data and fill the histos
-    print("\nStart the loop over GEANT4 data...")
-    # for n,enrgy in enumerate(X):
-    #     E     = enrgy*U.eV2MeV
-    #     dx    = Y[n][0]*U.m2um
-    #     dxinv = 1/dx if(dx>0) else -999
-    #     dR    = Y[n][1]*U.m2um
-    #     dRinv = 1/dR if(dR>0) else -999 ## this happens for the primary particles...
-    #     dEcnt = Y[n][2]*U.eV2MeV
-    #     dEsec = Y[n][3]*U.eV2MeV
-    #     dEtot = dEcnt+dEsec
-    #     dE    = dEtot
-    
+    print("\nStart the loop over GEANT4 data...")    
     for n in range(len(arr_dx)):
         dx     = arr_dx[n]*U.m2um
         dxinv  = 1/dx if(dx>0) else -999
@@ -394,6 +395,7 @@ if __name__ == "__main__":
         histos["hdx"].Fill(dx)
         histos["hdxinv"].Fill(dxinv)
         histos["hdR"].Fill(dR)
+        histos["hdL"].Fill(dL)
         histos["hdRinv"].Fill(dRinv)
         histos["hdEdx"].Fill(dE/dx)
         histos["hdEdx_vs_E"].Fill(E,dE/dx)
@@ -401,17 +403,23 @@ if __name__ == "__main__":
         histos["hdE_vs_dxinv"].Fill(dxinv,dE)
         histos["hdx_vs_E"].Fill(E,dx)
         histos["hdxinv_vs_E"].Fill(E,dxinv)
-        histos["SMALL_hdx_vs_E"].Fill(E,dx)
-        histos["SMALL_hdxinv_vs_E"].Fill(E,dxinv)
+        histos["hdL_vs_E"].Fill(E,dL)
+        histos["SMALL_hdL_vs_E"].Fill(E,dL)
+        # histos["SMALL_hdx_vs_E"].Fill(E,dx)
+        # histos["SMALL_hdxinv_vs_E"].Fill(E,dxinv)
         
-        ie = histos["SMALL_hdx_vs_E"].GetXaxis().FindBin(E)
-        ix = histos["SMALL_hdx_vs_E"].GetYaxis().FindBin(dx)
-        label = "E"+str(ie)+"_dx"+str(ix)
+        # ie = histos["SMALL_hdx_vs_E"].GetXaxis().FindBin(E)
+        # ix = histos["SMALL_hdx_vs_E"].GetYaxis().FindBin(dx)
+        # label = "E"+str(ie)+"_dx"+str(ix)
+        ie = histos["SMALL_hdL_vs_E"].GetXaxis().FindBin(E)
+        il = histos["SMALL_hdL_vs_E"].GetYaxis().FindBin(dx)
+        label = "E"+str(ie)+"_dL"+str(il)
         slices["hdEcnt_"+label].Fill(dEcnt*U.MeV2eV)
         slices["hdEsec_"+label].Fill(dEsec*U.MeV2eV)
         slices["hE_"+label].Fill(E)
-        slices["hdxinv_"+label].Fill(dxinv)
-        slices["hdx_"+label].Fill(dx)
+        # slices["hdxinv_"+label].Fill(dxinv)
+        # slices["hdx_"+label].Fill(dx)
+        slices["hdL_"+label].Fill(dL)
     
         if(n%1000000==0 and n>0): print("processed: ",n)
         if(n>NN and NN>0): break
@@ -442,41 +450,42 @@ if __name__ == "__main__":
     ROOT.gPad.SetTicks(1,1)
     ROOT.gPad.RedrawAxis()
     cnv.cd(4)
-    histos["hdR"].Draw("hist")
+    # histos["hdR"].Draw("hist")
+    histos["hdL"].Draw("hist")
     ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
     ROOT.gPad.RedrawAxis()
     cnv.SaveAs(pdf+"(")
     #####################
-    cnv = ROOT.TCanvas("cnv","",1000,1000)
-    cnv.Divide(2,2)
-    cnv.cd(1)
-    histos["hE"].Draw("hist")
-    histos["hE"].SetMinimum(1)
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetTicks(1,1)
-    ROOT.gPad.RedrawAxis()
-    cnv.cd(2)
-    histos["hdE"].Draw("hist")
-    ROOT.gPad.SetLogx()
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetTicks(1,1)
-    ROOT.gPad.RedrawAxis()
-    cnv.cd(3)
-    histos["hdxinv"].Draw("hist")
-    ROOT.gPad.SetLogx()
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetTicks(1,1)
-    ROOT.gPad.RedrawAxis()
-    cnv.cd(4)
-    histos["hdRinv"].Draw("hist")
-    ROOT.gPad.SetLogx()
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetTicks(1,1)
-    ROOT.gPad.RedrawAxis()
-    cnv.SaveAs(pdf)
-    #####################    
+    # cnv = ROOT.TCanvas("cnv","",1000,1000)
+    # cnv.Divide(2,2)
+    # cnv.cd(1)
+    # histos["hE"].Draw("hist")
+    # histos["hE"].SetMinimum(1)
+    # ROOT.gPad.SetLogy()
+    # ROOT.gPad.SetTicks(1,1)
+    # ROOT.gPad.RedrawAxis()
+    # cnv.cd(2)
+    # histos["hdE"].Draw("hist")
+    # ROOT.gPad.SetLogx()
+    # ROOT.gPad.SetLogy()
+    # ROOT.gPad.SetTicks(1,1)
+    # ROOT.gPad.RedrawAxis()
+    # cnv.cd(3)
+    # histos["hdxinv"].Draw("hist")
+    # ROOT.gPad.SetLogx()
+    # ROOT.gPad.SetLogy()
+    # ROOT.gPad.SetTicks(1,1)
+    # ROOT.gPad.RedrawAxis()
+    # cnv.cd(4)
+    # histos["hdRinv"].Draw("hist")
+    # ROOT.gPad.SetLogx()
+    # ROOT.gPad.SetLogy()
+    # ROOT.gPad.SetTicks(1,1)
+    # ROOT.gPad.RedrawAxis()
+    # cnv.SaveAs(pdf)
+    # #####################
     cnv = ROOT.TCanvas("cnv","",1000,500)
     cnv.Divide(2,1)
     cnv.cd(1)
@@ -512,8 +521,10 @@ if __name__ == "__main__":
     cnv.SaveAs(pdf)
     #####################    
     cnv = ROOT.TCanvas("cnv","",500,500)
-    histos["hdx_vs_E"].Draw("colz")
-    gridx,gridy = hist.getGrid(histos["SMALL_hdx_vs_E"])
+    # histos["hdx_vs_E"].Draw("colz")
+    histos["hdL_vs_E"].Draw("colz")
+    # gridx,gridy = hist.getGrid(histos["SMALL_hdx_vs_E"])
+    gridx,gridy = hist.getGrid(histos["SMALL_hdL_vs_E"])
     for line in gridx:
         line.SetLineColor(ROOT.kGray)
         line.Draw("same")
@@ -531,42 +542,10 @@ if __name__ == "__main__":
     cnv = ROOT.TCanvas("cnv","",500,500)
     # histos["SMALL_hdx_vs_E"].SetMarkerSize(0.2)
     # histos["SMALL_hdx_vs_E"].Draw("colz text")
-    histos["SMALL_hdx_vs_E"].Draw("colz")
-    gridx,gridy = hist.getGrid(histos["SMALL_hdx_vs_E"])
-    for line in gridx:
-        line.SetLineColor(ROOT.kGray)
-        line.Draw("same")
-    for line in gridy:
-        line.SetLineColor(ROOT.kGray)
-        line.Draw("same")
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetLogz()
-    ROOT.gPad.SetTicks(1,1)
-    ROOT.gPad.RedrawAxis()
-    cnv.SaveAs(pdf)
-    #####################    
-    cnv = ROOT.TCanvas("cnv","",500,500)
-    histos["hdxinv_vs_E"].Draw("colz")
-    gridx,gridy = hist.getGrid(histos["SMALL_hdxinv_vs_E"])
-    for line in gridx:
-        line.SetLineColor(ROOT.kGray)
-        line.Draw("same")
-    for line in gridy:
-        line.SetLineColor(ROOT.kGray)
-        line.Draw("same")
-    # histos["SMALL_hdxinv_vs_E"].SetMarkerSize(0.2)
-    # histos["SMALL_hdxinv_vs_E"].Draw("text same")
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetLogz()
-    ROOT.gPad.SetTicks(1,1)
-    ROOT.gPad.RedrawAxis()
-    cnv.SaveAs(pdf)
-    #####################    
-    cnv = ROOT.TCanvas("cnv","",500,500)
-    # histos["SMALL_hdxinv_vs_E"].SetMarkerSize(0.2)
-    # histos["SMALL_hdxinv_vs_E"].Draw("colz text")
-    histos["SMALL_hdxinv_vs_E"].Draw("colz")
-    gridx,gridy = hist.getGrid(histos["SMALL_hdxinv_vs_E"])
+    # histos["SMALL_hdx_vs_E"].Draw("colz")
+    histos["SMALL_hdL_vs_E"].Draw("colz")
+    # gridx,gridy = hist.getGrid(histos["SMALL_hdx_vs_E"])
+    gridx,gridy = hist.getGrid(histos["SMALL_hdL_vs_E"])
     for line in gridx:
         line.SetLineColor(ROOT.kGray)
         line.Draw("same")
@@ -578,6 +557,40 @@ if __name__ == "__main__":
     ROOT.gPad.SetTicks(1,1)
     ROOT.gPad.RedrawAxis()
     cnv.SaveAs(pdf+")")
+    # #####################
+    # cnv = ROOT.TCanvas("cnv","",500,500)
+    # histos["hdxinv_vs_E"].Draw("colz")
+    # gridx,gridy = hist.getGrid(histos["SMALL_hdxinv_vs_E"])
+    # for line in gridx:
+    #     line.SetLineColor(ROOT.kGray)
+    #     line.Draw("same")
+    # for line in gridy:
+    #     line.SetLineColor(ROOT.kGray)
+    #     line.Draw("same")
+    # # histos["SMALL_hdxinv_vs_E"].SetMarkerSize(0.2)
+    # # histos["SMALL_hdxinv_vs_E"].Draw("text same")
+    # ROOT.gPad.SetLogy()
+    # ROOT.gPad.SetLogz()
+    # ROOT.gPad.SetTicks(1,1)
+    # ROOT.gPad.RedrawAxis()
+    # cnv.SaveAs(pdf)
+    # #####################
+    # cnv = ROOT.TCanvas("cnv","",500,500)
+    # # histos["SMALL_hdxinv_vs_E"].SetMarkerSize(0.2)
+    # # histos["SMALL_hdxinv_vs_E"].Draw("colz text")
+    # histos["SMALL_hdxinv_vs_E"].Draw("colz")
+    # gridx,gridy = hist.getGrid(histos["SMALL_hdxinv_vs_E"])
+    # for line in gridx:
+    #     line.SetLineColor(ROOT.kGray)
+    #     line.Draw("same")
+    # for line in gridy:
+    #     line.SetLineColor(ROOT.kGray)
+    #     line.Draw("same")
+    # ROOT.gPad.SetLogy()
+    # ROOT.gPad.SetLogz()
+    # ROOT.gPad.SetTicks(1,1)
+    # ROOT.gPad.RedrawAxis()
+    # cnv.SaveAs(pdf+")")
 
     #######################################################################
     #######################################################################
@@ -596,14 +609,16 @@ if __name__ == "__main__":
     ### initialize the shapes of all relevant slices
     print(f"\nBook shapes...")
     NrawStepsIgnore = 10
-    for ie in range(1,histos["SMALL_hdx_vs_E"].GetNbinsX()+1):
-        for ix in range(1,histos["SMALL_hdx_vs_E"].GetNbinsY()+1):
+    # for ie in range(1,histos["SMALL_hdx_vs_E"].GetNbinsX()+1):
+    for ie in range(1,histos["SMALL_hdL_vs_E"].GetNbinsX()+1):
+        # for ix in range(1,histos["SMALL_hdx_vs_E"].GetNbinsY()+1):
+        for il in range(1,histos["SMALL_hdL_vs_E"].GetNbinsY()+1):
             ### get the slice parameters
-            label, E, x, NrawSteps = get_slice(ie,ix)
+            label, E, L, NrawSteps = get_slice(ie,il)
             ### skip if too few entries
             if(NrawSteps<NrawStepsIgnore): continue
             ### init the relevant model shapes
-            shapes.update( {label : {"E":E, "x":x, "N":NrawSteps, "cnt_pdf":None, "sec_pdf":None, "cnt_cdf":None, "sec_cdf":None} } )
+            shapes.update( {label : {"E":E, "L":L, "N":NrawSteps, "cnt_pdf":None, "sec_pdf":None, "cnt_cdf":None, "sec_cdf":None} } )
     
 
     #############################################
@@ -616,17 +631,22 @@ if __name__ == "__main__":
     builds = {}
     for label,shape in shapes.items():
         E = shape["E"]
-        X = shape["x"]
+        # X = shape["x"]
+        L = shape["L"]
         N = shape["N"]
-        P = par.GetModelPars(E,X)
+        # P = par.GetModelPars(E,X)
+        P = par.GetModelPars(E,L)
         builds.update({label:P["build"]})
-        print(f'Sending job: label={label}, build={P["build"]}, E={E*U.eV2MeV} MeV, X={X*U.cm2um} um, N={N} steps')
+        # print(f'Sending job: label={label}, build={P["build"]}, E={E*U.eV2MeV} MeV, X={X*U.cm2um} um, N={N} steps')
+        print(f'Sending job: label={label}, build={P["build"]}, E={E*U.eV2MeV} MeV, L={L*U.cm2um} um, N={N} steps')
         ########################
         ### get the model shapes
         if(parallelize):
-            pool.apply_async(add_slice_shapes, args=(E,X,P,N,label), callback=collect_shapes, error_callback=collect_errors)
+            # pool.apply_async(add_slice_shapes, args=(E,X,P,N,label), callback=collect_shapes, error_callback=collect_errors)
+            pool.apply_async(add_slice_shapes, args=(E,L,P,N,label), callback=collect_shapes, error_callback=collect_errors)
         else:
-            local_shapes = add_slice_shapes(E,X,P,N,label)
+            # local_shapes = add_slice_shapes(E,X,P,N,label)
+            local_shapes = add_slice_shapes(E,L,P,N,label)
             collect_shapes(local_shapes)        
     ######################################
     ### Wait for all the workers to finish
@@ -645,16 +665,20 @@ if __name__ == "__main__":
     print(f"\nPlotting shapes... (with parallelize={parallelize})")
     count = 0
     pool = mp.Pool(nCPUs) if(parallelize) else None
-    for ie in range(1,histos["SMALL_hdx_vs_E"].GetNbinsX()+1):
-        for ix in range(1,histos["SMALL_hdx_vs_E"].GetNbinsY()+1):
+    # for ie in range(1,histos["SMALL_hdx_vs_E"].GetNbinsX()+1):
+    for ie in range(1,histos["SMALL_hdL_vs_E"].GetNbinsX()+1):
+        # for ix in range(1,histos["SMALL_hdx_vs_E"].GetNbinsY()+1):
+        for il in range(1,histos["SMALL_hdL_vs_E"].GetNbinsY()+1):
             ### get the slice parameters
-            label, E, x, NrawSteps = get_slice(ie,ix)
+            label, E, L, NrawSteps = get_slice(ie,il)
             ### skip if too few entries
             if(NrawSteps<NrawStepsIgnore): continue
             if(parallelize):
-                pool.apply_async(plot_slices, args=(slices,shapes,builds,label,E,x,NrawSteps,count), error_callback=collect_errors)
+                # pool.apply_async(plot_slices, args=(slices,shapes,builds,label,E,x,NrawSteps,count), error_callback=collect_errors)
+                pool.apply_async(plot_slices, args=(slices,shapes,builds,label,E,L,NrawSteps,count), error_callback=collect_errors)
             else:
-                plot_slices(slices,shapes,builds,label,E,x,NrawSteps,count)
+                # plot_slices(slices,shapes,builds,label,E,x,NrawSteps,count)
+                plot_slices(slices,shapes,builds,label,E,L,NrawSteps,count)
             count += 1
     ######################################
     ### Wait for all the workers to finish

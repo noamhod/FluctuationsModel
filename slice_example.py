@@ -16,17 +16,17 @@ import hist
 import argparse
 parser = argparse.ArgumentParser(description='slice_example.py...')
 parser.add_argument('-E', metavar='incoming particle energy [MeV]', required=True,  help='incoming particle energy [MeV]')
-parser.add_argument('-X', metavar='step size in x [um]', required=True,  help='step size in x [um]')
+parser.add_argument('-L', metavar='step size in L [um]', required=True,  help='step size in L [um]')
 parser.add_argument('-WE', metavar='fractional size in of the window around E', required=False,  help='fractional size of the window around E')
-parser.add_argument('-WX', metavar='fractional size in of the window around X', required=False,  help='fractional size of the window around X')
+parser.add_argument('-WL', metavar='fractional size in of the window around L', required=False,  help='fractional size of the window around L')
 parser.add_argument('-N', metavar='N steps to process', required=False,  help='N steps to process')
 argus = parser.parse_args()
 EE = float(argus.E)
-XX = float(argus.X)
+LL = float(argus.L)
 WE = 0.01 if(argus.WE is None) else float(argus.WE)
-WX = 0.01 if(argus.WX is None) else float(argus.WX)
+WL = 0.01 if(argus.WL is None) else float(argus.WL)
 NN = 0 if(argus.N is None) else int(argus.N)
-print(f"Model with energy: {EE} [MeV], dx: {XX} [um], window in E: {WE*100} [%], window in X: {WX*100} [%]")
+print(f"Model with energy: {EE} [MeV], dL: {LL} [um], window in E: {WE*100} [%], window in L: {WL*100} [%]")
 
 
 
@@ -48,7 +48,7 @@ dEdxModel  = "G4:Tcut" # or "BB:Tcut"
 TargetMat  = mat.Si # or e.g. mat.Al
 PrimaryPrt = prt.Particle(name="proton",meV=938.27208816*U.MeV2eV,mamu=1.007276466621,chrg=+1.,spin=0.5,lepn=0,magm=2.79284734463)
 par        = flct.Parameters(PrimaryPrt,TargetMat,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
-modelpars  = par.GetModelPars(EE*U.MeV2eV,XX*U.um2cm)
+modelpars  = par.GetModelPars(EE*U.MeV2eV,LL*U.um2cm)
 print(modelpars)
 
 ######################################################
@@ -56,8 +56,9 @@ print(modelpars)
 ######################################################
 ### Build the model shapes
 DOTIME = True
-Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars, DOTIME)
-Mod.set_fft_sampling_pars(N_t_bins=10000000,frac=0.01)
+Mod = model.Model(LL*U.um2cm, EE*U.MeV2eV, modelpars, DOTIME)
+# Mod.set_fft_sampling_pars(N_t_bins=10000000,frac=0.01)
+Mod.set_fft_sampling_pars_rotem(N_t_bins=10000000,frac=0.01)
 Mod.set_all_shapes()
 cnt_pdfs          = Mod.cnt_pdfs ## dict name-->TH1D
 cnt_cdfs          = Mod.cnt_cdfs ## dict name-->TH1D
@@ -89,8 +90,8 @@ hist.book(histos,emin=3e-1)
 dEmin = 1e-4
 dEmax = 1.
 ndEbins,dEbins = bins.GetLogBinning(80,dEmin,dEmax)
-slicename  =  f"dE_E{EE}MeV_X{XX}um"
-slicetitle = f"E={EE}#pm{WE*100}% [MeV], #Deltax={XX}#pm{WX*100}% [#mum]"
+slicename  =  f"dE_E{EE}MeV_L{LL}um"
+slicetitle = f"E={EE}#pm{WE*100}% [MeV], #DeltaL={LL}#pm{WL*100}% [#mum]"
 hdE     = ROOT.TH1D(slicename,slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
 hdE_cnt = ROOT.TH1D(slicename+"_cnt",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
 hdE_sec = ROOT.TH1D(slicename+"_sec",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
@@ -139,21 +140,6 @@ arr_dPhi   = df['dPhi'].to_numpy()
 #################################################
 #################################################
 ### Run
-# for n,enrgy in enumerate(X):
-    # E     = enrgy*U.eV2MeV
-    # dx    = Y[n][0]*U.m2um
-    # dxinv = 1/dx if(dx>0) else -999
-    # dR    = Y[n][1]*U.m2um
-    # dRinv = 1/dR if(dR>0) else -999 ## this happens for the primary particles...
-    # dEcnt = Y[n][2]*U.eV2MeV
-    # dEsec = Y[n][3]*U.eV2MeV
-    # dEtot = dEcnt+dEsec
-    # dE    = dEtot
-    # if(E>=bins.Emax):   continue ## skip the primary particles
-    # if(E<bins.Emin):    continue ## skip the low energy particles
-    # if(dx>=bins.dxmax): continue ## skip
-    # if(dx<bins.dxmin):  continue ## skip
-
 for n in range(len(arr_dx)):
     dx     = arr_dx[n]*U.m2um
     dxinv  = 1/dx if(dx>0) else -999
@@ -175,7 +161,10 @@ for n in range(len(arr_dx)):
     if(dx>=bins.dxmax): continue ## skip
     if(dx<bins.dxmin):  continue ## skip
     
+    histos["hdL"].Fill(dL)
+    histos["hdR"].Fill(dR)
     histos["hdx"].Fill(dx)
+    histos["hdR_vs_dx"].Fill(dx,dR)
     histos["hdE"].Fill(dE)
     histos["hdE_cnt"].Fill(dEcnt)
     histos["hdE_sec"].Fill(dEsec)
@@ -188,7 +177,7 @@ for n in range(len(arr_dx)):
     histos["hdEdx_vs_E_small_cnt"].Fill(E,dEcnt/dx)
     histos["hdEdx_vs_E_small_sec"].Fill(E,dEsec/dx)
     
-    if((dx>=(1-WX)*XX and dx<=(1+WX)*XX) and (E>=(1-WE)*EE and E<=(1+WE)*EE)):
+    if((dx>=(1-WL)*LL and dx<=(1+WL)*LL) and (E>=(1-WE)*EE and E<=(1+WE)*EE)):
         hdE.Fill(dE)
         hdE_sec.Fill(dEsec)
         hdE_cnt.Fill(dEcnt)
@@ -320,6 +309,31 @@ ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetTicks(1,1)
 histos["hdx"].Draw("hist")
+ROOT.gPad.RedrawAxis()
+cnv.SaveAs(pdf)
+
+cnv = ROOT.TCanvas("cnv","",500,500)
+ROOT.gPad.SetLogy()
+ROOT.gPad.SetLogx()
+ROOT.gPad.SetTicks(1,1)
+histos["hdR"].Draw("hist")
+ROOT.gPad.RedrawAxis()
+cnv.SaveAs(pdf)
+
+cnv = ROOT.TCanvas("cnv","",500,500)
+ROOT.gPad.SetLogy()
+ROOT.gPad.SetLogx()
+ROOT.gPad.SetTicks(1,1)
+histos["hdL"].Draw("hist")
+ROOT.gPad.RedrawAxis()
+cnv.SaveAs(pdf)
+
+cnv = ROOT.TCanvas("cnv","",500,500)
+ROOT.gPad.SetLogy()
+ROOT.gPad.SetLogx()
+ROOT.gPad.SetLogz()
+ROOT.gPad.SetTicks(1,1)
+histos["hdR_vs_dx"].Draw("colz")
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 

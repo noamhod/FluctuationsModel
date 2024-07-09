@@ -23,15 +23,13 @@ import toymc
 import argparse
 parser = argparse.ArgumentParser(description='toymc_example.py...')
 parser.add_argument('-E', metavar='incoming particle energy [MeV]', required=True,  help='incoming particle energy [MeV]')
-parser.add_argument('-X', metavar='step size in x [um]', required=True,  help='step size in x [um]')
-parser.add_argument('-W', metavar='fractional size in of the window around X:E', required=False,  help='fractional size of the window around X:E')
+parser.add_argument('-L', metavar='step size in L [um]', required=True,  help='step size in L [um]')
 parser.add_argument('-N', metavar='N steps to process', required=False,  help='N steps to process')
 argus = parser.parse_args()
 EE = float(argus.E)
-XX = float(argus.X)
-WW = 0.01 if(argus.W is None) else float(argus.W)
+LL = float(argus.L)
 NN = 0 if(argus.N is None) else int(argus.N)
-print(f"Model with energy: {EE} [MeV], dx: {XX} [um], window: {WW*100} [%]")
+print(f"Model with energy: {EE} [MeV] and dL: {LL} [um]")
 
 
 
@@ -54,7 +52,7 @@ dEdxModel  = "G4:Tcut" # or "BB:Tcut"
 TargetMat  = mat.Si # or e.g. mat.Al
 PrimaryPrt = prt.Particle(name="proton",meV=938.27208816*U.MeV2eV,mamu=1.007276466621,chrg=+1.,spin=0.5,lepn=0,magm=2.79284734463)
 par        = flct.Parameters(PrimaryPrt,TargetMat,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
-modelpars  = par.GetModelPars(EE*U.MeV2eV,XX*U.um2cm)
+modelpars  = par.GetModelPars(EE*U.MeV2eV,LL*U.um2cm)
 print(modelpars)
 
 ######################################################
@@ -62,8 +60,9 @@ print(modelpars)
 ######################################################
 ### Build the model shapes
 DOTIME = True
-Mod = model.Model(XX*U.um2cm, EE*U.MeV2eV, modelpars, DOTIME)
-Mod.set_fft_sampling_pars(N_t_bins=10000000,frac=0.05)
+Mod = model.Model(LL*U.um2cm, EE*U.MeV2eV, modelpars, DOTIME)
+# Mod.set_fft_sampling_pars(N_t_bins=10000000,frac=0.05)
+Mod.set_fft_sampling_pars_rotem(N_t_bins=10000000,frac=0.05)
 Mod.set_all_shapes()
 cnt_pdfs = Mod.cnt_pdfs ## dict name-->TH1D
 cnt_cdfs = Mod.cnt_cdfs ## dict name-->TH1D
@@ -89,7 +88,7 @@ sec_cdfs = Mod.sec_cdfs ## dict name-->TH1D
 ######################################################
 ######################################################
 ### Generate the toy data
-ToyMC = toymc.ToyMC(XX*U.um2cm, EE*U.MeV2eV, Mod)
+ToyMC = toymc.ToyMC(LL*U.um2cm, EE*U.MeV2eV, Mod)
 histos = ToyMC.Generate(Nsteps=1000000)
 
 ######################################################

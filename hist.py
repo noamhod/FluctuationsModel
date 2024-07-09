@@ -103,13 +103,17 @@ def getAvgY(h,isLogx=False,xbins=[]):
 def book(histos,emin=-1): ### must pass by reference!
     if(emin>0): bins.Emin = emin
     histos.update({"hE":           ROOT.TH1D("h_E",";E [MeV];Steps", 1000,bins.Emin,bins.Emax)})
-    histos.update({"hdE":          ROOT.TH1D("h_dE",";#DeltaE [MeV];Steps", len(bins.dEbins)-1,array.array("d",bins.dEbins))}) # 1000,0,0.3)
-    histos.update({"hdE_cnt":      ROOT.TH1D("h_dE_cnt",";#DeltaE [MeV];Steps", len(bins.dEbins)-1,array.array("d",bins.dEbins))}) # 1000,0,0.3)
-    histos.update({"hdE_sec":      ROOT.TH1D("h_dE_sec",";#DeltaE [MeV];Steps", len(bins.dEbins)-1,array.array("d",bins.dEbins))}) # 1000,0,0.3)
-    histos.update({"hdx":          ROOT.TH1D("h_dx",";dx [#mum];Steps", len(bins.dxbins)-1,array.array("d",bins.dxbins))}) # 1000,0,+2e2)
+    histos.update({"hdE":          ROOT.TH1D("h_dE",";#DeltaE [MeV];Steps", len(bins.dEbins)-1,array.array("d",bins.dEbins))})
+    histos.update({"hdE_cnt":      ROOT.TH1D("h_dE_cnt",";#DeltaE [MeV];Steps", len(bins.dEbins)-1,array.array("d",bins.dEbins))})
+    histos.update({"hdE_sec":      ROOT.TH1D("h_dE_sec",";#DeltaE [MeV];Steps", len(bins.dEbins)-1,array.array("d",bins.dEbins))})
+    histos.update({"hdx":          ROOT.TH1D("h_dx",";dx [#mum];Steps", len(bins.dxbins)-1,array.array("d",bins.dxbins))})
     histos.update({"hdxinv":       ROOT.TH1D("h_dxinv",";1/dx [1/#mum];Steps", len(bins.dxinvbins)-1,array.array("d",bins.dxinvbins))})
-    histos.update({"hdR":          ROOT.TH1D("h_dR",";dR [#mum];Steps", len(bins.dRbins)-1,array.array("d",bins.dRbins))}) # 1000,0,+5e-2)
-    histos.update({"hdRinv":       ROOT.TH1D("h_dRinv",";1/dR [1/#mum];Steps", len(bins.dRinvbins)-1,array.array("d",bins.dRinvbins))}) # 1000,0,+5e-2)
+    histos.update({"hdR":          ROOT.TH1D("h_dR",";dR [#mum];Steps", len(bins.dRbins)-1,array.array("d",bins.dRbins))})
+    histos.update({"hdRinv":       ROOT.TH1D("h_dRinv",";1/dR [1/#mum];Steps", len(bins.dRinvbins)-1,array.array("d",bins.dRinvbins))})
+    histos.update({"hdL":          ROOT.TH1D("h_dL",";dL [#mum];Steps", len(bins.dLbins)-1,array.array("d",bins.dLbins))})
+    
+    histos.update({"hdR_vs_dx":    ROOT.TH2D("hdR_vs_dx",";dx [#mum];dR [#mum];Steps", len(bins.dxbins)-1,array.array("d",bins.dxbins),len(bins.dRbins)-1,array.array("d",bins.dRbins))})
+    
     histos.update({"hdEdx" :       ROOT.TH1D("h_dEdx",";dE/dx [MeV/#mum];Steps", len(bins.dEdxbins)-1,array.array("d",bins.dEdxbins))})
     histos.update({"hdEdx_cnt" :   ROOT.TH1D("h_dEdx_cnt",";dE/dx [MeV/#mum];Steps", len(bins.dEdxbins)-1,array.array("d",bins.dEdxbins))})
     histos.update({"hdEdx_sec" :   ROOT.TH1D("h_dEdx_sec",";dE/dx [MeV/#mum];Steps", len(bins.dEdxbins)-1,array.array("d",bins.dEdxbins))})
@@ -121,6 +125,7 @@ def book(histos,emin=-1): ### must pass by reference!
     histos.update({"hdE_vs_dxinv": ROOT.TH2D("h_dE_vs_dxinv",";1/dx [1/#mum];#DeltaE [MeV];Steps", len(bins.dxinvbins)-1,array.array("d",bins.dxinvbins), len(bins.dEbins)-1,array.array("d",bins.dEbins))})
     histos.update({"hdx_vs_E":     ROOT.TH2D("h_dx_vs_E",";E [MeV];dx [#mum];Steps", 500,bins.Emin,bins.Emax, len(bins.dxbins)-1,array.array("d",bins.dxbins))})
     histos.update({"hdxinv_vs_E":  ROOT.TH2D("h_dxinv_vs_E",";E [MeV];1/dx [1/#mum];Steps", 500,bins.Emin,bins.Emax, len(bins.dxinvbins)-1,array.array("d",bins.dxinvbins))})
+    histos.update({"hdL_vs_E":     ROOT.TH2D("h_dL_vs_E",";E [MeV];#DeltaL [#mum];Steps", 500,bins.Emin,bins.Emax, len(bins.dLbins)-1,array.array("d",bins.dLbins))})
     
     histos.update({"SMALL_hdx_vs_E_N1" : ROOT.TH2D("SMALL_hdx_vs_E_N1",";E [MeV];dx [#mum];<n_{1}>", bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxbins_small)-1,array.array("d",bins.dxbins_small))})
     histos.update({"SMALL_hdx_vs_E_N3" : ROOT.TH2D("SMALL_hdx_vs_E_N3",";E [MeV];dx [#mum];<n_{3}>", bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxbins_small)-1,array.array("d",bins.dxbins_small))})
@@ -130,6 +135,7 @@ def book(histos,emin=-1): ### must pass by reference!
     histos.update({"SMALL_hdx_vs_E_isGauss_N3" : ROOT.TH2D("SMALL_hdx_vs_E_isGauss_N3",";E [MeV];dx [#mum];Gaussian for <n_{3}>", bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxbins_small)-1,array.array("d",bins.dxbins_small))})
     histos.update({"SMALL_hdx_vs_E_isGauss_N0" : ROOT.TH2D("SMALL_hdx_vs_E_isGauss_N0",";E [MeV];dx [#mum];Gaussian for <n_{0}>", bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxbins_small)-1,array.array("d",bins.dxbins_small))})
     
-    histos.update({"SMALL_hdx_vs_E"    : ROOT.TH2D("SMALL_h_dx_vs_E",";E [MeV];dx [#mum];Steps",        bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxbins_small)-1,array.array("d",bins.dxbins_small))})    
-    histos.update({"SMALL_hdxinv_vs_E" : ROOT.TH2D("SMALL_h_dxinv_vs_E",";E [MeV];1/dx [1/#mum];Steps", bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxinvbins_small)-1,array.array("d",bins.dxinvbins_small))})
+    histos.update({"SMALL_hdL_vs_E"    : ROOT.TH2D("SMALL_h_dL_vs_E",";E [MeV];#DeltaL [#mum];Steps",        bins.n_small_E,bins.Emin,bins.Emax, len(bins.dLbins_small)-1,array.array("d",bins.dLbins_small))})    
+    histos.update({"SMALL_hdx_vs_E"    : ROOT.TH2D("SMALL_h_dx_vs_E",";E [MeV];#Deltax [#mum];Steps",        bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxbins_small)-1,array.array("d",bins.dxbins_small))})    
+    histos.update({"SMALL_hdxinv_vs_E" : ROOT.TH2D("SMALL_h_dxinv_vs_E",";E [MeV];1/#Deltax [1/#mum];Steps", bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxinvbins_small)-1,array.array("d",bins.dxinvbins_small))})
 

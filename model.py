@@ -229,6 +229,45 @@ class Model:
         end = time.time()
         self.TimeIt(start,end,"set_fft_sampling_pars")
     
+    def set_fft_sampling_pars_rotem(self, N_t_bins, frac):
+        if(not self.IONB): return
+        start = time.time()
+        self.tmin = -500
+        self.tmax = +500
+        self.N_t_bins = N_t_bins
+        # first find the trange
+        trange, psiRe, psiIm = self.scipy_psi_of_t()
+        
+        psiRe_mean = np.mean(psiRe)
+        psiIm_mean = np.mean(psiIm)
+        psiRe_stdv = np.std(psiRe)
+        psiIm_stdv = np.std(psiIm)
+        
+        psiRe_plus_stdv  = psiRe_mean+psiRe_stdv*frac
+        psiRe_minus_stdv = psiRe_mean-psiRe_stdv*frac
+        psiIm_plus_stdv  = psiIm_mean+psiIm_stdv*frac
+        psiIm_minus_stdv = psiIm_mean-psiIm_stdv*frac
+        
+        locs_psiRe_plus_stdv  = psiRe > psiRe_plus_stdv
+        locs_psiRe_minus_stdv = psiRe < psiRe_minus_stdv
+        locs_psiIm_plus_stdv  = psiIm > psiIm_plus_stdv
+        locs_psiIm_minus_stdv = psiIm < psiIm_minus_stdv
+        
+        locs = locs_psiRe_plus_stdv | locs_psiRe_minus_stdv | locs_psiIm_plus_stdv | locs_psiIm_minus_stdv
+        first_true_loc = int(np.argmax(locs))  # first True value in 'locs'
+        self.tmin = trange[first_true_loc]
+        self.tmax = abs(trange[first_true_loc])
+        if(first_true_loc>0):
+            self.N_t_bins = int(N_t_bins-2*first_true_loc)
+            if(self.N_t_bins<self.min_N_t_bins):
+                self.N_t_bins = self.min_N_t_bins
+        if(self.doprint): print(f"Changing to tmin=-500-->{self.tmin}, tmax=+500-->{self.tmax}, N_t_bins={N_t_bins}-->{self.N_t_bins}")
+        self.fSampling = (2*np.pi)*(self.N_t_bins/(self.tmax-self.tmin))
+        self.TSampling = 1./self.fSampling
+        if(self.doprint): print(f"tmin={self.tmin}, tmax={self.tmax}, N_t_bins={self.N_t_bins}, TSampling={self.TSampling}")
+        end = time.time()
+        self.TimeIt(start,end,"set_fft_sampling_pars_rotem")
+    
     def scipy_psi_of_t(self):
         if(not self.IONB or self.N_t_bins<0): return
         ## par[0] = w3
@@ -300,7 +339,7 @@ class Model:
         if(self.BEBL):
             bx = h.FindBin(par[0]) ## par[0] is meanLoss... 
             h.SetBinContent(bx,1)
-        if(self.LOS0):
+        elif(self.LOS0):
             bx = h.FindBin(par[0]) ## par[0] is 0... 
             h.SetBinContent(bx,1)
         else:
@@ -313,7 +352,12 @@ class Model:
             if(pdfname=="truncated_gaus"):      f = ROOT.TF1("f_"+name,truncated_gaus,self.dEmin,self.dEmax,len(par))
             if(isBorysovIon): g.SetLineColor(ROOT.kRed)
             else:
-                for i in range(len(par)): f.SetParameter(i,par[i])
+                for i in range(len(par)):
+                    if(f is not None):
+                        f.SetParameter(i,par[i])
+                    else:
+                        print(f"TF1 object is None for pdfname={pdfname}")
+                        quit()
                 f.SetNpx(self.NptsTF1)
                 f.SetLineColor(ROOT.kRed)
             for bb in range(1,h.GetNbinsX()+1):
