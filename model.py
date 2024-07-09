@@ -64,6 +64,7 @@ class Model:
         self.TGAU      = False
         self.TGAM      = False
         self.BEBL      = False
+        self.LOS0      = False
         self.IONB      = False
         self.EX1B      = False
         self.IONG      = False
@@ -74,8 +75,6 @@ class Model:
         self.build     = pars["build"]
         self.scale     = pars["scale"]
         self.param     = pars["param"]
-        # self.mass      = self.param["mass"]      if("mass"      in self.param) else -1
-        # self.spin      = self.param["spin"]      if("spin"      in self.param) else -1
         self.primprt   = self.param["primprt"]   if("primprt"   in self.param) else prt.Particle(name="NONE",meV=-999,mamu=-999,chrg=-999,spin=-999,lepn=-999,magm=-999)
         self.minLoss   = self.param["minLoss"]   if("minLoss"   in self.param) else -1
         self.meanLoss  = self.param["meanLoss"]  if("meanLoss"  in self.param) else -1
@@ -97,6 +96,7 @@ class Model:
         self.ion_sigma = self.param["ion_sigma"] if("ion_sigma" in self.param) else -1
         ### set parameters
         self.par_bethebloch_min  = [self.meanLoss]
+        self.par_zero_loss       = [0]
         self.par_borysov_sec     = [self.EkinMin, self.EkinMax]
         self.par_borysov_ion     = [self.w3, self.w, self.p3]
         self.par_borysov_exc     = [self.n1, self.e1]
@@ -147,11 +147,12 @@ class Model:
         self.TGAU = ("THK.GAUSS" in self.build)
         self.TGAM = ("THK.GAMMA" in self.build)
         self.BEBL = (self.meanLoss<self.minLoss and "BEBL" in self.build)
+        self.LOS0 = ("LOS0"  in self.build)
         self.IONB = ("ION.B" in self.build)
         self.EX1B = ("EX1.B" in self.build)
         self.IONG = ("ION.G" in self.build)
         self.EX1G = ("EX1.G" in self.build)
-        if(self.doprint): print(f"SECB={self.SECB}, BEBL={self.BEBL}, IONB={self.IONB}, EX1B={self.EX1B}, IONG={self.IONG}, EX1G={self.EX1G}")
+        if(self.doprint): print(f"SECB={self.SECB}, BEBL={self.BEBL}, LOS0={self.LOS0}, IONB={self.IONB}, EX1B={self.EX1B}, IONG={self.IONG}, EX1G={self.EX1G}")
 
     ### make sure the parameters are passed correctly
     def validate_pars(self):
@@ -174,13 +175,14 @@ class Model:
         ## ionization gauss
         if(not self.IONG): self.ion_mean  = -1
         if(not self.IONG): self.ion_sigma = -1
+        ### TODO: validate also the LOS0 case?
     
     def dE_binning(self):
         if(self.SECB):
             self.dEminSec  = 0.5*self.Tcut #10
             self.dEmaxSec  = 5000000.1
             self.NbinsSec  = 100000
-        if(self.BEBL):
+        if(self.BEBL or self.LOS0):
             self.dEmin     = 0
             self.dEmax     = 11
             self.Nbins     = 110
@@ -196,12 +198,13 @@ class Model:
             self.dEmin     = 10
             self.dEmax     = 100010
             self.Nbins     = 10000
-        self.set_scaled_xaxis_binning() ### only for continuous, non-BEBL
+        self.set_scaled_xaxis_binning() ### only for continuous, non-BEBL/LOS0
         self.doLogx = True if(self.dEmin>0) else False
         if(self.doprint): print(f"dEmin={self.dEmin}, dEmax={self.dEmax}, Nbins={self.Nbins}")
     
     def set_fft_sampling_pars(self,N_t_bins,frac):
         if(not self.IONB): return
+        start = time.time()
         self.N_t_bins = N_t_bins
         self.tmin = -500
         self.tmax = +500
@@ -223,6 +226,8 @@ class Model:
         self.fSampling = (2*np.pi)*(self.N_t_bins/(self.tmax-self.tmin))
         self.TSampling = 1./self.fSampling
         if(self.doprint): print(f"tmin={self.tmin}, tmax={self.tmax}, N_t_bins={self.N_t_bins}, TSampling={self.TSampling}")
+        end = time.time()
+        self.TimeIt(start,end,"set_fft_sampling_pars")
     
     def scipy_psi_of_t(self):
         if(not self.IONB or self.N_t_bins<0): return
@@ -295,6 +300,9 @@ class Model:
         if(self.BEBL):
             bx = h.FindBin(par[0]) ## par[0] is meanLoss... 
             h.SetBinContent(bx,1)
+        if(self.LOS0):
+            bx = h.FindBin(par[0]) ## par[0] is 0... 
+            h.SetBinContent(bx,1)
         else:
             f = None
             g = None
@@ -363,11 +371,15 @@ class Model:
         # pdfs.update({"hGauss_Thk":    None})
         # pdfs.update({"hGamma_Thk":    None})
         pdfs.update({"hBEBL_Thn":     None})
+        pdfs.update({"hLOS0_Thn":     None})
         pdfs["hModel"] = ROOT.TH1D("hModel","",self.Nbins,self.dEmin,self.dEmax)
         pdfs["hModel"].SetLineColor(ROOT.kRed)
         if(self.BEBL):
             pdfs["hBEBL_Thn"] = self.get_pdf("bethebloch_min_model", "bethebloch_min_model", self.par_bethebloch_min)
             if(self.doprint): print(f'PDF Integral: hBEBL_Thn={pdfs["hBEBL_Thn"].Integral()}')
+        if(self.LOS0):
+            pdfs["hLOS0_Thn"] = self.get_pdf("zero_loss_model", "zero_loss_model", self.par_zero_loss)
+            if(self.doprint): print(f'PDF Integral: hLOS0_Thn={pdfs["hLOS0_Thn"].Integral()}')
         if(self.IONB and self.EX1B and self.IONG):
             pdfs["hBorysov_Ion"]  = self.get_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
             pdfs["hBorysov_Exc"]  = self.get_pdf("borysov_exc_model", "borysov_excitation", self.par_borysov_exc)
@@ -407,13 +419,16 @@ class Model:
         if(self.BEBL):
             for b in range(1,pdfs["hBEBL_Thn"].GetNbinsX()+1): pdfs["hModel"].SetBinContent(b, pdfs["hBEBL_Thn"].GetBinContent(b) )
             return pdfs
+        if(self.LOS0):
+            for b in range(1,pdfs["hLOS0_Thn"].GetNbinsX()+1): pdfs["hModel"].SetBinContent(b, pdfs["hLOS0_Thn"].GetBinContent(b) )
+            return pdfs
         ### Otherwise, constructe the continuous model 
         aBorysov_Ion  = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
         aBorysov_Exc  = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
         aTrncGaus_Ion = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
         aTrncGaus_Exc = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
         aX            = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
-        if(not self.BEBL):
+        if(not (self.BEBL or self.LOS0)):
             for b in range(1,pdfs["hBorysov_Ion"].GetNbinsX()+1):
                 if(pdfs["hBorysov_Ion"]  is not None): aX[b-1]            = pdfs["hBorysov_Ion"].GetBinCenter(b)
                 if(pdfs["hBorysov_Ion"]  is not None): aBorysov_Ion[b-1]  = pdfs["hBorysov_Ion"].GetBinContent(b)

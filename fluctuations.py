@@ -169,8 +169,8 @@ class Parameters:
 
     def gamma(self,E):
         tau  = E/self.m
-        taul = (2.*U.MeV2eV)/C.mp; ## lower limit of Bethe-Bloch formula: 2MeV/proton_mass
-        if(tau<taul): tau = taul ## It is not normal case for this function for low energy parametrisation have to be applied
+        # taul = (2.*U.MeV2eV)/C.mp; ## lower limit of Bethe-Bloch formula: 2MeV/proton_mass
+        # if(tau<taul): tau = taul ## It is not normal case for this function for low energy parametrisation have to be applied
         return tau+1. #(E + self.m)/self.m ## both in eV
     
     def beta(self,E):
@@ -203,10 +203,7 @@ class Parameters:
 
     def isGauss(self,E,x,i):
         ni = -1
-        if(i==1):
-            ni = self.n12_mean(E,x,1)
-            # s1,e1 = self.RescaleS1(E,x)
-            # ni = s1*x
+        if(i==1): ni = self.n12_mean(E,x,1)
         if(i==2): ni = self.n12_mean(E,x,2)
         if(i==3): ni = self.n3_mean(E,x)
         if(i==0): ni = self.n_0dE_mean(E,x)
@@ -272,6 +269,8 @@ class Parameters:
         return self.mat.Tc*self.Wmax(E) # eV^2
     
     def RescaleS1(self,E,x):
+        a1 = 0
+        if(self.mat.Tc<=self.E1): return a1,self.E1 ### TODO: Was missing before 9/7/24, but this condition should normally be false...
         S1 = self.Sigma12(E,1)
         a1 = S1*x ## this is simply <n1>
         S1new = 0
@@ -283,7 +282,6 @@ class Parameters:
         else:
             S1new = S1/self.fw
             E1new = self.E1*self.fw
-        # print(f"a1new={S1new*x}, E1new={E1new}")
         return S1new,E1new
     
     def Moment1(self,E,x,proc="EX1:EX2:ION"): # this is the mean
@@ -370,6 +368,7 @@ class Parameters:
         BEBL = False
         TGAU = False
         TGAM = False
+        LOS0 = False
         EX1G = False
         EX2G = False
         IONG = False
@@ -380,8 +379,10 @@ class Parameters:
         ######################
         ### Tiny loss models
         if(pars["param"]["meanLoss"]<self.minloss):
-            BEBL = True
             pars["build"] = "BEBL"
+            BEBL = True
+            ######################
+            ### return
             return pars
 
 
@@ -394,92 +395,106 @@ class Parameters:
             neff = sn*sn
             pars["param"]["thk_mean"] = mua
             if(sn>2):
-                TGAU = True
                 pars["param"]["thk_sigma"] = siga
                 pars["build"] = "THK.GAUSS"
+                TGAU = True
             else:
-                TGAM = True
                 pars["param"]["thk_neff"] = neff
                 pars["build"] = "THK.GAMMA"
-            
+                TGAM = True
             ######################
             ### Secondaries
             if(self.isSecondary(E)):
-                SECB =  True
                 pars["build"] += "->SEC.B"
                 pars["param"]["EkinMin"] = self.EkinMin
                 pars["param"]["EkinMax"] = self.EkinMax
                 pars["param"]["fmax"]    = self.fmax
-            
+                SECB =  True
+            ######################
+            ### return
             return pars
             
 
         ######################
         ### Thin models
+        s1,e1 = self.RescaleS1(E,x)
+        n1    = s1*x
+        n3    = self.n3_mean(E,x)
+        if(n1<=0.): n3 /= self.r ### TODO: Was missing before 9/7/24, but this condition should normally be false...
+        
+        ### special corner cases for zero loss
+        if(n1<=0. and n3<=0.): LOS0 = True
+        
         ### excitation of type 1
-        if(self.f1>0):
+        if(self.f1>0 and n1>0):
             if(self.isGauss(E,x,1)):
-                EX1G = True
                 pars["param"]["ex1_mean"]  = self.Mean(E,x,proc="EX1")
                 pars["param"]["ex1_sigma"] = self.Width(E,x,proc="EX1")
+                EX1G = True if(pars["param"]["ex1_sigma"]>0) else False ### TODO: Was missing before 9/7/24, but this condition should normally be false...
             else:
-                EX1B = True
-                s1,e1 = self.RescaleS1(E,x)
-                n1 = s1*x
+                # s1,e1 = self.RescaleS1(E,x)
+                # n1 = s1*x
                 pars["param"]["e1"] = e1
                 pars["param"]["n1"] = n1
+                EX1B = True if(n1>0) else False
         #########################
-        ### excitation of type 2
-        if(self.f2>0):
-            if(self.isGauss(E,x,2)):
-                EX2G = True
-                pars["param"]["ex2_mean"]  = self.Mean(E,x,proc="EX2")
-                pars["param"]["ex2_sigma"] = self.Width(E,x,proc="EX2")
-            else:
-                EX2B = True
-                s2,e2 = self.RescaleS1(E,x)
-                n2 = s2*x
-                pars["param"]["e2"] = e2
-                pars["param"]["n2"] = n2
+        # ### excitation of type 2
+        # if(self.f2>0):
+        #     if(self.isGauss(E,x,2)):
+        #         pars["param"]["ex2_mean"]  = self.Mean(E,x,proc="EX2")
+        #         pars["param"]["ex2_sigma"] = self.Width(E,x,proc="EX2")
+        #         EX2G = True
+        #     else:
+        #         s2,e2 = self.RescaleS1(E,x)
+        #         n2 = s2*x
+        #         pars["param"]["e2"] = e2
+        #         pars["param"]["n2"] = n2
+        #         EX2B = True
         ##########################
         ### Ionization
-        alpha  = 1.
-        naAvg  = 0.
-        alpha1 = 0.
-        n3     = self.n3_mean(E,x)
-        p3     = n3
-        w3     = alpha*self.E0
-        ### gaussian part (conditional)
-        if(self.isGauss(E,x,3)):
-            alpha  = (self.w1*(self.ncontmax+n3))/(self.w1*self.ncontmax+n3)
-            alpha1 = alpha*math.log(alpha)/(alpha-1.)
-            naAvg  = n3*self.w1*(alpha-1)/(alpha*(self.w1-1.))
-            p3     = n3 - naAvg
+        if(n3>0):
+            alpha  = 1.
+            naAvg  = 0.
+            alpha1 = 0.
+            p3     = n3
             w3     = alpha*self.E0
-            pars["param"]["ion_mean"]  = naAvg*alpha1*self.E0 ### TODO: as in G4
-            pars["param"]["ion_sigma"] = math.sqrt(naAvg*(alpha-alpha1**2)*(self.E0**2))
-            IONG = True
-        ### poisson part (~always)
-        if(self.mat.Tc>w3):
-            w = (self.mat.Tc-w3)/self.mat.Tc
-            pars["param"]["w3"] = w3
-            pars["param"]["p3"] = p3
-            pars["param"]["w"]  = w
-            IONB = True
+            ### gaussian part (conditional)
+            if(self.isGauss(E,x,3)):
+                alpha  = (self.w1*(self.ncontmax+n3))/(self.w1*self.ncontmax+n3)
+                alpha1 = alpha*math.log(alpha)/(alpha-1.)
+                naAvg  = n3*self.w1*(alpha-1)/(alpha*(self.w1-1.))
+                p3     = n3 - naAvg
+                w3     = alpha*self.E0
+                pars["param"]["ion_mean"]  = naAvg*alpha1*self.E0 ### TODO: as in G4
+                pars["param"]["ion_sigma"] = math.sqrt(naAvg*(alpha-alpha1**2)*(self.E0**2))
+                IONG = True if(pars["param"]["ion_sigma"]>0) else False ### TODO: Was missing before 9/7/24, but this condition should normally be false...
+            ### poisson part (~always)
+            if(self.mat.Tc>w3):
+                w = (self.mat.Tc-w3)/self.mat.Tc
+                pars["param"]["w3"] = w3
+                pars["param"]["p3"] = p3
+                pars["param"]["w"]  = w
+                IONB = True
+
         #######################
         ### finally, build string
+        if(LOS0):                                    pars["build"] = "LOS0"
         if(IONB and IONG and EX1G):                  pars["build"] = "ION.B->ION.G->EX1.G"
         if(IONB and EX1B and IONG):                  pars["build"] = "ION.B->EX1.B->ION.G"
         if(IONB and EX1B and not IONG and not EX1G): pars["build"] = "ION.B->EX1.B"
         ######################
         ### Secondaries
         if(self.isSecondary(E)):
-            SECB =  True
             pars["build"] += "->SEC.B"
             pars["param"]["EkinMin"] = self.EkinMin
             pars["param"]["EkinMax"] = self.EkinMax
             pars["param"]["fmax"]    = self.fmax
+            SECB =  True
+
+        ######################
+        ### return
         return pars
+
 
     # def BBlowE(self,E,T):
     #     g = self.gamma(E)

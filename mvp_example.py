@@ -17,8 +17,7 @@ import matplotlib.pyplot as plt
 
 EE = 50 # MeV
 XX = 10 # um
-WW = 0.01 # % of EE and XX for the slice
-print(f"Model with energy: {EE} [MeV], dx: {XX} [um], window: {WW*100} [%]")
+print(f"Model with energy: {EE} [MeV], dx: {XX} [um]")
 
 
 start = time.time()
@@ -51,10 +50,16 @@ cnt_cdfs_scaled_arrx  = Mod.cnt_cdfs_scaled_arrx  ## np.array
 cnt_cdfs_scaled_arrsy = Mod.cnt_cdfs_scaled_arrsy ## dict name-->np.array
 plt.plot(cnt_cdfs_scaled_arrx, cnt_cdfs_scaled_arrsy["hModel"])
 plt.title('Minimum viable example for continuous model: '+Mod.build)
+plt.xscale('log')
+plt.yscale('log')
+plt.ylim(3e-4,2)
 plt.show()
 
 sec_cdfs_arrx  = Mod.sec_cdfs_arrx  ## np.array
 sec_cdfs_arrsy = Mod.sec_cdfs_arrsy ## dict name-->np.array
 plt.plot(sec_cdfs_arrx, sec_cdfs_arrsy["hBorysov_Sec"])
 plt.title('Minimum viable example for secondary model: '+Mod.build)
+plt.xscale('log')
+plt.yscale('log')
+plt.ylim(4e-3,2)
 plt.show()

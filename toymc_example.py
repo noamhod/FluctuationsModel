@@ -45,9 +45,6 @@ ROOT.gStyle.SetPadRightMargin(0.15)
 ROOT.gErrorIgnoreLevel = ROOT.kError
 # ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
-# ROOT.Math.IntegratorOneDimOptions.SetDefaultIntegrator("GAUSS")
-# ROOT.Math.IntegratorOneDimOptions.SetDefaultIntegrator("GAUSSLEGENDRE")
-# ROOT.Math.IntegratorOneDimOptions.SetDefaultIntegrator("NONADAPTIVE")
 
 #################################################
 #################################################

@@ -94,9 +94,10 @@ slicetitle = f"E={EE}#pm{WE*100}% [MeV], #Deltax={XX}#pm{WX*100}% [#mum]"
 hdE     = ROOT.TH1D(slicename,slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
 hdE_cnt = ROOT.TH1D(slicename+"_cnt",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
 hdE_sec = ROOT.TH1D(slicename+"_sec",slicetitle+";#DeltaE [MeV];Steps",len(dEbins)-1,dEbins)
-hdE_cnt_lin_eV         = ROOT.TH1D(slicename+"_cnt_lin_eV",slicetitle+";#DeltaE (scale included in MC, model axis is scaled) [eV];Steps",Mod.NbinsScl,Mod.dEminScl,Mod.dEmaxScl)
-hdE_cnt_lin_eV_noscale = ROOT.TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE (scale removed from MC, model is unscaled) [eV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
+hdE_cnt_lin_eV         = ROOT.TH1D(slicename+"_cnt_lin_eV",slicetitle+";#DeltaE [eV];Steps",Mod.NbinsScl,Mod.dEminScl,Mod.dEmaxScl)
+hdE_cnt_lin_eV_noscale = ROOT.TH1D(slicename+"_cnt_lin_eV_noscale",slicetitle+";#DeltaE/scale [eV];Steps",Mod.Nbins,Mod.dEmin,Mod.dEmax)
 hdE_sec_lin_eV         = ROOT.TH1D(slicename+"_sec_lin_eV",slicetitle+";#DeltaE [eV];Steps",Mod.NbinsSec,Mod.dEminSec,Mod.dEmaxSec)
+# print(f"Nbins={Mod.Nbins}, dEmin={Mod.dEmin}, dEmax={Mod.dEmax}")
 
 
 
@@ -405,11 +406,8 @@ legend.SetTextSize(0.032)
 legend.SetBorderSize(0)
 legend.SetFillStyle(0)
 legend.AddEntry(hdE_cnt_lin_eV_noscale, "GEANT4", 'L')
-modtitle = Mod.build.replace("->"," #otimes ").replace(".","")
+modtitle = Mod.build.replace("->","#otimes").replace(".","").replace("#otimesSECB","")
 legend.AddEntry(cnt_pdfs["hModel"], "Model: "+modtitle, 'L')
-
-
-
 cnv = ROOT.TCanvas("cnv","",1200,500)
 cnv.Divide(2,1)
 cnv.cd(1)
@@ -426,6 +424,8 @@ hdE_cnt_lin_eV_noscale.SetMarkerStyle(20)
 hdE_cnt_lin_eV_noscale.SetMarkerSize(0.6)
 hdE_cnt_lin_eV_noscale.Draw("hist")
 pdfModel.Draw("hist same")
+# hdE_cnt_lin_eV_noscale.DrawNormalized("hist")
+# pdfModel.DrawNormalized("hist same")
 legend.Draw("same")
 ROOT.gPad.RedrawAxis()
 cnv.cd(2)
@@ -441,6 +441,33 @@ ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
 
+legend = ROOT.TLegend(0.15, 0.62, 0.5, 0.89)
+legend.SetTextSize(0.032)
+legend.SetBorderSize(0)
+legend.SetFillStyle(0)
+legend.AddEntry(hdE_cnt_lin_eV_noscale, "GEANT4", 'L')
+modtitle = Mod.build.replace("->","#otimes").replace(".","").replace("#otimesSECB","")
+cnt_pdfs["hModel"].SetLineWidth(2)
+legend.AddEntry(cnt_pdfs["hModel"], "Model: "+modtitle, 'L')
+for pdfname,hpdf in cnt_pdfs_scaled.items():
+    if(pdfname=="hModel"): continue
+    name = ""
+    norm = cnt_pdfs_scaled["hModel"].GetMaximum()/cnt_pdfs_scaled["hModel"].Integral()
+    hpdf.Scale(norm/hpdf.GetMaximum())
+    # hpdf.SetLineStyle(ROOT.kDashed)
+    if(pdfname=="hBorysov_Ion"):
+        hpdf.SetLineColor(ROOT.kViolet)
+        name = "IONB"
+    if(pdfname=="hBorysov_Exc"):
+        hpdf.SetLineColor(ROOT.kBlue-4)
+        name = "EX1B"
+    if(pdfname=="hTrncGaus_Ion"):
+        hpdf.SetLineColor(ROOT.kAzure+10)
+        name = "IONG"
+    if(pdfname=="hTrncGaus_Exc"):
+        hpdf.SetLineColor(ROOT.kGreen+2)
+        name = "EX1G"
+    legend.AddEntry(hpdf, "Model: "+name, 'L')
 cnv = ROOT.TCanvas("cnv","",1200,500)
 cnv.Divide(2,1)
 cnv.cd(1)
@@ -455,8 +482,12 @@ hdE_cnt_lin_eV.SetLineColor(ROOT.kBlack)
 hdE_cnt_lin_eV.SetMarkerColor(ROOT.kBlack)
 hdE_cnt_lin_eV.SetMarkerStyle(20)
 hdE_cnt_lin_eV.SetMarkerSize(0.6)
-hdE_cnt_lin_eV.Draw("hist")
-pdfModel.Draw("hist same")
+hdE_cnt_lin_eV.DrawNormalized("hist")
+pdfModel.SetLineWidth(2)
+pdfModel.DrawNormalized("hist same")
+for pdfname,hpdf in cnt_pdfs_scaled.items():
+    if(pdfname=="hModel"): continue
+    hpdf.Draw("hist same")
 legend.Draw("same")
 ROOT.gPad.RedrawAxis()
 cnv.cd(2)
@@ -472,13 +503,14 @@ ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf)
 
 
-legend = ROOT.TLegend(0.15, 0.75, 0.5, 0.88)
+legend = ROOT.TLegend(0.45, 0.75, 0.8, 0.89)
 legend.SetTextSize(0.032)
 legend.SetBorderSize(0)
 legend.SetFillStyle(0)
 legend.AddEntry(hdE_sec_lin_eV, "GEANT4", 'L')
-if(sec_pdfs["hBorysov_Sec"] is not None): legend.AddEntry(sec_pdfs["hBorysov_Sec"], "Model: Secondaries", 'L')
-
+if(sec_pdfs["hBorysov_Sec"] is not None):
+    sec_pdfs["hBorysov_Sec"].SetLineWidth(2)
+    legend.AddEntry(sec_pdfs["hBorysov_Sec"], "Model: SECB", 'L')
 cnv = ROOT.TCanvas("cnv","",1200,500)
 cnv.Divide(2,1)
 cnv.cd(1)
@@ -494,9 +526,9 @@ hdE_sec_lin_eV.SetLineColor(ROOT.kBlack)
 hdE_sec_lin_eV.SetMarkerColor(ROOT.kBlack)
 hdE_sec_lin_eV.SetMarkerStyle(20)
 hdE_sec_lin_eV.SetMarkerSize(0.6)
-hdE_sec_lin_eV.Draw("hist")
+hdE_sec_lin_eV.DrawNormalized("hist")
 if(sec_pdfs["hBorysov_Sec"] is not None):
-    pdfModel.Draw("hist same")
+    pdfModel.DrawNormalized("hist same")
 legend.Draw("same")
 ROOT.gPad.RedrawAxis()
 cnv.cd(2)
