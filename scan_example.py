@@ -72,7 +72,7 @@ def get_slice(ie,il):
     L = midRangeL*U.um2cm  # cm
     return label, E, L, NrawSteps
 
-def add_slice_shapes(E,x,pars,N,label):
+def add_slice_shapes(E,L,pars,N,label):
     if(parallelize): 
         lock = mp.Lock()
         lock.acquire()
@@ -84,7 +84,7 @@ def add_slice_shapes(E,x,pars,N,label):
     local_shapes = {label:{"cnt_pdf":Mod.cnt_pdfs_scaled["hModel"], "sec_pdf":Mod.sec_pdfs["hBorysov_Sec"], "cnt_cdf":Mod.cnt_cdfs_scaled["hModel"], "sec_cdf":Mod.sec_cdfs["hBorysov_Sec"]}}
     end = time.time()
     elapsed = end-start
-    print(f"Finished slice: {label} with {int(N):,} steps, at (E,dx)=({E*U.eV2MeV:.3f} MeV,{x*U.cm2um:.6f} um), model shapes obtained within {elapsed:.2f} [s]")
+    print(f"Finished slice: {label} with {int(N):,} steps, at (E,dL)=({E*U.eV2MeV:.3f} MeV,{L*U.cm2um:.6f} um), model shapes obtained within {elapsed:.2f} [s]")
     if(parallelize): lock.release()
     return local_shapes
 
@@ -689,9 +689,9 @@ if __name__ == "__main__":
     #####################
     ### finalize the gifs
     print("\nMaking gif for pdfs...")
-    ROOT.gSystem.Exec(f"convert -delay 20 $(ls {pngpath}/scan_pdfs_*.png | sort -V) scan_pdfs.gif")
+    ROOT.gSystem.Exec(f"magick -delay 0.01 $(ls {pngpath}/scan_pdfs_*.png | sort -V) scan_pdfs.gif")
     print("\nMaking gif for cdfs...")
-    ROOT.gSystem.Exec(f"convert -delay 20 $(ls {pngpath}/scan_cdfs_*.png | sort -V) scan_cdfs.gif")
+    ROOT.gSystem.Exec(f"magick -delay 0.01 $(ls {pngpath}/scan_cdfs_*.png | sort -V) scan_cdfs.gif")
 
     ###################################
     ### write everything to a root file
