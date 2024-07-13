@@ -99,6 +99,38 @@ def getAvgY(h,isLogx=False,xbins=[]):
     return hAv
 
 
+def hlin_truncate_negative(h,x0=1e-6):
+    if(h.GetBinWidth(2)!=h.GetBinWidth(1)):
+        print("hlin_truncate_negative can truncate only linearly binned histograms. quitting.")
+        quit()
+    n2truncate = 0
+    for b in range(1,h.GetNbinsX()+1):
+        if(h.GetXaxis().GetBinLowEdge(b)<=x0): n2truncate += 1
+        else:                                  break
+    nbefore = h.GetNbinsX()
+    nafter  = nbefore-n2truncate
+    bin1    = n2truncate+1
+    xmin    = h.GetXaxis().GetBinLowEdge(bin1)
+    xmax    = h.GetXaxis().GetXmax()
+    xtitle  = h.GetXaxis().GetTitle()
+    ytitle  = h.GetYaxis().GetTitle()
+    title   = h.GetTitle()
+    name    = h.GetName()+"_truncated"
+    hnew    = ROOT.TH1D(name,title+";"+xtitle+";"+ytitle,nafter,xmin,xmax)
+    
+    print(f"n2truncate={n2truncate}, bin1={bin1}, xmin={xmin}, xmax={xmax}")
+    
+    for b in range(1,hnew.GetNbinsX()+1):
+        if((h.GetBinCenter(b+n2truncate)-hnew.GetBinCenter(b))>1e-6):
+            print("hlin_truncate_negative bin centers do not match. quitting.")
+            quit()
+        y = h.GetBinContent(b+n2truncate)
+        hnew.SetBinContent(b,y)
+    hnew.SetLineColor(h.GetLineColor())
+    hnew.SetLineWidth(h.GetLineWidth())
+    hnew.SetLineStyle(h.GetLineStyle())
+    return hnew
+    
 
 def book(histos,emin=-1): ### must pass by reference!
     if(emin>0): bins.Emin = emin

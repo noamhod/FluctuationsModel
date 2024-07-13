@@ -28,9 +28,8 @@ def borysov_excitation(x,par):
     nnmax = nn+2
     for ii in range(nn,nnmax):
         if(ii<=0): continue
-        # if(ii<0): continue ### WRONG
         xx += math.pow(par[0],ii) / ROOT.TMath.Factorial(ii)
-    xx *= 0.5*ROOT.TMath.Exp(-par[0])/par[1] #if(x[0]>0) else 0
+    xx *= 0.5*ROOT.TMath.Exp(-par[0])/par[1] ### TODO: this does NOT include the case of zero-loss and I deal with it later in get_pdf()
     return xx
 
 ### this has to stay outside of any class
@@ -185,18 +184,18 @@ class Model:
         if(self.BEBL or self.LOS0):
             self.dEmin     = 0
             self.dEmax     = 11
-            self.Nbins     = 110
+            self.Nbins     = 11
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G): ## Borysov only, no Gauss
-            self.dEmin     = 0.05
-            self.dEmax     = 10000.05
+            self.dEmin     = 0.1 #0.05
+            self.dEmax     = 10000.1 #10000.05
             self.Nbins     = 10000
         if(self.IONB and not self.EX1B and self.IONG and self.EX1G): ## no Borysov Exc
-            self.dEmin     = 10
-            self.dEmax     = 1000010
+            self.dEmin     = 0.1 #10
+            self.dEmax     = 1000000.1 #1000010
             self.Nbins     = 50000
         if(self.IONB and (self.IONG and not self.EX1G) or (self.EX1G and not self.IONG)): ## only one Gauss
-            self.dEmin     = 10
-            self.dEmax     = 100010
+            self.dEmin     = 0.1 #10
+            self.dEmax     = 100000.1 #100010
             self.Nbins     = 10000
         self.set_scaled_xaxis_binning() ### only for continuous, non-BEBL/LOS0
         self.doLogx = True if(self.dEmin>0) else False
@@ -304,8 +303,6 @@ class Model:
             y_im = self.psiIm[bb-1]
             h_re.SetBinContent(bb,y_re)
             h_im.SetBinContent(bb,y_im)
-        # h_re.Scale(1./h_re.Integral())
-        # h_im.Scale(1./h_im.Integral())
         h_re.SetLineColor( ROOT.kRed )
         h_im.SetLineColor( ROOT.kBlue )
         h_re.SetLineWidth( 1 )
@@ -322,7 +319,7 @@ class Model:
         y = self.psiRe + 1.j*self.psiIm
         yf = fft(y)
         xf = fftfreq(self.N_t_bins, self.TSampling)[:self.N_t_bins//2] ## remove the last M elements, where M=floor(N/2)
-        ya = np.abs(yf[0:self.N_t_bins//2])*(2/self.N_t_bins)
+        ya = np.abs(yf[0:self.N_t_bins//2])*(2/self.N_t_bins) ### TODO: this does NOT include the case of zero-loss and I deal with it later in get_pdf()
         ### Get the integral as graph
         gFFT = ROOT.TGraph(len(xf),xf,ya)
         gFFT.SetLineColor( ROOT.kRed )
@@ -331,7 +328,7 @@ class Model:
         self.TimeIt(start,end,"borysov_ionization")
         return gFFT
 
-    def get_pdf(self,name,pdfname,par,dE_lowcut=-1):
+    def get_pdf(self,name,pdfname,par):
         start = time.time()
         title = name.replace("_model","")
         h = ROOT.TH1D("h_"+name,"h_"+title,self.Nbins,self.dEmin,self.dEmax)
@@ -353,8 +350,7 @@ class Model:
             if(isBorysovIon): g.SetLineColor(ROOT.kRed)
             else:
                 for i in range(len(par)):
-                    if(f is not None):
-                        f.SetParameter(i,par[i])
+                    if(f is not None): f.SetParameter(i,par[i])
                     else:
                         print(f"TF1 object is None for pdfname={pdfname}")
                         quit()
@@ -363,30 +359,28 @@ class Model:
             for bb in range(1,h.GetNbinsX()+1):
                 x = h.GetBinCenter(bb)
                 y = g.Eval(x) if(isBorysovIon) else f.Eval(x)
-                # y = g(x) if(isBorysovIon) else f.Eval(x)
-                if(x<dE_lowcut and dE_lowcut>0): y = 0 #TODO: is this cutoff physical?
-                if(x<=0 and isBorysovIon):       y = 0 #TODO: is this OK?
                 h.SetBinContent(bb,y)
-            ### TODO: implement the thick cases
-        h.Scale(1./h.Integral())
+            #######################################
+            ### TODO: implement the thick cases ###
+            #######################################
+        
+        ### renormalize the two parts of the pdf in non-gauss ion/exc:
+        if(pdfname=="borysov_ionization" or pdfname=="borysov_excitation"):
+            poisson_lambda = par[2] if(pdfname=="borysov_ionization") else par[0]
+            norm_zero = math.exp(-poisson_lambda)
+            h.SetBinContent(1,0) ### first clean the first "zero" bin if it has entries
+            h.Scale((1.-norm_zero)/h.Integral())
+            h.SetBinContent(1,norm_zero) ## then add the zero bin back
+        else:
+            h.Scale(1./h.Integral())
+        
         h.SetLineColor( ROOT.kRed )
         h.SetLineWidth( 1 )
         end = time.time()
         self.TimeIt(start,end,f"get_pdf({name})")
         return h
     
-    # def manual_convolution(self,A,K):
-    #     start = time.time()
-    #     n = len(K)
-    #     m = len(A)
-    #     result = np.zeros(n)
-    #     for k in range(n):
-    #         result[k] = np.dot(A[:k+1], K[k::-1])
-    #     end = time.time()
-    #     self.TimeIt(start,end,"manual_convolution")
-    #     return result
-    
-    def fft_convolution(self,X,A,K):
+    def convolution_fft(self,X,A,K):
         start = time.time()
         N = len(K)
         if(len(A)!=N):
@@ -400,10 +394,10 @@ class Model:
         interp_func = interp1d(X_extended,Y,kind='linear') 
         Y_interpolated = interp_func(X)
         end = time.time()
-        self.TimeIt(start,end,"fft_convolution")
+        self.TimeIt(start,end,"convolution_fft")
         return Y_interpolated
     
-    def get_component_pdfs(self):
+    def get_continuous_pdfs(self):
         start = time.time()
         ### get pdfs
         pdfs = {}
@@ -439,7 +433,7 @@ class Model:
             pdfs["hBorysov_Exc"] = self.get_pdf("borysov_exc_model", "borysov_excitation", self.par_borysov_exc)
             if(self.doprint): print(f'PDF Integrals: hBorysov_Ion={pdfs["hBorysov_Ion"].Integral()}, hBorysov_Exc={pdfs["hBorysov_Exc"].Integral()}')
         end = time.time()
-        self.TimeIt(start,end,"get_component_pdfs")
+        self.TimeIt(start,end,"get_continuous_pdfs")
         return pdfs
         
     def get_secondaries_pdfs(self):
@@ -453,12 +447,10 @@ class Model:
         self.TimeIt(start,end,"get_secondaries_pdfs")
         return pdfs
     
-    
-    ### get the relevant pdfs
     def get_model_pdfs(self):
         start = time.time()
         ### get the pdfs of the continuous part
-        pdfs = self.get_component_pdfs()
+        pdfs = self.get_continuous_pdfs()
         ### if meanLoss is too small return the meanLoss as single bin PDF
         if(self.BEBL):
             for b in range(1,pdfs["hBEBL_Thn"].GetNbinsX()+1): pdfs["hModel"].SetBinContent(b, pdfs["hBEBL_Thn"].GetBinContent(b) )
@@ -479,22 +471,21 @@ class Model:
                 if(pdfs["hBorysov_Exc"]  is not None): aBorysov_Exc[b-1]  = pdfs["hBorysov_Exc"].GetBinContent(b)
                 if(pdfs["hTrncGaus_Ion"] is not None): aTrncGaus_Ion[b-1] = pdfs["hTrncGaus_Ion"].GetBinContent(b)
                 if(pdfs["hTrncGaus_Exc"] is not None): aTrncGaus_Exc[b-1] = pdfs["hTrncGaus_Exc"].GetBinContent(b)
-        aScipyConv  = None
         aFFTConv = None
         if(self.IONB and self.EX1B and self.IONG):
-            aFFTConv1 = self.fft_convolution(aX,aBorysov_Ion,aBorysov_Exc)
-            aFFTConv2 = self.fft_convolution(aX,aTrncGaus_Ion,aFFTConv1)
+            aFFTConv1 = self.convolution_fft(aX,aBorysov_Ion,aBorysov_Exc)
+            aFFTConv2 = self.convolution_fft(aX,aTrncGaus_Ion,aFFTConv1)
             aFFTConv = aFFTConv2
             if(self.doprint): print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}, IONG={len(aTrncGaus_Ion)}")
             if(self.doprint): print(f"sizes of convolutions for (IONB and EX1B and IONG): IONBxEX1B={len(aFFTConv1)}, IONBxEX1BxIONG={len(aFFTConv2)}")
         if(self.IONB and self.IONG and self.EX1G):
-            aFFTConv1 = self.fft_convolution(aX,aBorysov_Ion,aTrncGaus_Ion)
-            aFFTConv2 = self.fft_convolution(aX,aTrncGaus_Exc,aFFTConv1)
+            aFFTConv1 = self.convolution_fft(aX,aBorysov_Ion,aTrncGaus_Ion)
+            aFFTConv2 = self.convolution_fft(aX,aTrncGaus_Exc,aFFTConv1)
             aFFTConv = aFFTConv2
             if(self.doprint): print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, IONG={len(aTrncGaus_Ion)}, EX1G={len(aTrncGaus_Exc)}")
             if(self.doprint): print(f"sizes of convolutions for (IONB and IONG and EX1G): IONBxIONG={len(aFFTConv1)}, IONBxIONGxEX1G={len(aFFTConv2)}")
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G):
-            aFFTConv1 = self.fft_convolution(aX,aBorysov_Ion,aBorysov_Exc)
+            aFFTConv1 = self.convolution_fft(aX,aBorysov_Ion,aBorysov_Exc)
             aFFTConv = aFFTConv1
             if(self.doprint): print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}")
             if(self.doprint): print(f"sizes of convolutions for (IONB and EX1B and not IONG and not EX1G): IONBxEX1B={len(aFFTConv1)}")
@@ -506,7 +497,7 @@ class Model:
         for b in range(1,pdfs["hBorysov_Ion"].GetNbinsX()+1):
             xb = pdfs["hModel"].GetBinCenter(b)
             pdfs["hModel"].SetBinContent(b, gConv.Eval(xb+2*abs(self.dEmin)) )
-        pdfs["hModel"].Scale(1./pdfs["hModel"].Integral())
+        # pdfs["hModel"].Scale(1./pdfs["hModel"].Integral())
         if(self.doprint): print(f'hModel={pdfs["hModel"].GetNbinsX()}, aConv={len(aConv)}')
         end = time.time()
         self.TimeIt(start,end,"get_model_pdfs")
@@ -568,7 +559,7 @@ class Model:
                 if(abs(xa-xh)/xa>1e-6): print(f"WARNING: xa={xa}, xh={xh}")
                 y = h.SetBinContent(i+1, arry[i])
             pdfs.update({name:h})
-            h.Scale(1./h.Integral())
+            # h.Scale(1./h.Integral())
             h.SetLineColor( ROOT.kRed )
             h.SetLineWidth( 1 )
         end = time.time()

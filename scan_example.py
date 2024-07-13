@@ -54,7 +54,6 @@ pngpath = "/Users/noamtalhod/tmp/png"
 ##############################################################
 ### functions for the submission of model calculation
 
-# def get_slice(ie,ix):
 def get_slice(ie,il):
     NminRawSteps = 25
     label_E   = str(ie)
@@ -72,11 +71,11 @@ def add_slice_shapes(E,L,pars,N,label):
         lock = mp.Lock()
         lock.acquire()
     start = time.time()
-    Mod = model.Model(x,E,pars)
+    Mod = model.Model(L,E,pars)
     # Mod.set_fft_sampling_pars(N_t_bins=10000000,frac=0.01)
     Mod.set_fft_sampling_pars_rotem(N_t_bins=10000000,frac=0.01)
     Mod.set_all_shapes()
-    local_shapes = {label:{"cnt_pdf":Mod.cnt_pdfs_scaled["hModel"], "sec_pdf":Mod.sec_pdfs["hBorysov_Sec"], "cnt_cdf":Mod.cnt_cdfs_scaled["hModel"], "sec_cdf":Mod.sec_cdfs["hBorysov_Sec"]}}
+    local_shapes = {label:{"cnt_pdf":Mod.cnt_pdfs_scaled["hModel"], "cnt_pdf_all":Mod.cnt_pdfs_scaled, "sec_pdf":Mod.sec_pdfs["hBorysov_Sec"], "cnt_cdf":Mod.cnt_cdfs_scaled["hModel"], "sec_cdf":Mod.sec_cdfs["hBorysov_Sec"]}}
     end = time.time()
     elapsed = end-start
     print(f"Finished slice: {label} with {int(N):,} steps, at (E,dL)=({E*U.eV2MeV:.3f} MeV,{L*U.cm2um:.6f} um), model shapes obtained within {elapsed:.2f} [s]")
@@ -93,21 +92,33 @@ def collect_shapes(local_shapes):
     for label,shape in local_shapes.items(): ### there should be just one item here
         for name,hist in shape.items():
             if(hist is None): continue
-            shapes[label][name] = hist.Clone(label+"_"+name)
 
+            if(name=="cnt_pdf_all"):
+                for componentname,componenthist in local_shapes[label][name].items():
+                    shapes[label][name].update({componentname : componenthist.Clone(label+"_"+componentname) })
+            else:
+                shapes[label][name] = hist.Clone(label+"_"+name)
+
+
+def find_h_max(h,firstbin=1):
+    hmax = -1e20
+    for b in range(firstbin,h.GetNbinsX()+1):
+        y = h.GetBinContent(b)
+        if(y>hmax): hmax = y
+    return hmax
+        
 
 ##############################################################
 ##############################################################
 ##############################################################
 ### functions for the submission of plotting of png's
-
-# def plot_slices(slices,shapes,builds,label,E,x,NrawSteps,count):
 def plot_slices(slices,shapes,builds,label,E,L,NrawSteps,count):
     if(parallelize): 
         lock = mp.Lock()
         lock.acquire()
     start = time.time()
     ### get the precalculated model shapes
+    cnt_pdf_all = shapes[label]["cnt_pdf_all"]
     cnt_pdf = shapes[label]["cnt_pdf"]
     sec_pdf = shapes[label]["sec_pdf"]
     cnt_cdf = shapes[label]["cnt_cdf"]
@@ -122,10 +133,33 @@ def plot_slices(slices,shapes,builds,label,E,L,NrawSteps,count):
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
     slices[namecnt].Draw("hist")
+    
     if(cnt_pdf is not None):
         cnt_pdf_clone = cnt_pdf.Clone("cnt_model_clone")
-        cnt_pdf_clone.Scale(slices[namecnt].GetMaximum() / cnt_pdf_clone.GetMaximum())
+        # cnt_pdf_clone.Scale(slices[namecnt].GetMaximum() / cnt_pdf_clone.GetMaximum())
+        cnt_pdf_clone.Scale(slices[namecnt].GetMaximum() / find_h_max(cnt_pdf_clone,2))
+        cnt_pdf_clone.SetLineWidth(2)
         cnt_pdf_clone.Draw("hist same")
+    
+    for pdfname,hpdf in cnt_pdf_all.items():
+        if(pdfname=="hModel"): continue
+        name = ""
+        # hpdf.Scale(slices[namecnt].GetMaximum()/hpdf.GetMaximum())
+        hpdf.Scale(slices[namecnt].GetMaximum()/find_h_max(hpdf,2))
+        if(pdfname=="hBorysov_Ion"):
+            hpdf.SetLineColor(ROOT.kViolet)
+            name = "IONB"
+        if(pdfname=="hBorysov_Exc"):
+            hpdf.SetLineColor(ROOT.kGreen+2)
+            name = "EX1B"
+        if(pdfname=="hTrncGaus_Ion"):
+            hpdf.SetLineColor(ROOT.kAzure+10)
+            name = "IONG"
+        if(pdfname=="hTrncGaus_Exc"):
+            hpdf.SetLineColor(ROOT.kOrange)
+            name = "EX1G"
+        hpdf.Draw("hist same")
+    
     s = ROOT.TLatex() ### the text
     s.SetNDC(1);
     s.SetTextAlign(13);
@@ -184,7 +218,6 @@ def plot_slices(slices,shapes,builds,label,E,L,NrawSteps,count):
     s.SetTextFont(22);
     s.SetTextColor(ROOT.kBlack)
     s.SetTextSize(0.04)
-    # s.DrawLatex(0.15,0.86,ROOT.Form("#Deltax=%.3e #in [%.3e, %.3e) [#mum]" % (x*U.cm2um,slices["hdx_"+label].GetXaxis().GetXmin(), slices["hdx_"+label].GetXaxis().GetXmax())))
     s.DrawLatex(0.15,0.86,ROOT.Form("#DeltaL=%.3e #in [%.3e, %.3e) [#mum]" % (L*U.cm2um,slices["hdL_"+label].GetXaxis().GetXmin(), slices["hdL_"+label].GetXaxis().GetXmax())))
     s.DrawLatex(0.15,0.81,ROOT.Form("N raw steps = %d" % (NrawSteps)))
     ROOT.gPad.RedrawAxis()
@@ -263,7 +296,6 @@ def plot_slices(slices,shapes,builds,label,E,L,NrawSteps,count):
     s.SetTextFont(22);
     s.SetTextColor(ROOT.kBlack)
     s.SetTextSize(0.04)
-    # s.DrawLatex(0.15,0.86,ROOT.Form("#Deltax=%.3e #in [%.3e, %.3e) [#mum]" % (x*U.cm2um,slices["hdx_"+label].GetXaxis().GetXmin(), slices["hdx_"+label].GetXaxis().GetXmax())))
     s.DrawLatex(0.15,0.86,ROOT.Form("#DeltaL=%.3e #in [%.3e, %.3e) [#mum]" % (L*U.cm2um,slices["hdL_"+label].GetXaxis().GetXmin(), slices["hdL_"+label].GetXaxis().GetXmax())))
     s.DrawLatex(0.15,0.81,ROOT.Form("N raw steps = %d" % (NrawSteps)))
     ROOT.gPad.RedrawAxis()
@@ -517,7 +549,7 @@ if __name__ == "__main__":
             ### skip if too few entries
             if(NrawSteps<NrawStepsIgnore): continue
             ### init the relevant model shapes
-            shapes.update( {label : {"E":E, "L":L, "N":NrawSteps, "cnt_pdf":None, "sec_pdf":None, "cnt_cdf":None, "sec_cdf":None} } )
+            shapes.update( {label : {"E":E, "L":L, "N":NrawSteps, "cnt_pdf":None, "cnt_pdf_all":{}, "sec_pdf":None, "cnt_cdf":None, "sec_cdf":None} } )
     
 
     #############################################

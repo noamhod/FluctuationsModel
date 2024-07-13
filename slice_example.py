@@ -51,6 +51,8 @@ par        = flct.Parameters(PrimaryPrt,TargetMat,dEdxModel,"inputs/eloss_p_si.t
 modelpars  = par.GetModelPars(EE*U.MeV2eV,LL*U.um2cm)
 print(modelpars)
 
+quit()
+
 ######################################################
 ######################################################
 ######################################################
@@ -473,7 +475,7 @@ for pdfname,hpdf in cnt_pdfs_scaled.items():
         hpdf.SetLineColor(ROOT.kViolet)
         name = "IONB"
     if(pdfname=="hBorysov_Exc"):
-        hpdf.SetLineColor(ROOT.kBlue-4)
+        hpdf.SetLineColor(ROOT.kOrange)
         name = "EX1B"
     if(pdfname=="hTrncGaus_Ion"):
         hpdf.SetLineColor(ROOT.kAzure+10)

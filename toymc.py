@@ -51,7 +51,9 @@ class ToyMC:
         eloss_Exc_non_gaus = 0
         p = self.rnd.Poisson(self.model.n1)
         if(p>0): eloss_Exc_non_gaus = self.model.e1*((p + 1.) - 2.*self.rnd.Uniform())
-        EX1BCOND = (p>0 and eloss_Exc_non_gaus>0)
+        # EX1BCOND = (p>0 and eloss_Exc_non_gaus>0)
+        if(eloss_Exc_non_gaus==0): eloss_Exc_non_gaus = 1.01e-1
+        EX1BCOND = True
         return EX1BCOND, eloss_Exc_non_gaus
     
     def gen_ionb(self):
@@ -59,7 +61,9 @@ class ToyMC:
         nnb = self.rnd.Poisson(self.model.p3)
         if(nnb>0):
             for k in range(nnb): eloss_Ion_non_gaus += self.model.w3/(1.-self.model.w*self.rnd.Uniform()) ## actually this cannot be be smaller than w3
-        IONBCOND = (nnb>0 and eloss_Ion_non_gaus>0)
+        # IONBCOND = (nnb>0 and eloss_Ion_non_gaus>0)
+        if(eloss_Ion_non_gaus==0): eloss_Ion_non_gaus = 1.01e-1
+        IONBCOND = True
         return IONBCOND, eloss_Ion_non_gaus
         
     def gen_ex1g(self):
@@ -157,5 +161,6 @@ class ToyMC:
             if(IONB and EX1B and not IONG and not EX1G):
                 if(IONBCOND and EX1BCOND):  ## borysov ion + borysov exc
                     Eloss = eloss_Ion_non_gaus+eloss_Exc_non_gaus
-            if(Eloss>0): histos["hTotal"].Fill(Eloss)
+            # if(Eloss>0): histos["hTotal"].Fill(Eloss)
+            histos["hTotal"].Fill(Eloss)
         return histos

@@ -149,7 +149,7 @@ ROOT.gPad.SetLogy()
 if(Mod.doLogx): ROOT.gPad.SetLogx()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.1)
-if(Mod.EX1B and not Mod.BEBL):
+if(Mod.EX1B and not Mod.BEBL):    
     histos["hExc_non_gaus"].DrawNormalized("ep")
     cnt_pdfs["hBorysov_Exc"].DrawNormalized("hist same")
 canvas.cd(3)
@@ -251,7 +251,7 @@ ROOT.gPad.SetLogy()
 if(Mod.doLogx): ROOT.gPad.SetLogx()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.1)
-if(Mod.IONG and not Mod.BEBL): 
+if(Mod.IONG and not Mod.BEBL):
     histos["hIon_gaus"].Scale(1./histos["hIon_gaus"].Integral())
     histos["hIon_gaus"].GetCumulative().Draw("ep")
     cnt_cdfs["hTrncGaus_Ion"].Draw("hist same")
