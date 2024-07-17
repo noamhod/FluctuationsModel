@@ -99,6 +99,12 @@ def getAvgY(h,isLogx=False,xbins=[]):
     return hAv
 
 
+def reset_hrange_left(h,xmin):
+    hclone = h.Clone(h.GetName()+"_clone")
+    hclone.GetXaxis().SetLimits(xmin,hclone.GetXaxis().GetXmax())
+    return hclone
+
+
 def hlin_truncate_negative(h,x0=1e-6):
     if(h.GetBinWidth(2)!=h.GetBinWidth(1)):
         print("hlin_truncate_negative can truncate only linearly binned histograms. quitting.")
