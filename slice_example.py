@@ -51,7 +51,6 @@ par        = flct.Parameters(PrimaryPrt,TargetMat,dEdxModel,"inputs/eloss_p_si.t
 modelpars  = par.GetModelPars(EE*U.MeV2eV,LL*U.um2cm)
 print(modelpars)
 
-quit()
 
 ######################################################
 ######################################################
@@ -108,17 +107,8 @@ hdE_sec_lin_eV         = ROOT.TH1D(slicename+"_sec_lin_eV",slicetitle+";#DeltaE 
 #################################################
 #################################################
 # open a file, where you stored the pickled data
-# fileX = open('data/without_E2MeV_cut/with_multiple_scattering/X.pkl', 'rb')
-# fileY = open('data/without_E2MeV_cut/with_multiple_scattering/Y.pkl', 'rb')
-# # dump information to that file
-# X = pickle.load(fileX)
-# Y = pickle.load(fileY)
-# # close the file
-# fileX.close()
-# fileY.close()
-
-# open a file, where you stored the pickled data
-fileY = open('data/with_secondaries/step_info_df_no_msc.pkl', 'rb')
+# fileY = open('data/with_secondaries/step_info_df_no_msc.pkl', 'rb')
+fileY = open('data/steps_info_18_07_2024.pkl', 'rb')
 # dump information to that file
 Y = pickle.load(fileY)
 # close the file

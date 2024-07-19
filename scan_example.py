@@ -47,6 +47,7 @@ slices = {}
 ################################
 ### the pngpath of all png plots
 pngpath = "/Users/noamtalhod/tmp/png"
+rootpath = "/Users/noamtalhod/tmp/root"
 
 
 ##############################################################
@@ -55,7 +56,6 @@ pngpath = "/Users/noamtalhod/tmp/png"
 ### functions for the submission of model calculation
 
 def get_slice(ie,il):
-    NminRawSteps = 25
     label_E   = str(ie)
     label_dL  = str(il)
     label     = "E"+label_E+"_dL"+label_dL
@@ -99,214 +99,85 @@ def collect_shapes(local_shapes):
             else:
                 shapes[label][name] = hist.Clone(label+"_"+name)
 
-
-def find_h_max(h,firstbin=1):
-    hmax = -1e20
-    for b in range(firstbin,h.GetNbinsX()+1):
-        y = h.GetBinContent(b)
-        if(y>hmax): hmax = y
-    return hmax
         
 
 ##############################################################
 ##############################################################
 ##############################################################
 ### functions for the submission of plotting of png's
-def plot_slices(slices,shapes,builds,label,E,L,NrawSteps,count):
+def save_slice(slices,shapes,builds,label,E,L,NrawSteps,count):
     if(parallelize): 
         lock = mp.Lock()
         lock.acquire()
     start = time.time()
+    
     ### get the precalculated model shapes
+    ### this is not saved in the root file so defined above it
     cnt_pdf_all = shapes[label]["cnt_pdf_all"]
     cnt_pdf = shapes[label]["cnt_pdf"]
     sec_pdf = shapes[label]["sec_pdf"]
     cnt_cdf = shapes[label]["cnt_cdf"]
     sec_cdf = shapes[label]["sec_cdf"]
-    namecnt = "hdEcnt_"+label
-    namesec = "hdEsec_"+label
-    ##########################
-    cgif_pdfs = ROOT.TCanvas("gif","",1000,1000)
-    cgif_pdfs.Divide(2,2)
-    cgif_pdfs.cd(1)
-    ROOT.gPad.SetLogx()
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetTicks(1,1)
-    slices[namecnt].Draw("hist")
     
-    if(cnt_pdf is not None):
-        cnt_pdf_clone = cnt_pdf.Clone("cnt_model_clone")
-        # cnt_pdf_clone.Scale(slices[namecnt].GetMaximum() / cnt_pdf_clone.GetMaximum())
-        cnt_pdf_clone.Scale(slices[namecnt].GetMaximum() / find_h_max(cnt_pdf_clone,2))
-        cnt_pdf_clone.SetLineWidth(2)
-        cnt_pdf_clone.Draw("hist same")
+    ############################
+    ### ROOT file for the output
+    tfname = f"{rootpath}/rootslice_{label}.root"
+    tf = ROOT.TFile(tfname,"RECREATE")
+    tf.cd()
+    ############################
     
-    for pdfname,hpdf in cnt_pdf_all.items():
-        if(pdfname=="hModel"): continue
-        name = ""
-        # hpdf.Scale(slices[namecnt].GetMaximum()/hpdf.GetMaximum())
-        hpdf.Scale(slices[namecnt].GetMaximum()/find_h_max(hpdf,2))
-        if(pdfname=="hBorysov_Ion"):
-            hpdf.SetLineColor(ROOT.kViolet)
-            name = "IONB"
-        if(pdfname=="hBorysov_Exc"):
-            hpdf.SetLineColor(ROOT.kGreen+2)
-            name = "EX1B"
-        if(pdfname=="hTrncGaus_Ion"):
-            hpdf.SetLineColor(ROOT.kAzure+10)
-            name = "IONG"
-        if(pdfname=="hTrncGaus_Exc"):
-            hpdf.SetLineColor(ROOT.kOrange)
-            name = "EX1G"
-        hpdf.Draw("hist same")
+    build = ROOT.TNamed("build", builds[label])
+    build.Write()
     
-    s = ROOT.TLatex() ### the text
-    s.SetNDC(1);
-    s.SetTextAlign(13);
-    s.SetTextFont(22);
-    s.SetTextColor(ROOT.kBlack)
-    s.SetTextSize(0.04)
-    modtitle = builds[label].replace("->"," #otimes ").replace(".","")
-    modtitle = modtitle.replace(" #otimes SECB","")
-    s.DrawLatex(0.18,0.25,modtitle)
-    ROOT.gPad.RedrawAxis()
-    ##########################
-    cgif_pdfs.cd(2)
-    name = "hE_"+label
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetTicks(1,1)
-    slices[name].Draw("hist")
-    s = ROOT.TLatex() ### the text
-    s.SetNDC(1);
-    s.SetTextAlign(13);
-    s.SetTextFont(22);
-    s.SetTextColor(ROOT.kBlack)
-    s.SetTextSize(0.04)
-    s.DrawLatex(0.15,0.86,ROOT.Form("E=%.3e #in [%.3e, %.3e) [MeV]" % (E*U.eV2MeV,slices["hE_"+label].GetXaxis().GetXmin(), slices["hE_"+label].GetXaxis().GetXmax())))
-    s.DrawLatex(0.15,0.81,ROOT.Form("N raw steps = %d" % (NrawSteps)))
-    ROOT.gPad.RedrawAxis()
-    ROOT.gPad.Update()
-    ##########################
-    cgif_pdfs.cd(3)
-    if(slices[namesec].GetXaxis().GetXmin()>0): ROOT.gPad.SetLogx()
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetTicks(1,1)
-    slices[namesec].Draw("hist")
-    if(sec_pdf is not None):
-        sec_pdf_clone = sec_pdf.Clone("sec_model_clone")
-        sec_pdf_clone.Scale(slices[namesec].GetMaximum() / sec_pdf_clone.GetMaximum())
-        sec_pdf_clone.Draw("hist same")
-        s = ROOT.TLatex() ### the text
-        s.SetNDC(1);
-        s.SetTextAlign(13);
-        s.SetTextFont(22);
-        s.SetTextColor(ROOT.kBlack)
-        s.SetTextSize(0.04)
-        modtitle = "SECB"
-        s.DrawLatex(0.18,0.25,modtitle)
-    ROOT.gPad.RedrawAxis()
-    ROOT.gPad.Update()
-    ##########################
-    cgif_pdfs.cd(4)
-    name = "hdL_"+label
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetTicks(1,1)
-    slices[name].Draw("hist")
-    s = ROOT.TLatex() ### the text
-    s.SetNDC(1);
-    s.SetTextAlign(13);
-    s.SetTextFont(22);
-    s.SetTextColor(ROOT.kBlack)
-    s.SetTextSize(0.04)
-    s.DrawLatex(0.15,0.86,ROOT.Form("#DeltaL=%.3e #in [%.3e, %.3e) [#mum]" % (L*U.cm2um,slices["hdL_"+label].GetXaxis().GetXmin(), slices["hdL_"+label].GetXaxis().GetXmax())))
-    s.DrawLatex(0.15,0.81,ROOT.Form("N raw steps = %d" % (NrawSteps)))
-    ROOT.gPad.RedrawAxis()
-    ROOT.gPad.Update()
-    ##########################
-    cgif_pdfs.Update()
-    cgif_pdfs.Print(f"{pngpath}/scan_pdfs_{count}.png")
+    slices["hdEcnt_"+label].Write()
+    slices["hdEsec_"+label].Write()
+    slices["hE_"+label].Write()
+    slices["hdL_"+label].Write()
+    # cnt_slice_cdf.Write()
+    # sec_slice_cdf.Write()
+    if(cnt_pdf is not None): cnt_pdf.Write()
+    if(sec_pdf is not None): sec_pdf.Write()
+    if(cnt_cdf is not None): cnt_cdf.Write()
+    if(sec_cdf is not None): sec_cdf.Write()
     
-    ##########################
-    cgif_cdfs = ROOT.TCanvas("gif","",1000,1000)
-    cgif_cdfs.Divide(2,2)
-    cgif_cdfs.cd(1)
-    ROOT.gPad.SetLogx()
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetTicks(1,1)
-    cnt_slice = slices[namecnt].Clone("cnt_slice_clone")
-    if(cnt_slice.Integral()>0):
-        cnt_slice.Scale(1./cnt_slice.Integral())
-        cnt_slice.GetCumulative().Draw("hist")
-    if(cnt_cdf is not None): cnt_cdf.Draw("hist same")
-    s = ROOT.TLatex() ### the text
-    s.SetNDC(1);
-    s.SetTextAlign(13);
-    s.SetTextFont(22);
-    s.SetTextColor(ROOT.kBlack)
-    s.SetTextSize(0.04)
-    modtitle = builds[label].replace("->"," #otimes ").replace(".","")
-    modtitle = modtitle.replace(" #otimes SECB","")
-    s.DrawLatex(0.18,0.25,modtitle)
-    ROOT.gPad.RedrawAxis()
-    ##########################
-    cgif_cdfs.cd(2)
-    name = "hE_"+label
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetTicks(1,1)
-    slices[name].Draw("hist")
-    s = ROOT.TLatex() ### the text
-    s.SetNDC(1);
-    s.SetTextAlign(13);
-    s.SetTextFont(22);
-    s.SetTextColor(ROOT.kBlack)
-    s.SetTextSize(0.04)
-    s.DrawLatex(0.15,0.86,ROOT.Form("E=%.3e #in [%.3e, %.3e) [MeV]" % (E*U.eV2MeV,slices["hE_"+label].GetXaxis().GetXmin(), slices["hE_"+label].GetXaxis().GetXmax())))
-    s.DrawLatex(0.15,0.81,ROOT.Form("N raw steps = %d" % (NrawSteps)))
-    ROOT.gPad.RedrawAxis()
-    ROOT.gPad.Update()
-    ##########################
-    cgif_cdfs.cd(3)
-    sec_slice = slices[namesec].Clone("sec_slice_clone")
-    if(sec_slice.GetXaxis().GetXmin()>0): ROOT.gPad.SetLogx()
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetTicks(1,1)
-    if(sec_slice.Integral()>0):
-        sec_slice.Scale(1./sec_slice.Integral())
-        sec_slice.GetCumulative().Draw("hist")
-        s = ROOT.TLatex() ### the text
-        s.SetNDC(1);
-        s.SetTextAlign(13);
-        s.SetTextFont(22);
-        s.SetTextColor(ROOT.kBlack)
-        s.SetTextSize(0.04)
-        modtitle = "SECB"
-        s.DrawLatex(0.18,0.25,modtitle)
-    if(sec_cdf is not None): sec_cdf.Draw("hist same")
-    ROOT.gPad.RedrawAxis()
-    ROOT.gPad.Update()
-    ##########################
-    cgif_cdfs.cd(4)
-    name = "hdL_"+label
-    ROOT.gPad.SetLogy()
-    ROOT.gPad.SetTicks(1,1)
-    slices[name].Draw("hist")
-    s = ROOT.TLatex() ### the text
-    s.SetNDC(1);
-    s.SetTextAlign(13);
-    s.SetTextFont(22);
-    s.SetTextColor(ROOT.kBlack)
-    s.SetTextSize(0.04)
-    s.DrawLatex(0.15,0.86,ROOT.Form("#DeltaL=%.3e #in [%.3e, %.3e) [#mum]" % (L*U.cm2um,slices["hdL_"+label].GetXaxis().GetXmin(), slices["hdL_"+label].GetXaxis().GetXmax())))
-    s.DrawLatex(0.15,0.81,ROOT.Form("N raw steps = %d" % (NrawSteps)))
-    ROOT.gPad.RedrawAxis()
-    ROOT.gPad.Update()
-    ##########################
-    cgif_cdfs.Update()
-    cgif_cdfs.Print(f"{pngpath}/scan_cdfs_{count}.png")
+    tree = ROOT.TTree("meta_"+label,"meta_"+label)
+    kstest_prob_cnt_pdf = array.array('d',[0])
+    kstest_prob_sec_pdf = array.array('d',[0])
+    kstest_dist_cnt_pdf = array.array('d',[0])
+    kstest_dist_sec_pdf = array.array('d',[0])
+    c2test_ndof_cnt_pdf = array.array('d',[0])
+    c2test_ndof_sec_pdf = array.array('d',[0])
+    
+    tree.Branch('KS_prob_test_cnt_pdf',kstest_prob_cnt_pdf,'KS_prob_test_cnt_pdf/D')
+    tree.Branch('KS_prob_test_sec_pdf',kstest_prob_sec_pdf,'KS_prob_test_sec_pdf/D')
+    tree.Branch('KS_dist_test_cnt_pdf',kstest_dist_cnt_pdf,'KS_dist_test_cnt_pdf/D')
+    tree.Branch('KS_dist_test_sec_pdf',kstest_dist_sec_pdf,'KS_dist_test_sec_pdf/D')
+    tree.Branch('C2_ndof_test_cnt_pdf',c2test_ndof_cnt_pdf,'C2_ndof_test_cnt_pdf/D')
+    tree.Branch('C2_ndof_test_sec_pdf',c2test_ndof_sec_pdf,'C2_ndof_test_sec_pdf/D')
+    
+    kstest_prob_cnt_pdf[0] = -1
+    kstest_dist_cnt_pdf[0] = -1
+    c2test_ndof_cnt_pdf[0] = -1
+    kstest_prob_sec_pdf[0] = -1
+    kstest_dist_sec_pdf[0] = -1
+    c2test_ndof_sec_pdf[0] = -1
+    
+    if(cnt_pdf is not None and slices["hdEcnt_"+label].Integral()>0):# and cnt_pdf.Integral()>0):
+        kstest_prob_cnt_pdf[0] = slices["hdEcnt_"+label].KolmogorovTest(cnt_pdf)
+        kstest_dist_cnt_pdf[0] = slices["hdEcnt_"+label].KolmogorovTest(cnt_pdf,"M")
+        c2test_ndof_cnt_pdf[0] = slices["hdEcnt_"+label].Chi2Test(cnt_pdf,"CHI2/NDF")
+    if(sec_pdf is not None and slices["hdEsec_"+label].Integral()>0):# and sec_pdf.Integral()>0):
+        kstest_prob_sec_pdf[0] = slices["hdEsec_"+label].KolmogorovTest(sec_pdf)
+        kstest_dist_sec_pdf[0] = slices["hdEsec_"+label].KolmogorovTest(sec_pdf,"M")
+        c2test_ndof_sec_pdf[0] = slices["hdEsec_"+label].Chi2Test(sec_pdf,"CHI2/NDF")
+    tree.Fill()
+    # tree.Write()
+    tf.Write()
+    tf.Close()
     
     end = time.time()
     elapsed = end-start
-    print(f"Finished plotting slice: {label} with build {builds[label]}, within {elapsed:.2f} [s]")
+    print(f"Finished plotting slice: {label} with build {builds[label]} with KSprob={kstest_prob_cnt_pdf}, within {elapsed:.2f} [s]")
     if(parallelize): lock.release()
     
 
@@ -319,7 +190,8 @@ def plot_slices(slices,shapes,builds,label,E,L,NrawSteps,count):
 
 if __name__ == "__main__":
     # open a file, where you stored the pickled data
-    fileY = open('data/with_secondaries/step_info_df_no_msc.pkl', 'rb')
+    # fileY = open('data/with_secondaries/step_info_df_no_msc.pkl', 'rb')
+    fileY = open('data/steps_info_18_07_2024.pkl', 'rb')
     # dump information to that file
     Y = pickle.load(fileY)
     # close the file
@@ -404,16 +276,16 @@ if __name__ == "__main__":
         histos["hE"].Fill(E)
         histos["hdE"].Fill(dE)
         histos["hdx"].Fill(dx)
-        histos["hdxinv"].Fill(dxinv)
+        if(dx>0): histos["hdxinv"].Fill(dxinv)
         histos["hdR"].Fill(dR)
         histos["hdL"].Fill(dL)
         histos["hdRinv"].Fill(dRinv)
-        histos["hdEdx"].Fill(dE/dx)
-        histos["hdEdx_vs_E"].Fill(E,dE/dx)
+        if(dx>0): histos["hdEdx"].Fill(dE/dx)
+        if(dx>0): histos["hdEdx_vs_E"].Fill(E,dE/dx)
         histos["hdE_vs_dx"].Fill(dx,dE)
-        histos["hdE_vs_dxinv"].Fill(dxinv,dE)
+        if(dx>0): histos["hdE_vs_dxinv"].Fill(dxinv,dE)
         histos["hdx_vs_E"].Fill(E,dx)
-        histos["hdxinv_vs_E"].Fill(E,dxinv)
+        if(dx>0): histos["hdxinv_vs_E"].Fill(E,dxinv)
         histos["hdL_vs_E"].Fill(E,dL)
         histos["SMALL_hdL_vs_E"].Fill(E,dL)
         
@@ -524,6 +396,31 @@ if __name__ == "__main__":
     ROOT.gPad.SetTicks(1,1)
     ROOT.gPad.RedrawAxis()
     cnv.SaveAs(pdf+")")
+    
+    ###################################
+    ### write everything to a root file
+    print("\nWriting root file...")
+    tfout = ROOT.TFile("scan_example.root","RECREATE")
+    tfout.cd()
+    # for name,h in histos.items(): h.Write()
+    # for name,h in slices.items(): h.Write()
+    histos["hE"].Write()
+    histos["hdE"].Write()
+    histos["hdx"].Write()
+    histos["hdxinv"].Write()
+    histos["hdR"].Write()
+    histos["hdL"].Write()
+    histos["hdRinv"].Write()
+    histos["hdEdx"].Write()
+    histos["hdEdx_vs_E"].Write()
+    histos["hdE_vs_dx"].Write()
+    histos["hdE_vs_dxinv"].Write()
+    histos["hdx_vs_E"].Write()
+    histos["hdxinv_vs_E"].Write()
+    histos["hdL_vs_E"].Write()
+    histos["SMALL_hdL_vs_E"].Write()
+    tfout.Write()
+    tfout.Close()
 
     #######################################################################
     #######################################################################
@@ -532,16 +429,19 @@ if __name__ == "__main__":
     #########################
     ### make gif for all bins
     print("\nClean temp png's and temp png path...")
-    ROOT.gSystem.Unlink("scan_pdfs.gif") ## remove old files
-    ROOT.gSystem.Unlink("scan_cdfs.gif") ## remove old files
-    ROOT.gSystem.Exec("/bin/rm -f scan_pdfs.gif scan_cdfs.gif") ## remove old files
-    ROOT.gSystem.Exec(f"/bin/rm -rf {pngpath}") ## remove old files
-    ROOT.gSystem.Exec(f"/bin/mkdir -p {pngpath}")
+    # ROOT.gSystem.Unlink("scan_rootslices.root") ## remove old files
+    # ROOT.gSystem.Unlink("scan_pdfs.gif") ## remove old files
+    # ROOT.gSystem.Unlink("scan_cdfs.gif") ## remove old files
+    # ROOT.gSystem.Exec("/bin/rm -f scan_pdfs.gif scan_cdfs.gif") ## remove old files
+    # ROOT.gSystem.Exec(f"/bin/rm -rf {pngpath}") ## remove old files
+    # ROOT.gSystem.Exec(f"/bin/mkdir -p {pngpath}")
+    ROOT.gSystem.Exec(f"/bin/rm -rf {rootpath}") ## remove old files
+    ROOT.gSystem.Exec(f"/bin/mkdir -p {rootpath}")
     
     ################################################
     ### initialize the shapes of all relevant slices
     print(f"\nBook shapes...")
-    NrawStepsIgnore = 10
+    NrawStepsIgnore = 0 #1 #10
     for ie in range(1,histos["SMALL_hdL_vs_E"].GetNbinsX()+1):
         for il in range(1,histos["SMALL_hdL_vs_E"].GetNbinsY()+1):
             ### get the slice parameters
@@ -598,29 +498,12 @@ if __name__ == "__main__":
             ### skip if too few entries
             if(NrawSteps<NrawStepsIgnore): continue
             if(parallelize):
-                pool.apply_async(plot_slices, args=(slices,shapes,builds,label,E,L,NrawSteps,count), error_callback=collect_errors)
+                pool.apply_async(save_slice, args=(slices,shapes,builds,label,E,L,NrawSteps,count), error_callback=collect_errors)
             else:
-                plot_slices(slices,shapes,builds,label,E,L,NrawSteps,count)
+                save_slice(slices,shapes,builds,label,E,L,NrawSteps,count)
             count += 1
     ######################################
     ### Wait for all the workers to finish
     if(parallelize): 
         pool.close()
         pool.join()
-    
-    #####################
-    ### finalize the gifs
-    print("\nMaking gif for pdfs...")
-    ROOT.gSystem.Exec(f"magick -delay 0.01 $(ls {pngpath}/scan_pdfs_*.png | sort -V) scan_pdfs.gif")
-    print("\nMaking gif for cdfs...")
-    ROOT.gSystem.Exec(f"magick -delay 0.01 $(ls {pngpath}/scan_cdfs_*.png | sort -V) scan_cdfs.gif")
-
-    ###################################
-    ### write everything to a root file
-    print("\nWriting root file...")
-    tfout = ROOT.TFile("scan_example.root","RECREATE")
-    tfout.cd()
-    for name,h in histos.items(): h.Write()
-    for name,h in slices.items(): h.Write()
-    tfout.Write()
-    tfout.Close()

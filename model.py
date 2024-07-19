@@ -408,21 +408,17 @@ class Model:
         pdfs["hModel"].SetLineColor(ROOT.kRed)
         if(self.BEBL):
             pdfs["hBEBL_Thn"] = self.get_pdf("bethebloch_min_model", "bethebloch_min_model", self.par_bethebloch_min)
-            if(self.doprint): print(f'PDF Integral: hBEBL_Thn={pdfs["hBEBL_Thn"].Integral()}')
         if(self.IONB and self.EX1B and self.IONG):            
             pdfs["hBorysov_Ion"]  = self.get_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
             pdfs["hBorysov_Exc"]  = self.get_pdf("borysov_exc_model", "borysov_excitation", self.par_borysov_exc)
             pdfs["hTrncGaus_Ion"] = self.get_pdf("gauss_ion_model",   "truncated_gaus",     self.par_gauss_ion)
-            if(self.doprint): print(f'PDF Integrals: hBorysov_Ion={pdfs["hBorysov_Ion"].Integral()}, hBorysov_Exc={pdfs["hBorysov_Exc"].Integral()}, hTrncGaus_Ion={pdfs["hTrncGaus_Ion"].Integral()}')
         if(self.IONB and self.IONG and self.EX1G):
             pdfs["hBorysov_Ion"]  = self.get_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
             pdfs["hTrncGaus_Ion"] = self.get_pdf("gauss_ion_model",   "truncated_gaus",     self.par_gauss_ion)
             pdfs["hTrncGaus_Exc"] = self.get_pdf("gauss_exc_model",   "truncated_gaus",     self.par_gauss_exc)
-            if(self.doprint): print(f'PDF Integrals: hBorysov_Ion={pdfs["hBorysov_Ion"].Integral()}, hTrncGaus_Ion={pdfs["hTrncGaus_Ion"].Integral()}, hTrncGaus_Exc={pdfs["hTrncGaus_Exc"].Integral()}')
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G):
             pdfs["hBorysov_Ion"] = self.get_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
             pdfs["hBorysov_Exc"] = self.get_pdf("borysov_exc_model", "borysov_excitation", self.par_borysov_exc)
-            if(self.doprint): print(f'PDF Integrals: hBorysov_Ion={pdfs["hBorysov_Ion"].Integral()}, hBorysov_Exc={pdfs["hBorysov_Exc"].Integral()}')
         end = time.time()
         self.TimeIt(start,end,"get_continuous_pdfs")
         return pdfs
@@ -464,31 +460,19 @@ class Model:
             aFFTConv1 = self.convolution_fft(aX,aBorysov_Ion,aBorysov_Exc)
             aFFTConv2 = self.convolution_fft(aX,aTrncGaus_Ion,aFFTConv1)
             aFFTConv = aFFTConv2
-            if(self.doprint): print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}, IONG={len(aTrncGaus_Ion)}")
-            if(self.doprint): print(f"sizes of convolutions for (IONB and EX1B and IONG): IONBxEX1B={len(aFFTConv1)}, IONBxEX1BxIONG={len(aFFTConv2)}")
         if(self.IONB and self.IONG and self.EX1G):
             aFFTConv1 = self.convolution_fft(aX,aBorysov_Ion,aTrncGaus_Ion)
             aFFTConv2 = self.convolution_fft(aX,aTrncGaus_Exc,aFFTConv1)
             aFFTConv = aFFTConv2
-            if(self.doprint): print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, IONG={len(aTrncGaus_Ion)}, EX1G={len(aTrncGaus_Exc)}")
-            if(self.doprint): print(f"sizes of convolutions for (IONB and IONG and EX1G): IONBxIONG={len(aFFTConv1)}, IONBxIONGxEX1G={len(aFFTConv2)}")
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G):
             aFFTConv1 = self.convolution_fft(aX,aBorysov_Ion,aBorysov_Exc)
             aFFTConv = aFFTConv1
-            if(self.doprint): print(f"sizes of input arrays for IONB={len(aBorysov_Ion)}, EX1B={len(aBorysov_Exc)}")
-            if(self.doprint): print(f"sizes of convolutions for (IONB and EX1B and not IONG and not EX1G): IONBxEX1B={len(aFFTConv1)}")
         ### fill the model hist pdf
         aConv = aFFTConv
         xConv = np.linspace(start=self.dEmin,stop=self.dEmax,num=len(aConv))
-        # gConv = ROOT.TGraph(len(aConv),xConv, aConv) #TODO: this is not needed probably anymore and it is also probably buggy
-        # gConv.SetBit(ROOT.TGraph.kIsSortedX) #TODO: this is not needed probably anymore and it is also probably buggy
         for b in range(1,pdfs["hBorysov_Ion"].GetNbinsX()+1):
-            # xb = pdfs["hModel"].GetBinCenter(b)
-            # pdfs["hModel"].SetBinContent(b, gConv.Eval(xb+2*abs(self.dEmin)) ) #TODO: this is a residual bug? the next line is more relevant
-            # pdfs["hModel"].SetBinContent(b, gConv.Eval(xb) )
             pdfs["hModel"].SetBinContent(b,aConv[b-1])
         # pdfs["hModel"].Scale(1./pdfs["hModel"].Integral())
-        if(self.doprint): print(f'hModel={pdfs["hModel"].GetNbinsX()}, aConv={len(aConv)}')
         end = time.time()
         self.TimeIt(start,end,"get_model_pdfs")
         return pdfs

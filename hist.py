@@ -99,6 +99,13 @@ def getAvgY(h,isLogx=False,xbins=[]):
     return hAv
 
 
+def find_h_max(h,firstbin=1):
+    hmax = -1e20
+    for b in range(firstbin,h.GetNbinsX()+1):
+        y = h.GetBinContent(b)
+        if(y>hmax): hmax = y
+    return hmax
+
 def reset_hrange_left(h,xmin):
     hclone = h.Clone(h.GetName()+"_clone")
     hclone.GetXaxis().SetLimits(xmin,hclone.GetXaxis().GetXmax())

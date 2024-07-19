@@ -8,13 +8,6 @@ import material as mat
 import particle as prt
 import bins
 
-# ROOT.gROOT.SetBatch(1)
-# ROOT.gStyle.SetOptFit(0)
-# ROOT.gStyle.SetOptStat(0)
-# ROOT.gStyle.SetPadBottomMargin(0.15)
-# ROOT.gStyle.SetPadLeftMargin(0.13)
-# ROOT.gStyle.SetPadRightMargin(0.15)
-
 
 #####################################################################
 #####################################################################
@@ -368,7 +361,6 @@ class Parameters:
         BEBL = False
         TGAU = False
         TGAM = False
-        LOS0 = False
         EX1G = False
         EX2G = False
         IONG = False
@@ -422,8 +414,6 @@ class Parameters:
         n3    = self.n3_mean(E,x)
         if(n1<=0.): n3 /= self.r ### TODO: Was missing before 9/7/24, but this condition should normally be false...
         
-        ### special corner cases for zero loss
-        if(n1<=0. and n3<=0.): LOS0 = True
         
         ### excitation of type 1
         if(self.f1>0 and n1>0):
@@ -478,7 +468,6 @@ class Parameters:
 
         #######################
         ### finally, build string
-        if(LOS0):                                    pars["build"] = "LOS0"
         if(IONB and IONG and EX1G):                  pars["build"] = "ION.B->ION.G->EX1.G"
         if(IONB and EX1B and IONG):                  pars["build"] = "ION.B->EX1.B->ION.G"
         if(IONB and EX1B and not IONG and not EX1G): pars["build"] = "ION.B->EX1.B"
@@ -495,68 +484,3 @@ class Parameters:
         ### return
         return pars
 
-
-    # def BBlowE(self,E,T):
-    #     g = self.gamma(E)
-    #     b = self.beta(E)
-    #     Tup = self.Tup(E)
-    #     tau = E/self.m ## tau is relative energy
-    #     taul = 2.*U.MeV2eV/C.mp; ## lower limit of Bethe-Bloch formula: 2MeV/proton_mass
-    #     rateMass = C.me/self.m
-    #     bg2lim = 0.0169
-    #     taulim = 8.4146e-3
-    #     ## It is not normal case for this function for low energy parametrisation have to be applied
-    #     if(tau<taul): tau = taul
-    #
-    #     eexc  = self.mat.namedden["MeanIonisationPotential"]*U.eV2MeV ## material->GetIonisation()->GetMeanExcitationEnergy(); #TODO is this the same thing??
-    #     eexc2 = eexc*eexc
-    #     cden  = self.mat.namedden["Cdensity"]
-    #     mden  = self.mat.namedden["Mdensity"]
-    #     aden  = self.mat.namedden["Adensity"]
-    #     x0den = self.mat.namedden["X0density"]
-    #     x1den = self.mat.namedden["X1density"]
-    #
-    #     shellCorrectionVector = [0,0,0]
-    #     for j in range(3):
-    #         # shellCorrectionVector[j] = nAtomsPerVolume * self.shellcorrvec[j] * 2.0 / fMaterial->GetTotNbOfElectPerVolume()
-    #         shellCorrectionVector[j] = self.mat.numberOfAtomsPerVolume * self.mat.shellcorrvec[j] * 2.0 / self.mat.electronDensity
-    #     # print("shellCorrectionVector=",shellCorrectionVector)
-    #
-    #     bg2   = tau*(tau+2.0)
-    #     beta2 = bg2/(g*g)
-    #     # tmax  = 2.*electron_mass_c2*bg2/(1.+2.*g*rateMass+rateMass*rateMass)
-    #     # print("tmax=",tmax)
-    #     # ionloss = math.log(2.0*C.me*bg2*tmax/eexc2)-2.0*beta2 #math.log(2.0*electron_mass_c2*bg2*tmax/eexc2)-2.0*beta2
-    #     ionloss = math.log(2.0*C.me*bg2*T/eexc2)-2.0*beta2 #math.log(2.0*electron_mass_c2*bg2*tmax/eexc2)-2.0*beta2
-    #     # print("ionloss=",ionloss)
-    #
-    #     ### density correction
-    #     delta = 0
-    #     x = math.log(bg2)/C.twoln10
-    #     if(x<x0den): delta = 0.0
-    #     else:
-    #         delta = C.twoln10*x - cden
-    #         if(x<x1den): delta += aden*math.pow((x1den-x),mden)
-    #     # print("delta=",delta)
-    #
-    #     ### shell correction
-    #     sh = 0.0
-    #     x  = 1.0
-    #     if(bg2>bg2lim):
-    #         for j in range(3):
-    #             x *= bg2
-    #             sh += shellCorrectionVector[j]/x
-    #     else:
-    #         for j in range(3):
-    #             x *= bg2lim
-    #             sh += shellCorrectionVector[j]/x
-    #         sh *= math.log(tau/taul)/math.log(taulim/taul)
-    #     # print("sh=",sh)
-    #
-    #     ### now compute the total ionization loss
-    #     ionloss -= delta + sh
-    #     # ionloss *= C.twopi_mc2_rcl2*electronDensity/beta2
-    #     ionloss *= 0.5*(C.K*(self.z**2)*self.mat.ZoA/beta2)*self.mat.rho ## eV/cm ## TODO is this the same thing as the line above??
-    #
-    #     if(ionloss<0.0): ionloss = 0.0
-    #     return ionloss
