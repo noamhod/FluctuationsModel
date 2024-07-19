@@ -20,7 +20,7 @@ import model
 
 import argparse
 parser = argparse.ArgumentParser(description='scan_prostprocess.py...')
-parser.add_argument('-G', metavar='G=1 will plot the gifs, G=0 will skip this', required=True,  help='G=1 will plot the gifs, G=0 will skip this')
+parser.add_argument('-G', metavar='G=1 will plot the gifs, G=0 will skip this',    required=True,  help='G=1 will plot the gifs, G=0 will skip this')
 argus = parser.parse_args()
 G = int(argus.G)
 dogif = (G==1)
@@ -146,12 +146,9 @@ def plot_slices(label,build,E,L,hists,pdffile):
     cgif_cdfs = ROOT.TCanvas("cdf_"+label,"",1000,1000)
     cgif_cdfs.Divide(2,2)
     cgif_cdfs.cd(1)
-    if(cnt_slice_cdf is not None and cnt_slice_cdf.GetXaxis().GetXmin()>0): ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
     if(cnt_slice_cdf is not None and cnt_slice_cdf.Integral()>0):
-        if(cnt_slice_cdf.Integral()>0): cnt_slice_cdf.Scale(1./cnt_slice_cdf.Integral())
-        cnt_slice_cdf = cnt_slice_cdf.GetCumulative()
         cnt_slice_cdf.SetMinimum(1.e-5)
         cnt_slice_cdf.SetMaximum(2.e0)
         cnt_slice_cdf.Draw("hist")
@@ -183,12 +180,9 @@ def plot_slices(label,build,E,L,hists,pdffile):
     ROOT.gPad.Update()
     ##########################
     cgif_cdfs.cd(3)
-    if(sec_slice_cdf is not None and sec_slice_cdf.GetXaxis().GetXmin()>0): ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
     if(sec_slice_cdf is not None and sec_slice_cdf.Integral()>0):
-        if(sec_slice_cdf.Integral()>0): sec_slice_cdf.Scale(1./sec_slice_cdf.Integral())
-        sec_slice_cdf = sec_slice_cdf.GetCumulative()
         sec_slice_cdf.SetMinimum(1.e-5)
         sec_slice_cdf.SetMaximum(2.e0)
         sec_slice_cdf.Draw("hist")
