@@ -18,6 +18,13 @@ import fluctuations as flct
 import hist
 import model
 
+import argparse
+parser = argparse.ArgumentParser(description='scan_prostprocess.py...')
+parser.add_argument('-G', metavar='G=1 will plot the gifs, G=0 will skip this', required=True,  help='G=1 will plot the gifs, G=0 will skip this')
+argus = parser.parse_args()
+G = int(argus.G)
+dogif = (G==1)
+
 ROOT.gROOT.SetBatch(1)
 ROOT.gStyle.SetOptFit(0)
 ROOT.gStyle.SetOptStat(0)
@@ -236,17 +243,21 @@ pdffile = "scan_slices.pdf"
 cnv = ROOT.TCanvas("cnv", "", 1000,1000)
 cnv.SaveAs(pdffile+"(")
 
+nall = href.GetNbinsX()*href.GetNbinsY()
+nslices = 0
 for ie in range(1,href.GetNbinsX()+1):
     for il in range(1,href.GetNbinsY()+1):
+        
+        ### skip empty slices (no GEANT4 data)
         if(href.GetBinContent(ie,il)<1): continue
         
+        ### get the slice details
         label = "E"+str(ie)+"_dL"+str(il)
         E     = href.GetXaxis().GetBinCenter(ie) ## already in MeV
         L     = href.GetYaxis().GetBinCenter(il) ## already in um
 
         ### get the rootfile
         tf = ROOT.TFile.Open(f"{rootpath}/rootslice_{label}.root","READ")
-
         build = tf.Get("build").GetTitle()
 
         ### get the histos from the file
@@ -272,18 +283,23 @@ for ie in range(1,href.GetNbinsX()+1):
             hc2t_ndof.SetBinContent(ie,il,C2_ndof)
         
         ### plot the slice
-        plot_slices(label,build,E,L,hists,pdffile)
+        if(dogif): plot_slices(label,build,E,L,hists,pdffile)
         
         ### close the file
         tf.Close()
+        
+        if(nslices%100==0 and nslices!=0): print(f"Processed {nslices} slices out of {nall} total")
+        nslices += 1
+
+print(f"\nProcessed {nslices} slices with at least 1 step, out of {nall} total")
+
+
 cnv = ROOT.TCanvas("cnv", "", 1000,1000)
 cnv.SaveAs(pdffile+")")
 
-
-gridx,gridy = hist.getGrid(href)
-for line in gridx: line.SetLineColor(ROOT.kGray)
-for line in gridy: line.SetLineColor(ROOT.kGray)
-
+# gridx,gridy = hist.getGrid(href)
+# for line in gridx: line.SetLineColor(ROOT.kGray)
+# for line in gridy: line.SetLineColor(ROOT.kGray)
 
 canvas = ROOT.TCanvas("canvas", "canvas", 1000,1000)
 canvas.Divide(2,2)
@@ -295,8 +311,8 @@ ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
 hkst_prob.GetZaxis().SetTitleOffset(1.6)
 href.Draw("colz")
-for line in gridx: line.Draw("same")
-for line in gridy: line.Draw("same")
+# for line in gridx: line.Draw("same")
+# for line in gridy: line.Draw("same")
 ROOT.gPad.RedrawAxis()
 canvas.cd(2)
 ROOT.gPad.SetTicks(1,1)
@@ -306,8 +322,8 @@ ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
 hkst_prob.GetZaxis().SetTitleOffset(1.6)
 hkst_prob.Draw("colz")
-for line in gridx: line.Draw("same")
-for line in gridy: line.Draw("same")
+# for line in gridx: line.Draw("same")
+# for line in gridy: line.Draw("same")
 ROOT.gPad.RedrawAxis()
 canvas.cd(3)
 ROOT.gPad.SetTicks(1,1)
@@ -317,8 +333,8 @@ ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
 hkst_dist.GetZaxis().SetTitleOffset(1.6)
 hkst_dist.Draw("colz")
-for line in gridx: line.Draw("same")
-for line in gridy: line.Draw("same")
+# for line in gridx: line.Draw("same")
+# for line in gridy: line.Draw("same")
 ROOT.gPad.RedrawAxis()
 canvas.cd(4)
 ROOT.gPad.SetTicks(1,1)
@@ -327,15 +343,16 @@ ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
 hc2t_ndof.GetZaxis().SetTitleOffset(1.5)
 hc2t_ndof.Draw("colz")
-for line in gridx: line.Draw("same")
-for line in gridy: line.Draw("same")
+# for line in gridx: line.Draw("same")
+# for line in gridy: line.Draw("same")
 ROOT.gPad.RedrawAxis()
 canvas.SaveAs("test_kschisq.pdf")
 
 
 #####################
 ### finalize the gifs
-print("\nMaking gif for pdfs...")
-ROOT.gSystem.Exec(f"magick -delay 0.01 $(ls {pngpath}/scan_pdfs_*.png | sort -V) scan_pdfs.gif")
-print("\nMaking gif for cdfs...")
-ROOT.gSystem.Exec(f"magick -delay 0.01 $(ls {pngpath}/scan_cdfs_*.png | sort -V) scan_cdfs.gif")
+if(dogif):
+    print("\nMaking gif for pdfs...")
+    ROOT.gSystem.Exec(f"magick -delay 0.01 $(ls {pngpath}/scan_pdfs_*.png | sort -V) scan_pdfs.gif")
+    print("\nMaking gif for cdfs...")
+    ROOT.gSystem.Exec(f"magick -delay 0.01 $(ls {pngpath}/scan_cdfs_*.png | sort -V) scan_cdfs.gif")
