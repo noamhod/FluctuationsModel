@@ -28,8 +28,8 @@ ROOT.gStyle.SetPadRightMargin(0.15)
 ROOT.gErrorIgnoreLevel = ROOT.kError
 # ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
-pngpath  = "/Users/noamtalhod/tmp/png" 
 rootpath = "/Users/noamtalhod/tmp/root"
+pngpath  = "/Users/noamtalhod/tmp/png" 
 
 #########################
 ### make gif for all bins
@@ -92,7 +92,7 @@ def plot_slices(label,build,E,L,hists,pdffile):
     s.SetTextFont(22);
     s.SetTextColor(ROOT.kBlack)
     s.SetTextSize(0.04)
-    s.DrawLatex(0.15,0.86,ROOT.Form("E=%.3e #in [%.3e, %.3e) [MeV]" % (E*U.eV2MeV,hists["hE_"+label].GetXaxis().GetXmin(), hists["hE_"+label].GetXaxis().GetXmax())))
+    s.DrawLatex(0.15,0.86,ROOT.Form("E=%.3e #in [%.3e, %.3e) [MeV]" % (E,hists["hE_"+label].GetXaxis().GetXmin(), hists["hE_"+label].GetXaxis().GetXmax())))
     s.DrawLatex(0.15,0.81,ROOT.Form("N raw steps = %d" % (NrawSteps)))
     ROOT.gPad.RedrawAxis()
     ROOT.gPad.Update()
@@ -127,7 +127,7 @@ def plot_slices(label,build,E,L,hists,pdffile):
     s.SetTextFont(22);
     s.SetTextColor(ROOT.kBlack)
     s.SetTextSize(0.04)
-    s.DrawLatex(0.15,0.86,ROOT.Form("#DeltaL=%.3e #in [%.3e, %.3e) [#mum]" % (L*U.cm2um,hists["hdL_"+label].GetXaxis().GetXmin(), hists["hdL_"+label].GetXaxis().GetXmax())))
+    s.DrawLatex(0.15,0.86,ROOT.Form("#DeltaL=%.3e #in [%.3e, %.3e) [#mum]" % (L,hists["hdL_"+label].GetXaxis().GetXmin(), hists["hdL_"+label].GetXaxis().GetXmax())))
     s.DrawLatex(0.15,0.81,ROOT.Form("N raw steps = %d" % (NrawSteps)))
     ROOT.gPad.RedrawAxis()
     ROOT.gPad.Update()
@@ -241,8 +241,8 @@ for ie in range(1,href.GetNbinsX()+1):
         if(href.GetBinContent(ie,il)<1): continue
         
         label = "E"+str(ie)+"_dL"+str(il)
-        E     = href.GetXaxis().GetBinCenter(ie)
-        L     = href.GetYaxis().GetBinCenter(il)
+        E     = href.GetXaxis().GetBinCenter(ie) ## already in MeV
+        L     = href.GetYaxis().GetBinCenter(il) ## already in um
 
         ### get the rootfile
         tf = ROOT.TFile.Open(f"{rootpath}/rootslice_{label}.root","READ")

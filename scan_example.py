@@ -45,8 +45,7 @@ shapes = {}
 slices = {}
 
 ################################
-### the pngpath of all png plots
-pngpath = "/Users/noamtalhod/tmp/png"
+### the of all slices
 rootpath = "/Users/noamtalhod/tmp/root"
 
 
@@ -429,12 +428,6 @@ if __name__ == "__main__":
     #########################
     ### make gif for all bins
     print("\nClean temp png's and temp png path...")
-    # ROOT.gSystem.Unlink("scan_rootslices.root") ## remove old files
-    # ROOT.gSystem.Unlink("scan_pdfs.gif") ## remove old files
-    # ROOT.gSystem.Unlink("scan_cdfs.gif") ## remove old files
-    # ROOT.gSystem.Exec("/bin/rm -f scan_pdfs.gif scan_cdfs.gif") ## remove old files
-    # ROOT.gSystem.Exec(f"/bin/rm -rf {pngpath}") ## remove old files
-    # ROOT.gSystem.Exec(f"/bin/mkdir -p {pngpath}")
     ROOT.gSystem.Exec(f"/bin/rm -rf {rootpath}") ## remove old files
     ROOT.gSystem.Exec(f"/bin/mkdir -p {rootpath}")
     
