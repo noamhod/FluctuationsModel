@@ -109,11 +109,13 @@ class Parameters:
     def getG4BBdEdx(self,E):
         return self.gBB.Eval(E*U.eV2MeV)*U.MeV2eV*1/(U.mm2cm) # eV/cm
     
-    def correctG4BBdEdx(self,E,x):
-        meanLoss = x*self.getG4BBdEdx(E)
-        if(self.mat.Tc<=self.E0): return meanLoss ## very small step or low-density material
-        meanLoss /= self.scaling()
-        return meanLoss if(meanLoss>self.minloss) else self.minloss
+    # def correctG4BBmeanLoss(self,E,x):
+    #     meanLoss = x*self.getG4BBdEdx(E)
+    #     # ## very small step or low-density material
+    #     # if(self.mat.Tc<=self.E0): return meanLoss
+    #     meanLoss /= self.scaling()
+    #     # return meanLoss if(meanLoss>self.minloss) else self.minloss
+    #     return meanLoss
 
     ### definition in Equation 33.6 from PDG: https://pdg.lbl.gov/2016/reviews/rpp2016-rev-passage-particles-matter.pdf
     def delta(self,E):
@@ -188,10 +190,9 @@ class Parameters:
     
     ### thik absorbers conditions
     def isThick(self,E,x):
-        dEmean = self.correctG4BBdEdx(E,x)
+        # dEmean = self.correctG4BBmeanLoss(E,x)
+        dEmean = x*self.dEdx(E,False)
         Tmax   = self.Wmax(E)
-        # print(f"Tmax={Tmax}, Tcut={self.mat.Tc}")
-        # print(f"isThick={(self.m>C.me and dEmean>=self.NminBohr*self.mat.Tc and Tmax<=2.*self.mat.Tc)}: (m>me)={(self.m>C.me)}, (dEmean>NminBohr*Tcut)={(dEmean>self.NminBohr*self.mat.Tc)}, (Tmax<=2Tcut)={(Tmax<=2.*self.mat.Tc)}")
         return (self.m>C.me and dEmean>=self.NminBohr*self.mat.Tc and Tmax<=2.*self.mat.Tc)
 
     def isGauss(self,E,x,i):
@@ -310,7 +311,8 @@ class Parameters:
 
     ### for thick media the model is Gaussian
     def MeanThick(self,E,x):
-        return self.correctG4BBdEdx(E,x)
+        # return self.correctG4BBmeanLoss(E,x)
+        return x*self.dEdx(E,False)
 
     ### https://geant4.kek.jp/lxr/source/processes/electromagnetic/standard/src/G4UniversalFluctuation.cc#L129
     ### Gaussian sigma for thick media
@@ -327,12 +329,10 @@ class Parameters:
         pars = {"point":point, "build":"NONE", "scale":scl, "param":{}}
         pars["param"].update({"dx":x})
         pars["param"].update({"E":E})
-        # pars["param"].update({"pname":self.pname})
-        # pars["param"].update({"spin":self.spin})
-        # pars["param"].update({"mass":self.m})
         pars["param"].update({"primprt":self.primprt})
         pars["param"].update({"minLoss":self.minloss})
-        pars["param"].update({"meanLoss":x*self.getG4BBdEdx(E)})
+        # pars["param"].update({"meanLoss":x*self.getG4BBdEdx(E)})
+        pars["param"].update({"meanLoss":x*self.dEdx(E,False)}) ## the original meanLoss without scaling
         pars["param"].update({"Tcut":self.mat.Tc}) ## for secondaries
         pars["param"].update({"Tmax":self.Wmax(E)}) ## for secondaries
         pars["param"].update({"Etot":self.Etot(E)}) ## for secondaries
@@ -369,10 +369,19 @@ class Parameters:
         IONB = False
         
         ######################
-        ### Tiny loss models
-        if(pars["param"]["meanLoss"]<self.minloss):
+        ### Tiny loss models.
+        ### note that (1) meanLoss is without scaling, and (2) Tcut should not be smaller than E0(=10 eV)
+        if(pars["param"]["meanLoss"]<self.minloss or self.mat.Tc<=self.E0):
             pars["build"] = "BEBL"
             BEBL = True
+            ######################
+            ### Secondaries
+            if(self.isSecondary(E)):
+                pars["build"] += "->SEC.B"
+                pars["param"]["EkinMin"] = self.EkinMin
+                pars["param"]["EkinMax"] = self.EkinMax
+                pars["param"]["fmax"]    = self.fmax
+                SECB =  True
             ######################
             ### return
             return pars

@@ -69,13 +69,14 @@ def plot_slices(label,build,E,L,hists,pdffile):
     cgif_pdfs = ROOT.TCanvas("pdf_"+label,"",1000,1000)
     cgif_pdfs.Divide(2,2)
     cgif_pdfs.cd(1)
-    if("BEBL" not in build and hists["hdEcnt_"+label].Integral()>0): ROOT.gPad.SetLogx()
+    if(("BEBL" not in build) and hists["hdEcnt_"+label].Integral()>0): ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
     hists["hdEcnt_"+label].Draw("hist")
     if(cnt_pdf is not None):
         hmax = hist.find_h_max(cnt_pdf)
-        if(hmax>0): cnt_pdf.Scale(hists["hdEcnt_"+label].GetMaximum() / hmax)
+        hg4max = hists["hdEcnt_"+label].GetMaximum()
+        if(hmax>0 and hg4max>0): cnt_pdf.Scale(hg4max / hmax)
         cnt_pdf.SetLineWidth(2)
         cnt_pdf.Draw("hist same")
     s = ROOT.TLatex() ### the text
@@ -111,7 +112,8 @@ def plot_slices(label,build,E,L,hists,pdffile):
     hists["hdEsec_"+label].Draw("hist")
     if(sec_pdf is not None):
         hmax = hist.find_h_max(sec_pdf)
-        if(hmax>0): sec_pdf.Scale(hists["hdEsec_"+label].GetMaximum() / hmax)
+        hg4max = hists["hdEsec_"+label].GetMaximum()
+        if(hmax>0 and hg4max>0): sec_pdf.Scale(hg4max / hmax)
         sec_pdf.Draw("hist same")
         s = ROOT.TLatex() ### the text
         s.SetNDC(1);
@@ -146,14 +148,19 @@ def plot_slices(label,build,E,L,hists,pdffile):
     cgif_cdfs = ROOT.TCanvas("cdf_"+label,"",1000,1000)
     cgif_cdfs.Divide(2,2)
     cgif_cdfs.cd(1)
-    if("BEBL" not in build and cnt_slice_cdf.Integral()>0): ROOT.gPad.SetLogx()
+    if(("BEBL" not in build) and cnt_slice_cdf.Integral()>0): ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
     if(cnt_slice_cdf is not None and cnt_slice_cdf.Integral()>0):
         cnt_slice_cdf.SetMinimum(1.e-5)
         cnt_slice_cdf.SetMaximum(2.e0)
         cnt_slice_cdf.Draw("hist")
-    if(cnt_cdf is not None): cnt_cdf.Draw("hist same")
+        if(cnt_cdf is not None): cnt_cdf.Draw("hist same")
+    else:
+        if(cnt_cdf is not None):
+            cnt_cdf.SetMinimum(1.e-5)
+            cnt_cdf.SetMaximum(2.e0)
+            cnt_cdf.Draw("hist")
     s = ROOT.TLatex() ### the text
     s.SetNDC(1);
     s.SetTextAlign(13);
@@ -188,15 +195,20 @@ def plot_slices(label,build,E,L,hists,pdffile):
         sec_slice_cdf.SetMinimum(1.e-5)
         sec_slice_cdf.SetMaximum(2.e0)
         sec_slice_cdf.Draw("hist")
-        s = ROOT.TLatex() ### the text
-        s.SetNDC(1);
-        s.SetTextAlign(13);
-        s.SetTextFont(22);
-        s.SetTextColor(ROOT.kBlack)
-        s.SetTextSize(0.04)
-        modtitle = "SECB"
-        s.DrawLatex(0.18,0.25,modtitle)
-    if(sec_cdf is not None): sec_cdf.Draw("hist same")
+        if(sec_cdf is not None): sec_cdf.Draw("hist same")
+    else:
+        if(sec_cdf is not None):
+            sec_cdf.SetMinimum(1.e-5)
+            sec_cdf.SetMaximum(2.e0)
+            sec_cdf.Draw("hist")
+    s = ROOT.TLatex() ### the text
+    s.SetNDC(1);
+    s.SetTextAlign(13);
+    s.SetTextFont(22);
+    s.SetTextColor(ROOT.kBlack)
+    s.SetTextSize(0.04)
+    modtitle = "SECB"
+    s.DrawLatex(0.18,0.25,modtitle)
     ROOT.gPad.RedrawAxis()
     ROOT.gPad.Update()
     ##########################

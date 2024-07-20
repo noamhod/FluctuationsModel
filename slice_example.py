@@ -23,8 +23,8 @@ parser.add_argument('-N', metavar='N steps to process', required=False,  help='N
 argus = parser.parse_args()
 EE = float(argus.E)
 LL = float(argus.L)
-WE = 0.01 if(argus.WE is None) else float(argus.WE)
-WL = 0.01 if(argus.WL is None) else float(argus.WL)
+WE = 0.05 if(argus.WE is None) else float(argus.WE)
+WL = 0.05 if(argus.WL is None) else float(argus.WL)
 NN = 0 if(argus.N is None) else int(argus.N)
 print(f"Model with energy: {EE} [MeV], dL: {LL} [um], window in E: {WE*100} [%], window in L: {WL*100} [%]")
 

@@ -98,7 +98,7 @@ histos = ToyMC.Generate(Nsteps=1000000)
 pdffile = "toymc_example.pdf"
 
 ### plot psi(t)
-if(Mod.BEBL):
+if(Mod.BEBL or Mod.TGAU or Mod.TGAM):
     canvas = ROOT.TCanvas("canvas", "canvas", 500,500)
     canvas.SaveAs(pdffile+"(")
 else:
@@ -138,7 +138,7 @@ ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.1)
-if(Mod.IONB and not Mod.BEBL):
+if(Mod.IONB and not (Mod.BEBL or Mod.TGAU or Mod.TGAM)):
     # histos["hIon_non_gaus"].DrawNormalized("ep")
     # cnt_pdfs["hBorysov_Ion"].DrawNormalized("hist same")
     hist.reset_hrange_left(histos["hIon_non_gaus"],1e-2).DrawNormalized("ep")
@@ -153,7 +153,7 @@ ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.1)
-if(Mod.EX1B and not Mod.BEBL):
+if(Mod.EX1B and not (Mod.BEBL or Mod.TGAU or Mod.TGAM)):
     # histos["hExc_non_gaus"].DrawNormalized("ep")
     # cnt_pdfs["hBorysov_Exc"].DrawNormalized("hist same")
     hist.reset_hrange_left(histos["hExc_non_gaus"],1e-2).DrawNormalized("ep")
@@ -167,7 +167,7 @@ ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.1)
-if(Mod.SECB and not Mod.BEBL):
+if(Mod.SECB and not (Mod.BEBL or Mod.TGAU or Mod.TGAM)):
     # histos["hSecondaries"].DrawNormalized("ep")
     # sec_pdfs["hBorysov_Sec"].DrawNormalized("hist same")
     hist.reset_hrange_left(histos["hSecondaries"],1e-2).DrawNormalized("ep")
@@ -182,7 +182,7 @@ ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.1)
-if(Mod.IONG and not Mod.BEBL): 
+if(Mod.IONG and not (Mod.BEBL or Mod.TGAU or Mod.TGAM)): 
     # histos["hIon_gaus"].DrawNormalized("ep")
     # cnt_pdfs["hTrncGaus_Ion"].DrawNormalized("hist same")
     hist.reset_hrange_left(histos["hIon_gaus"],1e-2).DrawNormalized("ep")
@@ -197,7 +197,7 @@ ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.1)
-if(Mod.EX1G and not Mod.BEBL): 
+if(Mod.EX1G and not (Mod.BEBL or Mod.TGAU or Mod.TGAM)):
     # histos["hExc_gaus"].DrawNormalized("ep")
     # cnt_pdfs["hTrncGaus_Exc"].DrawNormalized("hist same")
     hist.reset_hrange_left(histos["hExc_gaus"],1e-2).DrawNormalized("ep")
@@ -233,7 +233,7 @@ ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.1)
-if(Mod.IONB and not Mod.BEBL):
+if(Mod.IONB and not (Mod.BEBL or Mod.TGAU or Mod.TGAM)):
     histos["hIon_non_gaus"].Scale(1./histos["hIon_non_gaus"].Integral())
     histos["hIon_non_gaus"].GetCumulative().Draw("ep")
     # hist.reset_hrange_left(histos["hIon_non_gaus"].GetCumulative(),1e-2).Draw("ep")
@@ -249,7 +249,7 @@ ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.1)
-if(Mod.EX1B and not Mod.BEBL):
+if(Mod.EX1B and not (Mod.BEBL or Mod.TGAU or Mod.TGAM)):
     histos["hExc_non_gaus"].Scale(1./histos["hExc_non_gaus"].Integral())
     histos["hExc_non_gaus"].GetCumulative().Draw("ep")
     # hist.reset_hrange_left(histos["hExc_non_gaus"].GetCumulative(),1e-2).Draw("ep")
@@ -265,7 +265,7 @@ if(Mod.doLogx): ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.1)
-if(Mod.SECB and not Mod.BEBL):
+if(Mod.SECB and not (Mod.BEBL or Mod.TGAU or Mod.TGAM)):
     histos["hSecondaries"].Scale(1./histos["hSecondaries"].Integral())
     histos["hSecondaries"].GetCumulative().Draw("ep")
     # hist.reset_hrange_left(histos["hSecondaries"].GetCumulative(),1e-2).Draw("ep")
@@ -281,7 +281,7 @@ ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.1)
-if(Mod.IONG and not Mod.BEBL):
+if(Mod.IONG and not (Mod.BEBL or Mod.TGAU or Mod.TGAM)):
     histos["hIon_gaus"].Scale(1./histos["hIon_gaus"].Integral())
     histos["hIon_gaus"].GetCumulative().Draw("ep")
     # hist.reset_hrange_left(histos["hIon_gaus"].GetCumulative(),1e-2).Draw("ep")
@@ -297,7 +297,7 @@ ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.1)
-if(Mod.EX1G and not Mod.BEBL):
+if(Mod.EX1G and not (Mod.BEBL or Mod.TGAU or Mod.TGAM)):
     histos["hExc_gaus"].Scale(1./histos["hExc_gaus"].Integral())
     histos["hExc_gaus"].GetCumulative().Draw("ep")
     # hist.reset_hrange_left(histos["hExc_gaus"].GetCumulative(),1e-2).Draw("ep")

@@ -176,7 +176,7 @@ def save_slice(slices,shapes,builds,label,E,L,NrawSteps,count):
     
     end = time.time()
     elapsed = end-start
-    print(f"Finished plotting slice: {label} with build {builds[label]} with KSprob={kstest_prob_cnt_pdf}, within {elapsed:.2f} [s]")
+    print(f"Finished plotting slice: {label} with build {builds[label]} with KSprob={kstest_prob_cnt_pdf[0]}, within {elapsed:.2f} [s]")
     if(parallelize): lock.release()
     
 
@@ -240,11 +240,12 @@ if __name__ == "__main__":
             modelpars = par.GetModelPars(EE*U.MeV2eV,LL*U.um2cm)
             Mod = model.Model(LL*U.um2cm, EE*U.MeV2eV, modelpars)
             ############################################
-            ### now define the histos of the the MC data
+            ### now define the histos of the the MC data - the binning changes according to the model!
             slices.update({"hE_"+label:  ROOT.TH1D("hE_"+label,label+";E [MeV];Steps", bins.n_E,Emin,Emax)})
             slices.update({"hdL_"+label: ROOT.TH1D("hdL_"+label,label+";#DeltaL [#mum];Steps", int(bins.n_dL/10),dLmin,dLmax)})
             slices.update({"hdEcnt_"+label: ROOT.TH1D("hdEcnt_"+label,label+";#DeltaE [eV];Steps", Mod.NbinsScl,Mod.dEminScl,Mod.dEmaxScl)})
             slices.update({"hdEsec_"+label: ROOT.TH1D("hdEsec_"+label,label+";#DeltaE [eV];Steps", Mod.NbinsSec,Mod.dEminSec,Mod.dEmaxSec)})
+                
 
     #######################################
     ### Run the MC data and fill the histos

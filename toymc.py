@@ -70,9 +70,21 @@ class ToyMC:
     
     def gen_iong(self):
         eloss_Ion_gaus = 0
-        eloss_Ion_gaus = self.rnd.Gaus(self.model.ion_mean,self.model.ion_sigma)
+        eloss_Ion_gaus = self.rnd.Gaus(self.model.ion_mean,self.model.ion_sigma) ### TODO: need to keep generating and cond is always true
         IONGCOND = (eloss_Ion_gaus>0 and eloss_Ion_gaus<2*self.model.ion_mean)
         return IONGCOND, eloss_Ion_gaus
+    
+    def gen_thkgau(self):
+        eloss_thk_gaus = 0
+        eloss_thk_gaus = self.rnd.Gaus(self.model.thk_mean,self.model.thk_sigma) ### TODO: need to keep generating and cond is always true
+        TGAUCOND = (eloss_thk_gaus>0 and eloss_thk_gaus<2*self.model.thk_mean)
+        return TGAUCOND, eloss_thk_gaus
+    
+    def gen_thkgam(self):
+        eloss_thk_gamm = 0
+        eloss_thk_gamm = -1 ### TODO: need to implement
+        TGAMCOND = True
+        return TGAMCOND, eloss_thk_gamm
     
     def Generate(self,Nsteps):
         SECB = self.model.SECB
@@ -81,6 +93,8 @@ class ToyMC:
         EX1B = self.model.EX1B
         IONG = self.model.IONG
         EX1G = self.model.EX1G
+        TGAU = self.model.TGAU
+        TGAM = self.model.TGAM
         
         histos = {}
         histos.update(           { "hTotal":        ROOT.TH1D("hTotal",       "Toy Data vs FULL Model for "+self.point+";#DeltaE [eV];Steps",self.model.Nbins,self.model.dEmin,self.model.dEmax) } )
@@ -105,16 +119,32 @@ class ToyMC:
             eloss_Ion_non_gaus = 0
             eloss_Exc_gaus     = 0
             eloss_Ion_gaus     = 0
+            eloss_Thk_gaus     = 0
+            eloss_Thk_gamm     = 0
             SECBCOND = False
             EX1BCOND = False
             IONBCOND = False
             EX1GCOND = False
             IONGCOND = False
+            TGAUCOND = False
+            TGAMCOND = False
     
             ### 
             if(SECB):
                 SECBCOND, eloss_Sec = self.gen_sec()
                 if(SECBCOND): histos["hSecondaries"].Fill( eloss_Sec )
+    
+            ### thick gauss
+            if(TGAU):
+                TGAUCOND, eloss_Thk_gaus = self.gen_thkgau()
+                if(TGAUCOND): histos["hTotal"].Fill( eloss_Thk_gaus )
+                continue
+                
+            # ### thick gamma
+            # if(TGAM):
+            #     TGAMCOND, eloss_Thk_gamm = self.gen_thkgam()
+            #     if(TGAMCOND): histos["hTotal"].Fill( eloss_Thk_gamm )
+            #     continue
     
             ### if average loss is smaller than 10 eV, take the averge loss
             if(BEBL):

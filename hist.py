@@ -108,7 +108,8 @@ def find_h_max(h,firstbin=1):
 
 def reset_hrange_left(h,xmin):
     hclone = h.Clone(h.GetName()+"_clone")
-    hclone.GetXaxis().SetLimits(xmin,hclone.GetXaxis().GetXmax())
+    if(hclone.GetXaxis().GetXmin()<xmin):
+        hclone.GetXaxis().SetLimits(xmin,hclone.GetXaxis().GetXmax())
     return hclone
 
 
