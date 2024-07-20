@@ -69,7 +69,7 @@ def plot_slices(label,build,E,L,hists,pdffile):
     cgif_pdfs = ROOT.TCanvas("pdf_"+label,"",1000,1000)
     cgif_pdfs.Divide(2,2)
     cgif_pdfs.cd(1)
-    ROOT.gPad.SetLogx()
+    if("BEBL" not in build and hists["hdEcnt_"+label].Integral()>0): ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
     hists["hdEcnt_"+label].Draw("hist")
@@ -105,7 +105,7 @@ def plot_slices(label,build,E,L,hists,pdffile):
     ROOT.gPad.Update()
     ##########################
     cgif_pdfs.cd(3)
-    if(hists["hdEsec_"+label].GetXaxis().GetXmin()>0): ROOT.gPad.SetLogx()
+    if(hists["hdEsec_"+label].Integral()>0 and sec_pdf is not None and sec_pdf.Integral()>0): ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
     hists["hdEsec_"+label].Draw("hist")
@@ -146,6 +146,7 @@ def plot_slices(label,build,E,L,hists,pdffile):
     cgif_cdfs = ROOT.TCanvas("cdf_"+label,"",1000,1000)
     cgif_cdfs.Divide(2,2)
     cgif_cdfs.cd(1)
+    if("BEBL" not in build and cnt_slice_cdf.Integral()>0): ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
     if(cnt_slice_cdf is not None and cnt_slice_cdf.Integral()>0):
@@ -174,12 +175,13 @@ def plot_slices(label,build,E,L,hists,pdffile):
     s.SetTextFont(22);
     s.SetTextColor(ROOT.kBlack)
     s.SetTextSize(0.04)
-    s.DrawLatex(0.15,0.86,ROOT.Form("E=%.3e #in [%.3e, %.3e) [MeV]" % (E*U.eV2MeV,hists["hE_"+label].GetXaxis().GetXmin(), hists["hE_"+label].GetXaxis().GetXmax())))
+    s.DrawLatex(0.15,0.86,ROOT.Form("E=%.3e #in [%.3e, %.3e) [MeV]" % (E,hists["hE_"+label].GetXaxis().GetXmin(), hists["hE_"+label].GetXaxis().GetXmax())))
     s.DrawLatex(0.15,0.81,ROOT.Form("N raw steps = %d" % (NrawSteps)))
     ROOT.gPad.RedrawAxis()
     ROOT.gPad.Update()
     ##########################
     cgif_cdfs.cd(3)
+    if(sec_slice_cdf.Integral()>0 and sec_cdf is not None and sec_cdf.Integral()>0): ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
     if(sec_slice_cdf is not None and sec_slice_cdf.Integral()>0):
@@ -208,7 +210,7 @@ def plot_slices(label,build,E,L,hists,pdffile):
     s.SetTextFont(22);
     s.SetTextColor(ROOT.kBlack)
     s.SetTextSize(0.04)
-    s.DrawLatex(0.15,0.86,ROOT.Form("#DeltaL=%.3e #in [%.3e, %.3e) [#mum]" % (L*U.cm2um,hists["hdL_"+label].GetXaxis().GetXmin(), hists["hdL_"+label].GetXaxis().GetXmax())))
+    s.DrawLatex(0.15,0.86,ROOT.Form("#DeltaL=%.3e #in [%.3e, %.3e) [#mum]" % (L,hists["hdL_"+label].GetXaxis().GetXmin(), hists["hdL_"+label].GetXaxis().GetXmax())))
     s.DrawLatex(0.15,0.81,ROOT.Form("N raw steps = %d" % (NrawSteps)))
     ROOT.gPad.RedrawAxis()
     ROOT.gPad.Update()
