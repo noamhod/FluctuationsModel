@@ -108,14 +108,6 @@ class Parameters:
     
     def getG4BBdEdx(self,E):
         return self.gBB.Eval(E*U.eV2MeV)*U.MeV2eV*1/(U.mm2cm) # eV/cm
-    
-    # def correctG4BBmeanLoss(self,E,x):
-    #     meanLoss = x*self.getG4BBdEdx(E)
-    #     # ## very small step or low-density material
-    #     # if(self.mat.Tc<=self.E0): return meanLoss
-    #     meanLoss /= self.scaling()
-    #     # return meanLoss if(meanLoss>self.minloss) else self.minloss
-    #     return meanLoss
 
     ### definition in Equation 33.6 from PDG: https://pdg.lbl.gov/2016/reviews/rpp2016-rev-passage-particles-matter.pdf
     def delta(self,E):
@@ -190,7 +182,6 @@ class Parameters:
     
     ### thik absorbers conditions
     def isThick(self,E,x):
-        # dEmean = self.correctG4BBmeanLoss(E,x)
         dEmean = x*self.dEdx(E,False)
         Tmax   = self.Wmax(E)
         return (self.m>C.me and dEmean>=self.NminBohr*self.mat.Tc and Tmax<=2.*self.mat.Tc)
@@ -319,7 +310,7 @@ class Parameters:
     def WidthThick(self,E,x):
         b  = self.beta(E)
         Tmax = self.Wmax(E)
-        return math.sqrt( (Tmax/(b**2) - self.mat.Tc)/2. * (C.twopi * C.me * C.re2) * x * (self.z**2) * self.mat.electronDensity )
+        return math.sqrt( (Tmax/(b**2)-0.5*self.mat.Tc) * (C.twopi*C.me*C.re2) * x * (self.z**2) * self.mat.electronDensity )
 
     #########################################
     ### get all necessary pars to build the model shape
@@ -395,7 +386,7 @@ class Parameters:
             sn   =  mua/siga
             neff = sn*sn
             pars["param"]["thk_mean"] = mua
-            if(sn>2):
+            if(sn>2.):
                 pars["param"]["thk_sigma"] = siga
                 pars["build"] = "THK.GAUSS"
                 TGAU = True

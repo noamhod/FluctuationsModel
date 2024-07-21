@@ -37,7 +37,7 @@ def borysov_excitation(x,par):
 def truncated_gaus(x,par):
     ## par[0] = mean
     ## par[1] = sigma
-    return ROOT.TMath.Gaus(x[0],par[0],par[1]) if(x[0]>0 and x[0]<2*par[0]) else 0
+    return ROOT.TMath.Gaus(x[0],par[0],par[1]) if(x[0]>=0 and x[0]<=2*par[0]) else 0
 
 
 ### borysov_secondaries main function (see above)
@@ -573,15 +573,15 @@ class Model:
         self.cnt_cdfs = self.get_cdfs(self.cnt_pdfs)
         self.sec_cdfs = self.get_cdfs(self.sec_pdfs)
         ### get as arrays
-        self.cnt_pdfs_arrx, self.cnt_pdfs_arrsy = self.get_as_arrays(self.cnt_pdfs, self.scale)
-        self.sec_pdfs_arrx, self.sec_pdfs_arrsy = self.get_as_arrays(self.sec_pdfs,1)
-        self.cnt_cdfs_arrx, self.cnt_cdfs_arrsy = self.get_as_arrays(self.cnt_cdfs, self.scale)
-        self.sec_cdfs_arrx, self.sec_cdfs_arrsy = self.get_as_arrays(self.sec_cdfs,1)
+        self.cnt_pdfs_arrx, self.cnt_pdfs_arrsy = self.get_as_arrays(self.cnt_pdfs,doScale=True)
+        self.sec_pdfs_arrx, self.sec_pdfs_arrsy = self.get_as_arrays(self.sec_pdfs,doScale=False)
+        self.cnt_cdfs_arrx, self.cnt_cdfs_arrsy = self.get_as_arrays(self.cnt_cdfs,doScale=True)
+        self.sec_cdfs_arrx, self.sec_cdfs_arrsy = self.get_as_arrays(self.sec_cdfs,doScale=False)
         ### get as scaled arrays
         titles = self.cnt_pdfs["hModel"].GetTitle()+";"+self.cnt_pdfs["hModel"].GetXaxis().GetTitle()+";"+self.cnt_pdfs["hModel"].GetXaxis().GetTitle()
         self.cnt_pdfs_scaled = self.get_pdfs_from_arrays(self.cnt_pdfs_arrx,self.cnt_pdfs_arrsy,titles)
         self.cnt_cdfs_scaled = self.get_cdfs(self.cnt_pdfs_scaled)
-        self.cnt_pdfs_scaled_arrx, self.cnt_pdfs_scaled_arrsy = self.get_as_arrays(self.cnt_pdfs_scaled, self.scale)
-        self.cnt_cdfs_scaled_arrx, self.cnt_cdfs_scaled_arrsy = self.get_as_arrays(self.cnt_cdfs_scaled, self.scale)
+        self.cnt_pdfs_scaled_arrx, self.cnt_pdfs_scaled_arrsy = self.get_as_arrays(self.cnt_pdfs_scaled,doScale=True)
+        self.cnt_cdfs_scaled_arrx, self.cnt_cdfs_scaled_arrsy = self.get_as_arrays(self.cnt_cdfs_scaled,doScale=True)
         end = time.time()
         self.TimeIt(start,end,"set_all_shapes")

@@ -64,20 +64,20 @@ class ToyMC:
         
     def gen_ex1g(self):
         eloss_Exc_gaus = 0
-        eloss_Exc_gaus = self.rnd.Gaus(self.model.ex1_mean,self.model.ex1_sigma)
-        EX1GCOND = (eloss_Exc_gaus>0 and eloss_Exc_gaus<2*self.model.ex1_mean)
+        eloss_Exc_gaus = self.rnd.Gaus(self.model.ex1_mean,self.model.ex1_sigma) ### TODO: need to keep generating and cond is always true
+        EX1GCOND = (eloss_Exc_gaus>=0 and eloss_Exc_gaus<=2*self.model.ex1_mean)
         return EX1GCOND, eloss_Exc_gaus
     
     def gen_iong(self):
         eloss_Ion_gaus = 0
         eloss_Ion_gaus = self.rnd.Gaus(self.model.ion_mean,self.model.ion_sigma) ### TODO: need to keep generating and cond is always true
-        IONGCOND = (eloss_Ion_gaus>0 and eloss_Ion_gaus<2*self.model.ion_mean)
+        IONGCOND = (eloss_Ion_gaus>=0 and eloss_Ion_gaus<=2*self.model.ion_mean)
         return IONGCOND, eloss_Ion_gaus
     
     def gen_thkgau(self):
         eloss_thk_gaus = 0
         eloss_thk_gaus = self.rnd.Gaus(self.model.thk_mean,self.model.thk_sigma) ### TODO: need to keep generating and cond is always true
-        TGAUCOND = (eloss_thk_gaus>0 and eloss_thk_gaus<2*self.model.thk_mean)
+        TGAUCOND = (eloss_thk_gaus>=0 and eloss_thk_gaus<=2*self.model.thk_mean)
         return TGAUCOND, eloss_thk_gaus
     
     def gen_thkgam(self):
