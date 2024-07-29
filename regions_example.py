@@ -65,7 +65,7 @@ if __name__ == "__main__":
     dEdxModel  = "G4:Tcut" # or "BB:Tcut"
     TargetMat  = mat.Si # or e.g. mat.Al
     PrimaryPrt = prt.Particle(name="proton",meV=938.27208816*U.MeV2eV,mamu=1.007276466621,chrg=+1.,spin=0.5,lepn=0,magm=2.79284734463)
-    par        = flct.Parameters(PrimaryPrt,TargetMat,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
+    par        = flct.Parameters(PrimaryPrt,TargetMat,dEdxModel,"inputs/dEdx_p_si.txt")
     
 
     #######################################
@@ -155,6 +155,7 @@ if __name__ == "__main__":
     for line in gridy:
         line.SetLineColor(ROOT.kGray)
         line.Draw("same")
+    ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetLogz()
     ROOT.gPad.SetTicks(1,1)
@@ -172,6 +173,7 @@ if __name__ == "__main__":
     for line in gridy:
         line.SetLineColor(ROOT.kGray)
         line.Draw("same")
+    ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetLogz()
     ROOT.gPad.SetTicks(1,1)
@@ -189,6 +191,7 @@ if __name__ == "__main__":
     for line in gridy:
         line.SetLineColor(ROOT.kGray)
         line.Draw("same")
+    ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetLogz()
     ROOT.gPad.SetTicks(1,1)
@@ -206,6 +209,7 @@ if __name__ == "__main__":
     for line in gridy:
         line.SetLineColor(ROOT.kGray)
         line.Draw("same")
+    ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetLogz()
     ROOT.gPad.SetTicks(1,1)
@@ -227,6 +231,7 @@ if __name__ == "__main__":
     for line in gridy:
         line.SetLineColor(ROOT.kGray)
         line.Draw("same")
+    ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetLogz()
     ROOT.gPad.SetTicks(1,1)

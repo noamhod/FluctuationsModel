@@ -430,7 +430,7 @@ class Model:
         if(self.TGAU):
             pdfs["hTrncGaus_Thk"]   = self.get_pdf("gauss_thk_model",   "truncated_gaus",   self.par_gauss_thk)
         if(self.TGAM):
-            pdfs["hGamma_Thk"]      = self.get_pdf("gamma_thk_model",   "gamma_gaus",       self.par_gamma_thk)
+            pdfs["hGamma_Thk"]      = self.get_pdf("gamma_thk_model",   "gamma",            self.par_gamma_thk)
         end = time.time()
         self.TimeIt(start,end,"get_continuous_pdfs")
         return pdfs

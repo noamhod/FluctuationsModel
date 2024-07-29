@@ -16,9 +16,10 @@ def GetLogBinning(nbins,xmin,xmax):
 
 ############################
 ### for normal histos
-Emin = 3e-1 #TODO: SHOULD BE 2!!!
+Emin = 0.46 #3e-1
 Emax = 100
 n_E  = 50
+n_E_big = 500
 
 dEmin = 1e-7
 dEmax = 1e0
@@ -49,6 +50,7 @@ dEdxmax = 1e5
 n_dEdx  = 500
 
 nEbins,Ebins         = GetLogBinning(n_E, Emin,Emax)
+nEbins_big,Ebins_big = GetLogBinning(n_E_big, Emin,Emax)
 ndEbins,dEbins       = GetLogBinning(n_dE,dEmin,dEmax)
 ndxbins,dxbins       = GetLogBinning(n_dx,dxmin,dxmax)
 ndLbins,dLbins       = GetLogBinning(n_dL,dLmin,dLmax)
@@ -60,10 +62,10 @@ ndEdxbins,dEdxbins   = GetLogBinning(n_dEdx,dEdxmin,dEdxmax)
 ####################
 ### for slicees
 n_small_dE    = 200
-n_small_E     = 100
-n_small_dx    = 100
-n_small_dL    = 100
-n_small_dxinv = 100
+n_small_E     = 50
+n_small_dx    = 50
+n_small_dL    = 50
+n_small_dxinv = 50
 
 nEbins_small,Ebins_small         = GetLogBinning(n_small_E,Emin,Emax)
 ndxbins_small,dxbins_small       = GetLogBinning(n_small_dx,dxmin,dxmax)

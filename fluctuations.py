@@ -6,6 +6,7 @@ import units as U
 import constants as C
 import material as mat
 import particle as prt
+import tables as tab
 import bins
 
 
@@ -15,17 +16,18 @@ import bins
 
 
 class Parameters:
-    def __init__(self,primprt,material,dedxmodel,bbtable,bbfunc):
+    def __init__(self,primprt,material,dedxmodel,dEdx_table_file):
         self.m       = primprt.meV
         self.z       = primprt.chrg
         self.spin    = primprt.spin
         self.primprt = primprt
         self.mat     = material
         self.dedxmod = dedxmodel
-        if(self.dedxmod!="BB:Tcut" and self.dedxmod!="BB:Tmax" and self.dedxmod!="G4:Tcut"):
+        if(self.dedxmod!="BB:Tcut" and self.dedxmod!="G4:Tcut"):
             print(f"Unknown model named {self.dedxmod}. Quitting")
             quit()
         print(f"Using dE/dx model: {self.dedxmod}")
+        self.tbl     = tab.Tables(dEdx_table_file)
         
         ### default Energy Loss Fluctuations model used in main Physics List:
         self.r        = 0.56 #0.55 ## rate (fraction) of the ionization part of the total loss (excitation+ionization)
@@ -48,66 +50,16 @@ class Parameters:
                           ## where the actual E-loss is this number times the associated energy.
                           ## Otherwise the actual E-loss is sampled directly from a Gaussian)
         self.Emax     = 1e308
-
-        self.gBB = self.setG4BBdEdxFromTable(bbtable)
-        self.hBBlow,self.hBBhig = self.setG4BBdEdx(bbfunc)
-        self.EkinMin = -1
-        self.EkinMax = -1
-        self.fmax    = -1
+        self.EkinMin  = -1
+        self.EkinMax  = -1
+        self.fmax     = -1
     
     # def __str__(self):
     #     return f"{self.name}"
-        
-    def setG4BBdEdxFromTable(self,fname):
-        hname = fname
-        hname = hname.split(".")[0]
-        arr_E    = array.array( 'd' )
-        arr_dEdx = array.array( 'd' )
-        with open(fname) as f:
-            for line in f:
-                if("#" in line): continue
-                line = line.replace("\n","")
-                words = line.split("   ")
-                arr_E.append( float(words[0]) )
-                arr_dEdx.append( float(words[1]) )
-        npts = len(arr_E)
-        print(f"Read {npts} points from file {fname}")
-        gBB = ROOT.TGraph(npts,arr_E,arr_dEdx)
-        gBB.SetLineColor(ROOT.kBlue)
-        gBB.GetXaxis().SetTitle("E [MeV]")
-        gBB.GetYaxis().SetTitle("dE/dx [MeV/mm]")
-        return gBB
-
-    def setG4BBdEdx(self,fname):
-        hname = fname
-        hname = hname.split(".")[0]
-        arr_E        = []
-        arr_dEdx_low = []
-        arr_dEdx_hig = []
-        with open(fname) as f:
-            for line in f:
-                if("#" in line): continue
-                words = line.split(",")
-                arr_E.append( float(words[0]) )
-                arr_dEdx_low.append( float(words[1]) )
-                arr_dEdx_hig.append( float(words[2]) )
-        npts = len(arr_E)
-        emin = arr_E[0]
-        emax = arr_E[npts-1]
-        de   = arr_E[1]-arr_E[0]
-        print(f"Read {npts} points from file {fname}")
-        hBBlow = ROOT.TH1D(hname+"_low",";E [MeV];dE/dx [MeV*cm^{2}/g]",npts,emin-de/2,emax+de/2)
-        hBBhig = ROOT.TH1D(hname+"_hig",";E [MeV];dE/dx [MeV*cm^{2}/g]",npts,emin-de/2,emax+de/2)
-        hBBlow.SetLineColor(ROOT.kRed)
-        hBBhig.SetLineColor(ROOT.kBlack)
-        for i,E in enumerate(arr_E):
-            b = hBBlow.FindBin(E)
-            hBBlow.SetBinContent(b, arr_dEdx_low[i])
-            hBBhig.SetBinContent(b, arr_dEdx_hig[i])
-        return hBBlow,hBBhig
     
-    def getG4BBdEdx(self,E):
-        return self.gBB.Eval(E*U.eV2MeV)*U.MeV2eV*1/(U.mm2cm) # eV/cm
+    def getG4dEdx(self,E):
+        # return self.tables.dEdxGraph.Eval(E*U.eV2MeV)*U.MeV2eV*1/(U.mm2cm) # eV/cm
+        return self.tbl.dEdxGraph_eV_per_cm.Eval(E) # eV/cm
 
     ### definition in Equation 33.6 from PDG: https://pdg.lbl.gov/2016/reviews/rpp2016-rev-passage-particles-matter.pdf
     def delta(self,E):
@@ -143,17 +95,6 @@ class Parameters:
         X = x*self.mat.rho ## units of X: g/cm2
         return (C.K/2)*self.mat.ZoA*(self.z**2)*(X/(b**2)) # K is already converted to eV
     
-    ### MPV parameter
-    ### definition in Equation 33.11 from PDG: https://pdg.lbl.gov/2016/reviews/rpp2016-rev-passage-particles-matter.pdf
-    def Delta_p_PDG(self,E,x): ## units of x are cm
-        g = self.gamma(E)
-        b = self.beta(E)
-        XI = self.xi_PDG(E,x) # eV
-        AA = math.log( (2 * C.me * (b*g)**2) / self.mat.I )
-        BB = math.log(XI/self.mat.I)
-        CC = C.j - b**2 - self.delta(E)
-        return XI*(AA+BB+CC) # eV
-
     def gamma(self,E):
         tau  = E/self.m
         # taul = (2.*U.MeV2eV)/C.mp; ## lower limit of Bethe-Bloch formula: 2MeV/proton_mass
@@ -199,15 +140,24 @@ class Parameters:
 
     ### the stopping power in eV/cm given
     ### (1) the production threshold (Tcut) for delta ray, or
-    ### (2) the maximum energy transfer (Tmax), or
-    ### (3) the value directly from GEANT4 which usually corresponds to Tcut from (1)
+    ### (2) the value directly from GEANT4 which usually corresponds to Tcut from (1) but it includes also the Bragg part
     def dEdx(self,E,doScale=True):
         scl = self.scaling(doScale)
         if(self.dedxmod=="BB:Tcut"): return self.BB(E,self.mat.Tc)/scl
-        if(self.dedxmod=="BB:Tmax"): return self.BB(E,self.Wmax(E))/scl
-        if(self.dedxmod=="BB:Tup"):  return self.BB(E,self.Tup(E))/scl
-        if(self.dedxmod=="G4:Tcut"): return self.getG4BBdEdx(E)/scl
+        if(self.dedxmod=="G4:Tcut"): return self.getG4dEdx(E)/scl
         return -999
+
+    ### modify the mean loss in case of "long" steps
+    def modMeanLoss(self,E,x):
+        #TODO: do I need to scale it as in the dEdx function above?
+        meanLoss = x*self.dEdx(E,False)      ### eV original meanLoss without scaling, as is from the dEdx table
+        modLoss  = self.tbl.getMeanLoss(E,x) ### eV modified meanLoss without scaling, corrected for range etc.
+        return meanLoss,modLoss
+
+    def meanLossFactor(self,E,x):
+        #TODO: do I need to scale it as in the dEdx function above?
+        meanLoss,modfLoss = self.modMeanLoss(E,x)
+        return modfLoss/meanLoss if(meanLoss>0) else 1.
 
     ##########################################################################
     ### default Energy Loss Fluctuations model used in main Physics List: https://geant4-userdoc.web.cern.ch/UsersGuides/PhysicsReferenceManual/html/electromagnetic/energy_loss/fluctuations.html#id230
@@ -225,9 +175,9 @@ class Parameters:
     
     ### mean number of interactions/collisions
     def n12_mean(self,E,x,i):
-        return x*self.Sigma12(E,i) ## dimensionless
+        return x*self.Sigma12(E,i)*self.meanLossFactor(E,x) ## dimensionless
     def n3_mean(self,E,x):
-        return x*self.Sigma3(E) ## dimensionless
+        return x*self.Sigma3(E)*self.meanLossFactor(E,x) ## dimensionless
     
     ### there are steps with only 1 or 0 secondaries
     ### TODO
@@ -237,27 +187,23 @@ class Parameters:
         self.fmax = 1+0.5*(self.EkinMax/self.Etot(E))*(self.EkinMax/self.Etot(E)) if(self.spin>0) else 1
         if(self.EkinMin>=self.EkinMax): return False
         return True
-        
     
     ### default Energy Loss Fluctuations model used in main Physics List: https://geant4-userdoc.web.cern.ch/UsersGuides/PhysicsReferenceManual/html/electromagnetic/energy_loss/fluctuations.html#id230
-    def g_of_dE_integral1Tup(self,E):
-        return (self.E0*self.Tup(E)/(self.Tup(E)-self.E0)) * math.log(self.Tup(E)/self.E0) # eV
     def g_of_dE_integral1Tcut(self,E):
         return (self.E0*self.mat.Tc/(self.mat.Tc-self.E0)) * math.log(self.mat.Tc/self.E0) # eV
-    def g_of_dE_integral1Tmax(self,E):
-        return (self.mat.Tc*self.Wmax(E)/(self.Wmax(E)-self.mat.Tc)) * math.log(self.Wmax(E)/self.mat.Tc) # eV
-    def g_of_dE_integral2Tup(self,E):
-        return self.E0*self.Tup(E) # eV^2
     def g_of_dE_integral2Tcut(self,E):
         return self.E0*self.mat.Tc # eV^2
-    def g_of_dE_integral2Tmax(self,E):
-        return self.mat.Tc*self.Wmax(E) # eV^2
     
     def RescaleS1(self,E,x):
         a1 = 0
-        if(self.mat.Tc<=self.E1): return a1,self.E1 ### TODO: Was missing before 9/7/24, but this condition should normally be false...
+        if(self.mat.Tc<=self.E1):
+            return a1,self.E1 ### TODO: Was missing before 9/7/24, but this condition should usually be false anyway...
         S1 = self.Sigma12(E,1)
-        a1 = S1*x ## this is simply <n1>
+        ### modify meanLoss
+        S1 *= self.meanLossFactor(E,x)
+        ### the mean number of collisions <n1>
+        a1 = S1*x
+        ### rescale
         S1new = 0
         E1new = 0
         if(a1<self.a0):
@@ -275,6 +221,11 @@ class Parameters:
         S1 = s1*e1 ## eV/cm
         S2 = self.Sigma12(E,2)*self.E2 ## eV/cm
         S3 = self.Sigma3(E)*self.g_of_dE_integral1Tcut(E) ## eV/cm
+        ### modify meanLoss
+        sf = self.meanLossFactor(E,x)
+        S2 *= sf ## S1 is already scaled
+        S3 *= sf ## S1 is already scaled
+        ### the moment
         M1 = 0
         if("EX1" in proc): M1 += S1 ## eV/cm
         if("EX2" in proc): M1 += S2 ## eV/cm
@@ -287,6 +238,11 @@ class Parameters:
         S1 = s1*(e1**2) ## eV^2/cm
         S2 = self.Sigma12(E,2)*(self.E2**2) ## eV^2/cm
         S3 = self.Sigma3(E)*self.g_of_dE_integral2Tcut(E) ## eV^2/cm
+        ### modify meanLoss
+        sf = self.meanLossFactor(E,x)
+        S2 *= sf ## S1 is already scaled
+        S3 *= sf ## S1 is already scaled
+        ### the moment
         M2 = 0
         if("EX1" in proc): M2 += S1 ## eV^2/cm
         if("EX2" in proc): M2 += S2 ## eV^2/cm
@@ -302,8 +258,8 @@ class Parameters:
 
     ### for thick media the model is Gaussian
     def MeanThick(self,E,x):
-        # return self.correctG4BBmeanLoss(E,x)
-        return x*self.dEdx(E,False)
+        meanLoss,modLoss = self.modMeanLoss(E,x)
+        return modLoss
 
     ### https://geant4.kek.jp/lxr/source/processes/electromagnetic/standard/src/G4UniversalFluctuation.cc#L129
     ### Gaussian sigma for thick media
@@ -317,13 +273,14 @@ class Parameters:
     def GetModelPars(self,E,x):
         point = ("%.2f" % (E*U.eV2MeV))+"MeV_"+("%.7f" % (x*U.cm2um))+"um"
         scl   = self.scaling()
+        meanLoss,modLoss = self.modMeanLoss(E,x)
         pars = {"point":point, "build":"NONE", "scale":scl, "param":{}}
         pars["param"].update({"dx":x})
         pars["param"].update({"E":E})
         pars["param"].update({"primprt":self.primprt})
         pars["param"].update({"minLoss":self.minloss})
-        # pars["param"].update({"meanLoss":x*self.getG4BBdEdx(E)})
-        pars["param"].update({"meanLoss":x*self.dEdx(E,False)}) ## the original meanLoss without scaling
+        pars["param"].update({"meanLoss":meanLoss}) ## the original meanLoss without scaling
+        pars["param"].update({"modLoss":modLoss}) ## the modified meanLoss without scaling
         pars["param"].update({"Tcut":self.mat.Tc}) ## for secondaries
         pars["param"].update({"Tmax":self.Wmax(E)}) ## for secondaries
         pars["param"].update({"Etot":self.Etot(E)}) ## for secondaries
@@ -362,7 +319,8 @@ class Parameters:
         ######################
         ### Tiny loss models.
         ### note that (1) meanLoss is without scaling, and (2) Tcut should not be smaller than E0(=10 eV)
-        if(pars["param"]["meanLoss"]<self.minloss or self.mat.Tc<=self.E0):
+        # if(pars["param"]["meanLoss"]<self.minloss or self.mat.Tc<=self.E0):
+        if(pars["param"]["modLoss"]<self.minloss or self.mat.Tc<=self.E0):
             pars["build"] = "BEBL"
             BEBL = True
             ######################

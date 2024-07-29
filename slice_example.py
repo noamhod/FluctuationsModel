@@ -47,7 +47,7 @@ ROOT.gStyle.SetPadRightMargin(0.15)
 dEdxModel  = "G4:Tcut" # or "BB:Tcut"
 TargetMat  = mat.Si # or e.g. mat.Al
 PrimaryPrt = prt.Particle(name="proton",meV=938.27208816*U.MeV2eV,mamu=1.007276466621,chrg=+1.,spin=0.5,lepn=0,magm=2.79284734463)
-par        = flct.Parameters(PrimaryPrt,TargetMat,dEdxModel,"inputs/eloss_p_si.txt","inputs/BB.csv")
+par        = flct.Parameters(PrimaryPrt,TargetMat,dEdxModel,"inputs/dEdx_p_si.txt")
 modelpars  = par.GetModelPars(EE*U.MeV2eV,LL*U.um2cm)
 print(modelpars)
 
@@ -237,7 +237,7 @@ for b in range(1,hBB_Tcut.GetNbinsX()+1):
     E = hBB_Tcut.GetBinCenter(b)*U.MeV2eV
     dEdx_Tcut = par.BB(E,par.mat.Tc) * (U.eV2MeV/U.cm2um)
     dEdx_Tmax = par.BB(E,par.Wmax(E)) * (U.eV2MeV/U.cm2um)
-    dEdx_G4   = par.getG4BBdEdx(E) * (U.eV2MeV/U.cm2um)
+    dEdx_G4   = par.getG4dEdx(E) * (U.eV2MeV/U.cm2um)
     hBB_Tcut.SetBinContent(b,dEdx_Tcut)
     hBB_Tmax.SetBinContent(b,dEdx_Tmax)
     hBB_G4.SetBinContent(b,dEdx_G4)
