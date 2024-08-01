@@ -240,6 +240,32 @@ if __name__ == "__main__":
     histos = {}
     hist.book(histos)
     
+    arrE_mid = np.zeros( histos["SMALL_hdL_vs_E"].GetNbinsX() )
+    arrE_min = np.zeros( histos["SMALL_hdL_vs_E"].GetNbinsX() )
+    arrE_max = np.zeros( histos["SMALL_hdL_vs_E"].GetNbinsX() )
+    for ie in range(1,histos["SMALL_hdL_vs_E"].GetNbinsX()+1):
+        EE   = histos["SMALL_hdL_vs_E"].GetXaxis().GetBinCenter(ie)
+        Emin = histos["SMALL_hdL_vs_E"].GetXaxis().GetBinLowEdge(ie)
+        Emax = histos["SMALL_hdL_vs_E"].GetXaxis().GetBinUpEdge(ie)
+        arrE_mid[ie-1] = EE
+        arrE_min[ie-1] = Emin
+        arrE_max[ie-1] = Emax
+    arrdL_mid = np.zeros( histos["SMALL_hdL_vs_E"].GetNbinsY() )
+    arrdL_min = np.zeros( histos["SMALL_hdL_vs_E"].GetNbinsY() )
+    arrdL_max = np.zeros( histos["SMALL_hdL_vs_E"].GetNbinsY() )
+    for il in range(1,histos["SMALL_hdL_vs_E"].GetNbinsY()+1):
+        LL    = histos["SMALL_hdL_vs_E"].GetYaxis().GetBinCenter(il)
+        dLmin = histos["SMALL_hdL_vs_E"].GetYaxis().GetBinLowEdge(il)
+        dLmax = histos["SMALL_hdL_vs_E"].GetYaxis().GetBinUpEdge(il)
+        arrdL_mid[il-1] = LL
+        arrdL_min[il-1] = dLmin
+        arrdL_max[il-1] = dLmax
+    slice_arrays = {"arrE":arrE_mid,"arrE_min":arrE_min,"arrE_max":arrE_max, "arrdL":arrdL_mid,"arrdL_min":arrdL_min,"arrdL_max":arrdL_max}
+    fpkl = open("scan_example.pkl","wb")
+    pickle.dump(slice_arrays, fpkl, protocol=pickle.HIGHEST_PROTOCOL) ### dump to pickle
+    fpkl.close()
+    
+    
     ###################################
     ### get the parameters of the model
     dEdxModel  = "G4:Tcut" # or "BB:Tcut"
