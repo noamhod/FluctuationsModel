@@ -14,6 +14,7 @@ import fluctuations as flct
 import hist
 import model
 import multiprocessing as mp
+import pickle
 
 
 import argparse
@@ -74,7 +75,15 @@ def add_slice_shapes(E,L,pars,N,label):
     # Mod.set_fft_sampling_pars(N_t_bins=10000000,frac=0.01)
     Mod.set_fft_sampling_pars_rotem(N_t_bins=10000000,frac=0.01)
     Mod.set_all_shapes()
-    local_shapes = {label:{"cnt_pdf":Mod.cnt_pdfs_scaled["hModel"], "cnt_pdf_all":Mod.cnt_pdfs_scaled, "sec_pdf":Mod.sec_pdfs["hBorysov_Sec"], "cnt_cdf":Mod.cnt_cdfs_scaled["hModel"], "sec_cdf":Mod.sec_cdfs["hBorysov_Sec"]}}
+    local_shapes = {label:{"cnt_pdf":Mod.cnt_pdfs_scaled["hModel"],
+                           "cnt_pdf_all":Mod.cnt_pdfs_scaled,
+                           "sec_pdf":Mod.sec_pdfs["hBorysov_Sec"],
+                           "cnt_cdf":Mod.cnt_cdfs_scaled["hModel"],
+                           "sec_cdf":Mod.sec_cdfs["hBorysov_Sec"],
+                           "cnt_cdf_arrx":Mod.cnt_cdfs_scaled_arrx,
+                           "cnt_cdf_arrsy":Mod.cnt_cdfs_scaled_arrsy,
+                           "sec_cdf_arrx":Mod.sec_cdfs_arrx,
+                           "sec_cdf_arrsy":Mod.sec_cdfs_arrsy}}
     end = time.time()
     elapsed = end-start
     print(f"Finished slice: {label} with {int(N):,} steps, at (E,dL)=({E*U.eV2MeV:.3f} MeV,{L*U.cm2um:.6f} um), model shapes obtained within {elapsed:.2f} [s]")
@@ -89,14 +98,15 @@ def collect_shapes(local_shapes):
     ### https://www.machinelearningplus.com/python/parallel-processing-python/
     global shapes ### defined above!!!
     for label,shape in local_shapes.items(): ### there should be just one item here
-        for name,hist in shape.items():
-            if(hist is None): continue
-
-            if(name=="cnt_pdf_all"):
-                for componentname,componenthist in local_shapes[label][name].items():
-                    shapes[label][name].update({componentname : componenthist.Clone(label+"_"+componentname) })
+        for name,obj in shape.items():
+            if(obj is None): continue
+            if("arr" in name): shapes[label][name] = obj
             else:
-                shapes[label][name] = hist.Clone(label+"_"+name)
+                if(name=="cnt_pdf_all"):
+                    for componentname,componenthist in local_shapes[label][name].items():
+                        shapes[label][name].update({componentname : componenthist.Clone(label+"_"+componentname) })
+                else:
+                    shapes[label][name] = obj.Clone(label+"_"+name)
 
         
 
@@ -104,7 +114,7 @@ def collect_shapes(local_shapes):
 ##############################################################
 ##############################################################
 ### functions for the submission of plotting of png's
-def save_slice(slices,shapes,builds,label,E,L,NrawSteps,count):
+def save_slice(slices,shapes,builds,label,E,L,P,NrawSteps,count):
     if(parallelize): 
         lock = mp.Lock()
         lock.acquire()
@@ -121,7 +131,9 @@ def save_slice(slices,shapes,builds,label,E,L,NrawSteps,count):
     ############################
     ### ROOT file for the output
     tfname = f"{rootpath}/rootslice_{label}.root"
+    pklname = f"{rootpath}/rootslice_{label}.pkl"
     tf = ROOT.TFile(tfname,"RECREATE")
+    fpkl = open(pklname,"wb")
     tf.cd()
     ############################
     
@@ -173,6 +185,20 @@ def save_slice(slices,shapes,builds,label,E,L,NrawSteps,count):
     # tree.Write()
     tf.Write()
     tf.Close()
+    
+    ### write the sapes to the pickle file
+    data = { "Label":label,
+             "Slice_E_min":slices["hE_"+label].GetXaxis().GetXmin(),
+             "Slice_E_max":slices["hE_"+label].GetXaxis().GetXmax(),
+             "Slice_dL_min":slices["hdL_"+label].GetXaxis().GetXmin(),
+             "Slice_dL_max":slices["hdL_"+label].GetXaxis().GetXmax(),
+             "Pars":P,
+             "cnt_cdf_arrx":shapes[label]["cnt_cdf_arrx"],
+             "cnt_cdf_arrsy":shapes[label]["cnt_cdf_arrsy"],
+             "sec_cdf_arrx":shapes[label]["sec_cdf_arrx"],
+             "sec_cdf_arrsy":shapes[label]["sec_cdf_arrsy"] }
+    pickle.dump(data, fpkl, protocol=pickle.HIGHEST_PROTOCOL) ### dump to pickle
+    fpkl.close()
     
     end = time.time()
     elapsed = end-start
@@ -491,12 +517,13 @@ if __name__ == "__main__":
         for il in range(1,histos["SMALL_hdL_vs_E"].GetNbinsY()+1):
             ### get the slice parameters
             label, E, L, NrawSteps = get_slice(ie,il)
+            P = par.GetModelPars(E,L)
             ### skip if too few entries
             if(NrawSteps<NrawStepsIgnore): continue
             if(parallelize):
-                pool.apply_async(save_slice, args=(slices,shapes,builds,label,E,L,NrawSteps,count), error_callback=collect_errors)
+                pool.apply_async(save_slice, args=(slices,shapes,builds,label,E,L,P,NrawSteps,count), error_callback=collect_errors)
             else:
-                save_slice(slices,shapes,builds,label,E,L,NrawSteps,count)
+                save_slice(slices,shapes,builds,label,E,L,P,NrawSteps,count)
             count += 1
     ######################################
     ### Wait for all the workers to finish
