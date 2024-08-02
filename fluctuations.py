@@ -168,8 +168,8 @@ class Parameters:
 
     def gamma(self,E):
         tau  = E/self.m
-        taul = (2.*U.MeV2eV)/C.mp; ## lower limit of Bethe-Bloch formula: 2MeV/proton_mass
-        if(tau<taul): tau = taul ## It is not normal case for this function for low energy parametrisation have to be applied
+        # taul = (2.*U.MeV2eV)/C.mp; ## lower limit of Bethe-Bloch formula: 2MeV/proton_mass
+        # if(tau<taul): tau = taul ## It is not normal case for this function for low energy parametrisation have to be applied
         return tau+1. #(E + self.m)/self.m ## both in eV
     
     def beta(self,E):
