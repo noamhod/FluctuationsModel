@@ -23,9 +23,10 @@ class Parameters:
         self.primprt = primprt
         self.mat     = material
         self.dedxmod = dedxmodel
-        if(self.dedxmod!="BB:Tcut" and self.dedxmod!="G4:Tcut"):
-            print(f"Unknown model named {self.dedxmod}. Quitting")
-            quit()
+        # if(self.dedxmod!="BB:Tcut" and self.dedxmod!="G4:Tcut"):
+        #     print(f"Unknown model named {self.dedxmod}. Quitting")
+        #     quit()
+        assert self.dedxmod in ["BB:Tcut","BB:Tmax","G4:Tcut"], f"Unknown model named {self.dedxmod}. Quitting"
         print(f"Using dE/dx model: {self.dedxmod}")
         self.tbl     = tab.Tables(dEdx_table_file)
         
