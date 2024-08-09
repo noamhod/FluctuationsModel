@@ -265,7 +265,7 @@ for ie in range(1,href.GetNbinsX()+1):
         L     = href.GetYaxis().GetBinCenter(il) ## already in um
 
         ### get the rootfile
-        tf = ROOT.TFile.Open(f"{rootpath}/rootslice_{label}.root","READ")
+        tf = ROOT.TFile.Open(f"{rootpath}/slice_{label}.root","READ")
         build = tf.Get("build").GetTitle()
 
         ### get the histos from the file

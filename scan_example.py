@@ -48,6 +48,7 @@ slices = {}
 ################################
 ### the of all slices
 rootpath = "/Users/noamtalhod/tmp/root"
+pklpath  = "/Users/noamtalhod/tmp/pkl"
 
 
 ##############################################################
@@ -130,8 +131,8 @@ def save_slice(slices,shapes,builds,label,E,L,P,NrawSteps,count):
     
     ############################
     ### ROOT file for the output
-    tfname = f"{rootpath}/rootslice_{label}.root"
-    pklname = f"{rootpath}/rootslice_{label}.pkl"
+    tfname = f"{rootpath}/slice_{label}.root"
+    pklname = f"{pklpath}/slice_{label}.pkl"
     tf = ROOT.TFile(tfname,"RECREATE")
     fpkl = open(pklname,"wb")
     tf.cd()
@@ -485,6 +486,8 @@ if __name__ == "__main__":
     print("\nClean temp png's and temp png path...")
     ROOT.gSystem.Exec(f"/bin/rm -rf {rootpath}") ## remove old files
     ROOT.gSystem.Exec(f"/bin/mkdir -p {rootpath}")
+    ROOT.gSystem.Exec(f"/bin/rm -rf {pklpath}") ## remove old files
+    ROOT.gSystem.Exec(f"/bin/mkdir -p {pklpath}")
     
     ################################################
     ### initialize the shapes of all relevant slices
