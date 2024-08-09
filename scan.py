@@ -36,7 +36,7 @@ shapes = {}
 
 ################################
 ### the of all pickle files
-scanpath = "/Users/noamtalhod/tmp/pkl"
+pklpath = "/Users/noamtalhod/tmp/pkl"
 
 
 ##############################################################
@@ -99,7 +99,7 @@ def save_slice(shapes,builds,label,E,L,P,slice_edges):
     
     ############################
     ### output files
-    pklname = f"{scanpath}/slice_{label}.pkl"
+    pklname = f"{pklpath}/slice_{label}.pkl"
     fpkl = open(pklname,"wb")
     ############################
 
@@ -177,7 +177,7 @@ if __name__ == "__main__":
     ######################################
     ### claen the scan path from old files
     print("\nClean scan path...")
-    ROOT.gSystem.Exec(f"/bin/mkdir -p {scanpath}")
+    ROOT.gSystem.Exec(f"/bin/mkdir -p {pklpath}")
     
     ################################################
     ### initialize the shapes of all relevant slices
