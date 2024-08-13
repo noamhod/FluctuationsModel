@@ -144,7 +144,9 @@ def hlin_truncate_negative(h,x0=1e-6):
     hnew.SetLineWidth(h.GetLineWidth())
     hnew.SetLineStyle(h.GetLineStyle())
     return hnew
-    
+
+def book_minimal(histos,emin=-1): ### must pass by reference!
+    histos.update({"SMALL_hdL_vs_E" : ROOT.TH2D("SMALL_h_dL_vs_E",";E [MeV];#DeltaL [#mum];Steps", len(bins.Ebins_small)-1,array.array("d",bins.Ebins_small), len(bins.dLbins_small)-1,array.array("d",bins.dLbins_small))})    
 
 def book(histos,emin=-1): ### must pass by reference!
     if(emin>0): bins.Emin = emin

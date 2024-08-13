@@ -509,7 +509,7 @@ if __name__ == "__main__":
     nCPUs = mp.cpu_count() if(parallelize) else 0
     print("nCPUs available:",nCPUs)
     ### Create a pool of workers
-    pool = mp.Pool(nCPUs) if(parallelize) else None
+    pool = mp.Pool(processes=nCPUs,maxtasksperchild=10) if(parallelize) else None
     builds = {}
     for label,shape in shapes.items():
         E = shape["E"]

@@ -16,6 +16,8 @@ import model
 import multiprocessing as mp
 import pickle
 
+import tracemalloc
+
 ROOT.gErrorIgnoreLevel = ROOT.kError
 # ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
@@ -29,10 +31,6 @@ ROOT.gStyle.SetPadRightMargin(0.15)
 
 ### model shapes defined later as global
 parallelize = True
-
-#####################################
-### model histos (only relevant ones)
-shapes = {}
 
 ################################
 ### the of all pickle files
@@ -52,51 +50,26 @@ def get_slice(ie,il,hgrid):
     L           = hgrid.GetYaxis().GetBinCenter(il)*U.um2cm  # cm
     return label, E, L
 
-def add_slice_shapes(E,L,pars,label):
+def get_edges(ie,il,hgrid):
+    Emin        = hgrid.GetXaxis().GetBinLowEdge(ie)
+    Emax        = hgrid.GetXaxis().GetBinUpEdge(ie)
+    Lmin        = hgrid.GetYaxis().GetBinLowEdge(il)
+    Lmax        = hgrid.GetYaxis().GetBinUpEdge(il)
+    slice_edges = {"E":[Emin,Emax], "L":[Lmin,Lmax]}
+    return slice_edges
+
+def get_slice_shapes(E,L,P,label,slice_edges):
     if(parallelize): 
         lock = mp.Lock()
         lock.acquire()
-    start = time.time()
-    Mod = model.Model(L,E,pars)
+    start1 = time.time()
+    Mod = model.Model(L,E,P)
     Mod.set_fft_sampling_pars_rotem(N_t_bins=10000000,frac=0.01)
     Mod.set_all_shapes()
-    local_shapes = {label:{"cnt_cdf_arrx":Mod.cnt_cdfs_scaled_arrx,
-                           "cnt_cdf_arrsy":Mod.cnt_cdfs_scaled_arrsy,
-                           "sec_cdf_arrx":Mod.sec_cdfs_arrx,
-                           "sec_cdf_arrsy":Mod.sec_cdfs_arrsy}}
-    end = time.time()
-    elapsed = end-start
-    print(f"Finished slice: {label} at (E,dL)=({E*U.eV2MeV:.3f} MeV,{L*U.cm2um:.6f} um), model shapes obtained within {elapsed:.2f} [s]")
-    if(parallelize): lock.release()
-    return local_shapes
-
-def collect_errors(error):
-    ### https://superfastpython.com/multiprocessing-pool-error-callback-functions-in-python/
-    print(f'Error: {error}', flush=True)
-
-def collect_shapes(local_shapes):
-    ### https://www.machinelearningplus.com/python/parallel-processing-python/
-    global shapes ### defined above!!!
-    for label,shape in local_shapes.items(): ### there should be just one item here
-        for name,obj in shape.items():
-            if(obj is None): continue
-            if("arr" in name): shapes[label][name] = obj
-            else:
-                print("only dealing with arrays. quitting.")
-                quit()
-
-        
-
-##############################################################
-##############################################################
-##############################################################
-### functions for the submission of plotting of png's
-def save_slice(shapes,builds,label,E,L,P,slice_edges):
-    if(parallelize): 
-        lock = mp.Lock()
-        lock.acquire()
-    start = time.time()
+    end1 = time.time()
+    elapsed1 = end1-start1
     
+    start2 = time.time()
     ############################
     ### output files
     pklname = f"{pklpath}/slice_{label}.pkl"
@@ -110,28 +83,36 @@ def save_slice(shapes,builds,label,E,L,P,slice_edges):
              "Slice_dL_min":slice_edges["L"][0],
              "Slice_dL_max":slice_edges["L"][1],
              "Pars":P,
-             "cnt_cdf_arrx":shapes[label]["cnt_cdf_arrx"],
-             "cnt_cdf_arrsy":shapes[label]["cnt_cdf_arrsy"],
-             "sec_cdf_arrx":shapes[label]["sec_cdf_arrx"],
-             "sec_cdf_arrsy":shapes[label]["sec_cdf_arrsy"] }
+             "cnt_cdf_arrx":Mod.cnt_cdfs_scaled_arrx,
+             "cnt_cdf_arrsy":Mod.cnt_cdfs_scaled_arrsy,
+             "sec_cdf_arrx":Mod.sec_cdfs_arrx,
+             "sec_cdf_arrsy":Mod.sec_cdfs_arrsy }
     pickle.dump(data, fpkl, protocol=pickle.HIGHEST_PROTOCOL) ### dump to pickle
     fpkl.close()
+    end2 = time.time()
+    elapsed2 = end2-start2
     
-    end = time.time()
-    elapsed = end-start
-    print(f"Finished getting slice: {label} with build {builds[label]} within {elapsed:.2f} [s]")
+    ### clean up the model class 
+    ### for reasonable memory usage
+    del Mod
+    
+    print(f"Finished slice: {label} at (E,dL)=({E*U.eV2MeV:.3f} MeV,{L*U.cm2um:.6f} um), model obtained within {elapsed1:.2f} [s] and saved in {elapsed2:.2f} [s]")
     if(parallelize): lock.release()
-    
 
+def collect_errors(error):
+    ### https://superfastpython.com/multiprocessing-pool-error-callback-functions-in-python/
+    print(f'Error: {error}', flush=True)
 
 def save_grid(h2D):
     arrE_mid = np.zeros( h2D.GetNbinsX() )
     arrE_min = np.zeros( h2D.GetNbinsX() )
     arrE_max = np.zeros( h2D.GetNbinsX() )
+    xaxis = h2D.GetXaxis()
+    yaxis = h2D.GetYaxis()
     for ie in range(1,h2D.GetNbinsX()+1):
-        EE   =h2D.GetXaxis().GetBinCenter(ie)
-        Emin =h2D.GetXaxis().GetBinLowEdge(ie)
-        Emax =h2D.GetXaxis().GetBinUpEdge(ie)
+        EE   = xaxis.GetBinCenter(ie)
+        Emin = xaxis.GetBinLowEdge(ie)
+        Emax = xaxis.GetBinUpEdge(ie)
         arrE_mid[ie-1] = EE
         arrE_min[ie-1] = Emin
         arrE_max[ie-1] = Emax
@@ -139,9 +120,9 @@ def save_grid(h2D):
     arrdL_min = np.zeros( h2D.GetNbinsY() )
     arrdL_max = np.zeros( h2D.GetNbinsY() )
     for il in range(1,h2D.GetNbinsY()+1):
-        LL    = h2D.GetYaxis().GetBinCenter(il)
-        dLmin = h2D.GetYaxis().GetBinLowEdge(il)
-        dLmax = h2D.GetYaxis().GetBinUpEdge(il)
+        LL    = yaxis.GetBinCenter(il)
+        dLmin = yaxis.GetBinLowEdge(il)
+        dLmax = yaxis.GetBinUpEdge(il)
         arrdL_mid[il-1] = LL
         arrdL_min[il-1] = dLmin
         arrdL_max[il-1] = dLmax
@@ -158,10 +139,14 @@ def save_grid(h2D):
 
 
 if __name__ == "__main__":
+    
+    tracemalloc.start()
+    
     ###################
     ### general histos:
     histos = {}
-    hist.book(histos) ### only relevant for getting the SMALL_hdL_vs_E hist
+    # hist.book(histos)
+    hist.book_minimal(histos) ### only relevant for getting the SMALL_hdL_vs_E hist
     
     ###################
     ### write the grid:
@@ -177,67 +162,38 @@ if __name__ == "__main__":
     ######################################
     ### claen the scan path from old files
     print("\nClean scan path...")
+    ROOT.gSystem.Exec(f"/bin/rm -rf {pklpath}") ## remove old files
     ROOT.gSystem.Exec(f"/bin/mkdir -p {pklpath}")
     
     ################################################
     ### initialize the shapes of all relevant slices
-    print(f"\nBook shapes...")
-    for ie in range(1,histos["SMALL_hdL_vs_E"].GetNbinsX()+1):
-        for il in range(1,histos["SMALL_hdL_vs_E"].GetNbinsY()+1):
-            ### get the slice parameters
-            label, E, L = get_slice(ie,il,histos["SMALL_hdL_vs_E"])
-            ### init the relevant model shapes
-            shapes.update( {label : {"E":E, "L":L} } )
-
-    #############################################
-    ### collect the shapes of all relevant slices
     print("\nSubmit the model jobs...")
     nCPUs = mp.cpu_count() if(parallelize) else 0
     print("nCPUs available:",nCPUs)
     ### Create a pool of workers
-    pool = mp.Pool(nCPUs) if(parallelize) else None
-    builds = {}
-    for label,shape in shapes.items():
-        E = shape["E"]
-        L = shape["L"]
-        P = par.GetModelPars(E,L)
-        builds.update({label:P["build"]})
-        print(f'Sending job: label={label}, build={P["build"]}, E={E*U.eV2MeV} MeV, L={L*U.cm2um} um')
-        ########################
-        ### send the job
-        if(parallelize):
-            pool.apply_async(add_slice_shapes, args=(E,L,P,label), callback=collect_shapes, error_callback=collect_errors)
-        else:
-            local_shapes = add_slice_shapes(E,L,P,label)
-            collect_shapes(local_shapes)        
-    ######################################
-    ### Wait for all the workers to finish
-    if(parallelize): 
-        pool.close()
-        pool.join()
-
-    ###################
-    ### save all slices
-    print(f"\nSaving slices...")
-    parallelize = False
-    pool = mp.Pool(nCPUs) if(parallelize) else None
+    pool = mp.Pool(processes=nCPUs,maxtasksperchild=10) if(parallelize) else None
     for ie in range(1,histos["SMALL_hdL_vs_E"].GetNbinsX()+1):
         for il in range(1,histos["SMALL_hdL_vs_E"].GetNbinsY()+1):
             ### get the slice parameters
             label, E, L = get_slice(ie,il,histos["SMALL_hdL_vs_E"])
-            Emin        = histos["SMALL_hdL_vs_E"].GetXaxis().GetBinLowEdge(ie)
-            Emax        = histos["SMALL_hdL_vs_E"].GetXaxis().GetBinUpEdge(ie)
-            Lmin        = histos["SMALL_hdL_vs_E"].GetYaxis().GetBinLowEdge(il)
-            Lmax        = histos["SMALL_hdL_vs_E"].GetYaxis().GetBinUpEdge(il)
-            slice_edges = {"E":[Emin,Emax], "L":[Lmin,Lmax]}
+            slice_edges = get_edges(ie,il,histos["SMALL_hdL_vs_E"])
             P           = par.GetModelPars(E,L)
+            print(f'Sending job: label={label}, build={P["build"]}, E={E*U.eV2MeV} MeV, L={L*U.cm2um} um')
+            ########################
             ### send the job
             if(parallelize):
-                pool.apply_async(save_slice, args=(shapes,builds,label,E,L,P,slice_edges), error_callback=collect_errors)
+                pool.apply_async(get_slice_shapes, args=(E,L,P,label,slice_edges), error_callback=collect_errors)
             else:
-                save_slice(shapes,builds,label,E,L,P,slice_edges)
+                get_slice_shapes(E,L,P,label,slice_edges)
     ######################################
     ### Wait for all the workers to finish
     if(parallelize): 
         pool.close()
         pool.join()
+    
+    ######################################
+    snapshot = tracemalloc.take_snapshot()
+    top_stats = snapshot.statistics('lineno')
+    print("[ Top 10 ]")
+    for stat in top_stats[:10]:
+        print(stat)
