@@ -1,3 +1,4 @@
+import gc
 import time
 import pickle
 import math
@@ -16,12 +17,12 @@ import model
 import multiprocessing as mp
 import pickle
 
-
 import argparse
-parser = argparse.ArgumentParser(description='scan_example.py...')
-parser.add_argument('-N', metavar='N steps to process if less than all, for all put 0', required=True,  help='N steps to process if les than all, for all put 0')
-argus = parser.parse_args()
-NN = int(argus.N)
+
+# parser = argparse.ArgumentParser(description='scan_example.py...')
+# parser.add_argument('-N', metavar='N steps to process if less than all, for all put 0', required=True,  help='N steps to process if les than all, for all put 0')
+# argus = parser.parse_args()
+NN = 0#int(argus.N)
 
 ROOT.gErrorIgnoreLevel = ROOT.kError
 # ROOT.gErrorIgnoreLevel = ROOT.kWarning
@@ -35,7 +36,7 @@ ROOT.gStyle.SetPadRightMargin(0.15)
 
 
 ### model shapes defined later as global
-parallelize = True
+parallelize = False
 
 #####################################
 ### model histos (only relevant ones)
@@ -47,7 +48,7 @@ slices = {}
 
 ################################
 ### the of all slices
-rootpath = "/Users/noamtalhod/tmp/root"
+rootpath = "./output"
 
 
 ##############################################################
@@ -73,7 +74,7 @@ def add_slice_shapes(E,L,pars,N,label):
     start = time.time()
     Mod = model.Model(L,E,pars)
     # Mod.set_fft_sampling_pars(N_t_bins=10000000,frac=0.01)
-    Mod.set_fft_sampling_pars_rotem(N_t_bins=10000000,frac=0.01)
+    Mod.set_fft_sampling_pars_rotem(N_t_bins=10_000_000,frac=0.01)
     Mod.set_all_shapes()
     local_shapes = {label:{"cnt_pdf":Mod.cnt_pdfs_scaled["hModel"],
                            "cnt_pdf_all":Mod.cnt_pdfs_scaled,
@@ -88,6 +89,8 @@ def add_slice_shapes(E,L,pars,N,label):
     elapsed = end-start
     print(f"Finished slice: {label} with {int(N):,} steps, at (E,dL)=({E*U.eV2MeV:.3f} MeV,{L*U.cm2um:.6f} um), model shapes obtained within {elapsed:.2f} [s]")
     if(parallelize): lock.release()
+    del Mod
+    gc.collect()
     return local_shapes
 
 def collect_errors(error):
@@ -216,23 +219,25 @@ def save_slice(slices,shapes,builds,label,E,L,P,NrawSteps,count):
 if __name__ == "__main__":
     # open a file, where you stored the pickled data
     # fileY = open('data/with_secondaries/step_info_df_no_msc.pkl', 'rb')
-    fileY = open('data/steps_info_18_07_2024.pkl', 'rb')
-    # dump information to that file
-    Y = pickle.load(fileY)
-    # close the file
-    fileY.close()
-    df = pd.DataFrame(Y)
-    # print(df)
-    arr_dx     = df['dX'].to_numpy()
-    arr_dy     = df['dY'].to_numpy()
-    arr_dz     = df['dZ'].to_numpy()
-    arr_dEcnt  = df['ContinuousLoss'].to_numpy()
-    arr_dEtot  = df['TotalEnergyLoss'].to_numpy()
-    arr_E      = df['KineticEnergy'].to_numpy()
-    arr_dR     = df['dR'].to_numpy()
-    arr_dL     = df['dL'].to_numpy()
-    arr_dTheta = df['dTheta'].to_numpy()
-    arr_dPhi   = df['dPhi'].to_numpy()
+    use_data = False
+    if use_data:
+        fileY = open('data/steps_info_18_07_2024.pkl', 'rb')
+        # dump information to that file
+        Y = pickle.load(fileY)
+        # close the file
+        fileY.close()
+        df = pd.DataFrame(Y)
+        # print(df)
+        arr_dx     = df['dX'].to_numpy()
+        arr_dy     = df['dY'].to_numpy()
+        arr_dz     = df['dZ'].to_numpy()
+        arr_dEcnt  = df['ContinuousLoss'].to_numpy()
+        arr_dEtot  = df['TotalEnergyLoss'].to_numpy()
+        arr_E      = df['KineticEnergy'].to_numpy()
+        arr_dR     = df['dR'].to_numpy()
+        arr_dL     = df['dL'].to_numpy()
+        arr_dTheta = df['dTheta'].to_numpy()
+        arr_dPhi   = df['dPhi'].to_numpy()
 
 
     ###################
@@ -299,58 +304,59 @@ if __name__ == "__main__":
             slices.update({"hdEsec_"+label: ROOT.TH1D("hdEsec_"+label,label+";#DeltaE [eV];Steps", Mod.NbinsSec,Mod.dEminSec,Mod.dEmaxSec)})
                 
 
-    #######################################
-    ### Run the MC data and fill the histos
-    print("\nStart the loop over GEANT4 data...")    
-    for n in range(len(arr_dx)):
-        dx     = arr_dx[n]*U.m2um
-        dxinv  = 1/dx if(dx>0) else -999
-        dy     = arr_dy[n]*U.m2um
-        dz     = arr_dz[n]*U.m2um
-        dEcnt  = arr_dEcnt[n]*U.eV2MeV
-        dEtot  = arr_dEtot[n]*U.eV2MeV
-        dEsec  = dEtot - dEcnt
-        dE     = dEtot
-        E      = arr_E[n]*U.eV2MeV
-        dR     = arr_dR[n]*U.m2um
-        dRinv = 1/dR if(dR>0) else -999 ## this happens for the primary particles...
-        dL     = arr_dL[n]*U.m2um
-        dTheta = arr_dTheta[n]
-        dPhi   = arr_dPhi[n]
-    
-        ################
-        ### valideations
-        if(E>=bins.Emax):   continue ## skip the primary particles
-        if(E<bins.Emin):    continue ## skip the low energy particles
-        if(dx>=bins.dxmax): continue ## skip
-        if(dx<bins.dxmin):  continue ## skip
-        
-        histos["hE"].Fill(E)
-        histos["hdE"].Fill(dE)
-        histos["hdx"].Fill(dx)
-        if(dx>0): histos["hdxinv"].Fill(dxinv)
-        histos["hdR"].Fill(dR)
-        histos["hdL"].Fill(dL)
-        histos["hdRinv"].Fill(dRinv)
-        if(dx>0): histos["hdEdx"].Fill(dE/dx)
-        if(dx>0): histos["hdEdx_vs_E"].Fill(E,dE/dx)
-        histos["hdE_vs_dx"].Fill(dx,dE)
-        if(dx>0): histos["hdE_vs_dxinv"].Fill(dxinv,dE)
-        histos["hdx_vs_E"].Fill(E,dx)
-        if(dx>0): histos["hdxinv_vs_E"].Fill(E,dxinv)
-        histos["hdL_vs_E"].Fill(E,dL)
-        histos["SMALL_hdL_vs_E"].Fill(E,dL)
-        
-        ie = histos["SMALL_hdL_vs_E"].GetXaxis().FindBin(E)
-        il = histos["SMALL_hdL_vs_E"].GetYaxis().FindBin(dx)
-        label = "E"+str(ie)+"_dL"+str(il)
-        slices["hdEcnt_"+label].Fill(dEcnt*U.MeV2eV)
-        slices["hdEsec_"+label].Fill(dEsec*U.MeV2eV)
-        slices["hE_"+label].Fill(E)
-        slices["hdL_"+label].Fill(dL)
-    
-        if(n%1000000==0 and n>0): print("processed: ",n)
-        if(n>NN and NN>0): break
+    if use_data:
+        #######################################
+        ### Run the MC data and fill the histos
+        print("\nStart the loop over GEANT4 data...")
+        for n in range(len(arr_dx)):
+            dx     = arr_dx[n]*U.m2um
+            dxinv  = 1/dx if(dx>0) else -999
+            dy     = arr_dy[n]*U.m2um
+            dz     = arr_dz[n]*U.m2um
+            dEcnt  = arr_dEcnt[n]*U.eV2MeV
+            dEtot  = arr_dEtot[n]*U.eV2MeV
+            dEsec  = dEtot - dEcnt
+            dE     = dEtot
+            E      = arr_E[n]*U.eV2MeV
+            dR     = arr_dR[n]*U.m2um
+            dRinv = 1/dR if(dR>0) else -999 ## this happens for the primary particles...
+            dL     = arr_dL[n]*U.m2um
+            dTheta = arr_dTheta[n]
+            dPhi   = arr_dPhi[n]
+
+            ################
+            ### valideations
+            if(E>=bins.Emax):   continue ## skip the primary particles
+            if(E<bins.Emin):    continue ## skip the low energy particles
+            if(dx>=bins.dxmax): continue ## skip
+            if(dx<bins.dxmin):  continue ## skip
+
+            histos["hE"].Fill(E)
+            histos["hdE"].Fill(dE)
+            histos["hdx"].Fill(dx)
+            if(dx>0): histos["hdxinv"].Fill(dxinv)
+            histos["hdR"].Fill(dR)
+            histos["hdL"].Fill(dL)
+            histos["hdRinv"].Fill(dRinv)
+            if(dx>0): histos["hdEdx"].Fill(dE/dx)
+            if(dx>0): histos["hdEdx_vs_E"].Fill(E,dE/dx)
+            histos["hdE_vs_dx"].Fill(dx,dE)
+            if(dx>0): histos["hdE_vs_dxinv"].Fill(dxinv,dE)
+            histos["hdx_vs_E"].Fill(E,dx)
+            if(dx>0): histos["hdxinv_vs_E"].Fill(E,dxinv)
+            histos["hdL_vs_E"].Fill(E,dL)
+            histos["SMALL_hdL_vs_E"].Fill(E,dL)
+
+            ie = histos["SMALL_hdL_vs_E"].GetXaxis().FindBin(E)
+            il = histos["SMALL_hdL_vs_E"].GetYaxis().FindBin(dx)
+            label = "E"+str(ie)+"_dL"+str(il)
+            slices["hdEcnt_"+label].Fill(dEcnt*U.MeV2eV)
+            slices["hdEsec_"+label].Fill(dEsec*U.MeV2eV)
+            slices["hE_"+label].Fill(E)
+            slices["hdL_"+label].Fill(dL)
+
+            if(n%1000000==0 and n>0): print("processed: ",n)
+            if(n>NN and NN>0): break
     
 
     ##########################################################
@@ -521,7 +527,8 @@ if __name__ == "__main__":
             pool.apply_async(add_slice_shapes, args=(E,L,P,N,label), callback=collect_shapes, error_callback=collect_errors)
         else:
             local_shapes = add_slice_shapes(E,L,P,N,label)
-            collect_shapes(local_shapes)        
+            collect_shapes(local_shapes)
+        gc.collect()
     ######################################
     ### Wait for all the workers to finish
     if(parallelize): 
