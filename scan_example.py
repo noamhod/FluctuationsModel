@@ -1,4 +1,3 @@
-import gc
 import time
 import pickle
 import math
@@ -89,8 +88,6 @@ def add_slice_shapes(E,L,pars,N,label):
     elapsed = end-start
     print(f"Finished slice: {label} with {int(N):,} steps, at (E,dL)=({E*U.eV2MeV:.3f} MeV,{L*U.cm2um:.6f} um), model shapes obtained within {elapsed:.2f} [s]")
     if(parallelize): lock.release()
-    del Mod
-    gc.collect()
     return local_shapes
 
 def collect_errors(error):
@@ -512,7 +509,7 @@ if __name__ == "__main__":
     nCPUs = mp.cpu_count() if(parallelize) else 0
     print("nCPUs available:",nCPUs)
     ### Create a pool of workers
-    pool = mp.Pool(nCPUs) if(parallelize) else None
+    pool = mp.Pool(processes=nCPUs,maxtasksperchild=10) if(parallelize) else None
     builds = {}
     for label,shape in shapes.items():
         E = shape["E"]
@@ -527,8 +524,7 @@ if __name__ == "__main__":
             pool.apply_async(add_slice_shapes, args=(E,L,P,N,label), callback=collect_shapes, error_callback=collect_errors)
         else:
             local_shapes = add_slice_shapes(E,L,P,N,label)
-            collect_shapes(local_shapes)
-        gc.collect()
+            collect_shapes(local_shapes)        
     ######################################
     ### Wait for all the workers to finish
     if(parallelize): 

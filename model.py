@@ -137,7 +137,79 @@ class Model:
         self.plotPsi   = True
         self.fSampling = -1
         self.TSampling = -1
+        ### define all pdfs, cdfs and arrays
+        self.cnt_pdfs = None
+        self.sec_pdfs = None
+        self.cnt_cdfs = None
+        self.sec_cdfs = None
+        self.cnt_pdfs_arrx  = None
+        self.cnt_pdfs_arrsy = None
+        self.sec_pdfs_arrx  = None
+        self.sec_pdfs_arrsy = None
+        self.cnt_cdfs_arrx  = None
+        self.cnt_cdfs_arrsy = None
+        self.sec_cdfs_arrx  = None
+        self.sec_cdfs_arrsy = None
+        self.cnt_pdfs_scaled = None
+        self.cnt_cdfs_scaled = None
+        self.cnt_pdfs_scaled_arrx  = None
+        self.cnt_pdfs_scaled_arrsy = None
+        self.cnt_cdfs_scaled_arrx  = None
+        self.cnt_cdfs_scaled_arrsy = None
+
+    def __del__(self):
+        del self.psiRe
+        del self.psiIm
+        if(self.cnt_pdfs is not None):
+            for pdf in self.cnt_pdfs: del pdf
+            del self.cnt_pdfs
+        if(self.sec_pdfs is not None):
+            for pdf in self.sec_pdfs: del pdf
+            del self.sec_pdfs
+        if(self.cnt_cdfs is not None):
+            for cdf in self.cnt_cdfs: del cdf
+            del self.cnt_cdfs
+        if(self.sec_cdfs is not None):
+            for cdf in self.sec_cdfs: del cdf
+            del self.sec_cdfs
+
+        if(self.cnt_pdfs_arrx is not None): del self.cnt_pdfs_arrx
+        if(self.cnt_pdfs_arrsy is not None): 
+            for arr in self.cnt_pdfs_arrsy: del arr
+            del self.cnt_pdfs_arrsy
+
+        if(self.sec_pdfs_arrx is not None): del self.sec_pdfs_arrx
+        if(self.sec_pdfs_arrsy is not None):
+            for arr in self.sec_pdfs_arrsy: del arr
+            del self.sec_pdfs_arrsy
+
+        if(self.cnt_cdfs_arrx is not None): del self.cnt_cdfs_arrx
+        if(self.cnt_cdfs_arrsy is not None): 
+            for arr in self.cnt_cdfs_arrsy: del arr
+            del self.cnt_cdfs_arrsy
         
+        if(self.sec_cdfs_arrx is not None): del self.sec_cdfs_arrx
+        if(self.sec_cdfs_arrsy is not None): 
+            for arr in self.sec_cdfs_arrsy: del arr
+            del self.sec_cdfs_arrsy
+
+        if(self.cnt_pdfs_scaled is not None):
+            for pdf in self.cnt_pdfs_scaled: del pdf
+            del self.cnt_pdfs_scaled
+        if(self.cnt_cdfs_scaled is not None): 
+            for cdf in self.cnt_cdfs_scaled: del cdf
+            del self.cnt_cdfs_scaled
+        
+        if(self.cnt_pdfs_scaled_arrx is not None): del self.cnt_pdfs_scaled_arrx
+        if(self.cnt_pdfs_scaled_arrsy is not None):
+            for arr in self.cnt_pdfs_scaled_arrsy: del arr
+            del self.cnt_pdfs_scaled_arrsy
+        
+        if(self.cnt_cdfs_scaled_arrx is not None): del self.cnt_cdfs_scaled_arrx
+        if(self.cnt_cdfs_scaled_arrsy is not None): 
+            for arr in self.cnt_cdfs_scaled_arrsy: del arr
+            del self.cnt_cdfs_scaled_arrsy
+
 
     def TimeIt(self,start,end,name):
         if(self.dotime):
@@ -230,6 +302,10 @@ class Model:
                 break
         self.fSampling = (2*np.pi)*(self.N_t_bins/(self.tmax-self.tmin))
         self.TSampling = 1./self.fSampling
+        ### clean up:
+        del trange
+        del psiRe
+        del psiIm
         if(self.doprint): print(f"tmin={self.tmin}, tmax={self.tmax}, N_t_bins={self.N_t_bins}, TSampling={self.TSampling}")
         end = time.time()
         self.TimeIt(start,end,"set_fft_sampling_pars")
@@ -269,6 +345,10 @@ class Model:
         if(self.doprint): print(f"Changing to tmin=-500-->{self.tmin}, tmax=+500-->{self.tmax}, N_t_bins={N_t_bins}-->{self.N_t_bins}")
         self.fSampling = (2*np.pi)*(self.N_t_bins/(self.tmax-self.tmin))
         self.TSampling = 1./self.fSampling
+        ### clean up:
+        del trange
+        del psiRe
+        del psiIm
         if(self.doprint): print(f"tmin={self.tmin}, tmax={self.tmax}, N_t_bins={self.N_t_bins}, TSampling={self.TSampling}")
         end = time.time()
         self.TimeIt(start,end,"set_fft_sampling_pars_rotem")
@@ -292,6 +372,16 @@ class Model:
         psi = (1./(2*np.pi))*np.exp(C*A-par[2])*( np.cos(C*B) + 1j*np.sin(C*B) )
         psi_re = np.real( psi )
         psi_im = np.imag( psi )
+        ### cleanup
+        if(aSi is not None): del aSi
+        if(aCi is not None): del aCi
+        if(bSi is not None): del bSi
+        if(bCi is not None): del bCi
+        if(A is not None):   del A
+        if(B is not None):   del B
+        if(C is not None):   del C
+        if(psi is not None): del psi
+        ### done
         end = time.time()
         self.TimeIt(start,end,"scipy_psi_of_t")
         return t, psi_re, psi_im
@@ -321,6 +411,7 @@ class Model:
         start = time.time()
         ### get psi(t)
         t, self.psiRe, self.psiIm = self.scipy_psi_of_t()
+        del t
         ### The FFT
         y = self.psiRe + 1.j*self.psiIm
         yf = fft(y)
@@ -366,6 +457,9 @@ class Model:
             #######################################
             ### TODO: implement the thick cases ###
             #######################################
+            ### important for avoiding memory issues
+            if(f is not None): del f
+            if(g is not None): del g
         
         ### renormalize the two parts of the pdf in non-gauss ion/exc:
         if(pdfname=="borysov_ionization" or pdfname=="borysov_excitation"):
@@ -398,6 +492,7 @@ class Model:
         Y_interpolated = interp_func(X)
         end = time.time()
         self.TimeIt(start,end,"convolution_fft")
+        del X_extended
         return Y_interpolated
     
     def get_continuous_pdfs(self):
@@ -425,12 +520,12 @@ class Model:
             pdfs["hTrncGaus_Ion"] = self.get_pdf("gauss_ion_model",   "truncated_gaus",     self.par_gauss_ion)
             pdfs["hTrncGaus_Exc"] = self.get_pdf("gauss_exc_model",   "truncated_gaus",     self.par_gauss_exc)
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G):
-            pdfs["hBorysov_Ion"] = self.get_pdf("borysov_ion_model", "borysov_ionization",  self.par_borysov_ion)
-            pdfs["hBorysov_Exc"] = self.get_pdf("borysov_exc_model", "borysov_excitation",  self.par_borysov_exc)
+            pdfs["hBorysov_Ion"]  = self.get_pdf("borysov_ion_model", "borysov_ionization",  self.par_borysov_ion)
+            pdfs["hBorysov_Exc"]  = self.get_pdf("borysov_exc_model", "borysov_excitation",  self.par_borysov_exc)
         if(self.TGAU):
-            pdfs["hTrncGaus_Thk"]   = self.get_pdf("gauss_thk_model",   "truncated_gaus",   self.par_gauss_thk)
+            pdfs["hTrncGaus_Thk"] = self.get_pdf("gauss_thk_model",   "truncated_gaus",   self.par_gauss_thk)
         if(self.TGAM):
-            pdfs["hGamma_Thk"]      = self.get_pdf("gamma_thk_model",   "gamma",            self.par_gamma_thk)
+            pdfs["hGamma_Thk"] = self.get_pdf("gamma_thk_model",   "gamma",            self.par_gamma_thk)
         end = time.time()
         self.TimeIt(start,end,"get_continuous_pdfs")
         return pdfs
@@ -465,7 +560,7 @@ class Model:
             for b in range(1,pdfs["hGamma_Thk"].GetNbinsX()+1):
                 pdfs["hModel"].SetBinContent(b, pdfs["hGamma_Thk"].GetBinContent(b) )
             return pdfs
-            
+
         ### Otherwise, constructe the continuous model 
         aBorysov_Ion  = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
         aBorysov_Exc  = np.zeros( pdfs["hBorysov_Ion"].GetNbinsX() )
@@ -479,7 +574,9 @@ class Model:
                 if(pdfs["hBorysov_Exc"]  is not None): aBorysov_Exc[b-1]  = pdfs["hBorysov_Exc"].GetBinContent(b)
                 if(pdfs["hTrncGaus_Ion"] is not None): aTrncGaus_Ion[b-1] = pdfs["hTrncGaus_Ion"].GetBinContent(b)
                 if(pdfs["hTrncGaus_Exc"] is not None): aTrncGaus_Exc[b-1] = pdfs["hTrncGaus_Exc"].GetBinContent(b)
-        aFFTConv = None
+        aFFTConv  = None
+        aFFTConv1 = None
+        aFFTConv2 = None
         if(self.IONB and self.EX1B and self.IONG):
             aFFTConv1 = self.convolution_fft(aX,aBorysov_Ion,aBorysov_Exc)
             aFFTConv2 = self.convolution_fft(aX,aTrncGaus_Ion,aFFTConv1)
@@ -496,7 +593,19 @@ class Model:
         xConv = np.linspace(start=self.dEmin,stop=self.dEmax,num=len(aConv))
         for b in range(1,pdfs["hBorysov_Ion"].GetNbinsX()+1):
             pdfs["hModel"].SetBinContent(b,aConv[b-1])
-        # pdfs["hModel"].Scale(1./pdfs["hModel"].Integral())
+
+        ### clean up for low memory usage
+        if(aBorysov_Ion is not None):  del aBorysov_Ion
+        if(aBorysov_Exc is not None):  del aBorysov_Exc
+        if(aTrncGaus_Ion is not None): del aTrncGaus_Ion
+        if(aTrncGaus_Exc is not None): del aTrncGaus_Exc
+        if(aX is not None):            del aX
+        if(aFFTConv is not None):      del aFFTConv
+        if(aFFTConv1 is not None):     del aFFTConv1
+        if(aFFTConv2 is not None):     del aFFTConv2
+        if(aConv is not None):         del aConv
+        if(xConv is not None):         del xConv
+
         end = time.time()
         self.TimeIt(start,end,"get_model_pdfs")
         return pdfs
@@ -556,32 +665,32 @@ class Model:
                 xh = h.GetBinCenter(i+1)
                 if(abs(xa-xh)/xa>1e-6): print(f"WARNING: xa={xa}, xh={xh}")
                 y = h.SetBinContent(i+1, arry[i])
-            pdfs.update({name:h})
-            # h.Scale(1./h.Integral())
             h.SetLineColor( ROOT.kRed )
             h.SetLineWidth( 1 )
+            pdfs.update({name:h})
         end = time.time()
         self.TimeIt(start,end,"get_pdfs_from_arrays")
         return pdfs
         
     def set_all_shapes(self):
         start = time.time()
-        ### get the basic pdfs
+        ### set the basic pdfs
         self.cnt_pdfs = self.get_model_pdfs()
         self.sec_pdfs = self.get_secondaries_pdfs()
         ### make the cdfs from the pdfs
         self.cnt_cdfs = self.get_cdfs(self.cnt_pdfs)
         self.sec_cdfs = self.get_cdfs(self.sec_pdfs)
         ### get as arrays
-        self.cnt_pdfs_arrx, self.cnt_pdfs_arrsy = self.get_as_arrays(self.cnt_pdfs,doScale=False)
+        self.cnt_pdfs_arrx, self.cnt_pdfs_arrsy = self.get_as_arrays(self.cnt_pdfs,doScale=True)
         self.sec_pdfs_arrx, self.sec_pdfs_arrsy = self.get_as_arrays(self.sec_pdfs,doScale=False)
-        self.cnt_cdfs_arrx, self.cnt_cdfs_arrsy = self.get_as_arrays(self.cnt_cdfs,doScale=False)
+        self.cnt_cdfs_arrx, self.cnt_cdfs_arrsy = self.get_as_arrays(self.cnt_cdfs,doScale=True)
         self.sec_cdfs_arrx, self.sec_cdfs_arrsy = self.get_as_arrays(self.sec_cdfs,doScale=False)
         ### get as scaled arrays
         titles = self.cnt_pdfs["hModel"].GetTitle()+";"+self.cnt_pdfs["hModel"].GetXaxis().GetTitle()+";"+self.cnt_pdfs["hModel"].GetXaxis().GetTitle()
         self.cnt_pdfs_scaled = self.get_pdfs_from_arrays(self.cnt_pdfs_arrx,self.cnt_pdfs_arrsy,titles)
         self.cnt_cdfs_scaled = self.get_cdfs(self.cnt_pdfs_scaled)
-        self.cnt_pdfs_scaled_arrx, self.cnt_pdfs_scaled_arrsy = self.get_as_arrays(self.cnt_pdfs_scaled,doScale=True)
-        self.cnt_cdfs_scaled_arrx, self.cnt_cdfs_scaled_arrsy = self.get_as_arrays(self.cnt_cdfs_scaled,doScale=True)
+        self.cnt_pdfs_scaled_arrx, self.cnt_pdfs_scaled_arrsy = self.get_as_arrays(self.cnt_pdfs_scaled,doScale=False)
+        self.cnt_cdfs_scaled_arrx, self.cnt_cdfs_scaled_arrsy = self.get_as_arrays(self.cnt_cdfs_scaled,doScale=False)
+        ### done
         end = time.time()
         self.TimeIt(start,end,"set_all_shapes")
