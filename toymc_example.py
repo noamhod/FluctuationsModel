@@ -54,7 +54,6 @@ PrimaryPrt = prt.Particle(name="proton",meV=938.27208816*U.MeV2eV,mamu=1.0072764
 par        = flct.Parameters(PrimaryPrt,TargetMat,dEdxModel,"inputs/dEdx_p_si.txt")
 modelpars  = par.GetModelPars(EE*U.MeV2eV,LL*U.um2cm)
 print(modelpars)
-quit()
 
 ######################################################
 ######################################################

@@ -39,20 +39,24 @@ def truncated_gaus(x,par):
     ## par[1] = sigma
     return ROOT.TMath.Gaus(x[0],par[0],par[1]) if(x[0]>=0 and x[0]<=2*par[0]) else 0
 
-
-### borysov_secondaries main function (see above)
+### this has to stay outside of any class
 ### so it can be called to construct a TF1
-def inv_sum_distribution(x,par):
-    res = 0.0
-    A = par[1] #TODO: there's a weird swap between A and B
-    B = par[0] #TODO: there's a weird swap between A and B
-    X = x[0]
-    if(abs(X)>1.0e-10):
-        xx = A*B/X
-        if(xx>0. and xx<=B):   res = xx/(A*B)
-        if(xx>B  and xx<=A):   res = 1.0/A
-        if(xx>A  and xx<=A+B): res = (A+B-xx)/(A*B)
-    return res*A*B/(X**2)
+# def borysov_secondaries(x,par):
+#     Emin  = par[0]
+#     Emax  = par[1]
+#     beta2 = par[2]
+#     W     = Emax/Emin-1.
+#     X     = x[0]
+#     res = (Emax-beta2*X)/((W-beta2*math.log(1.+W))*(X*X)) if(X>=Emin and X<=Emax) else 0.
+#     return res
+
+def borysov_secondaries(x,par):
+    xmin = par[2]/(1.0+par[1])
+    xmax = par[2]
+    if((x[0]<xmin) or (x[0]>xmax)): return 0.0
+    aa = par[2] - par[3]*x[0]
+    bb = (par[1] - par[3]*math.log(1.0+par[1])) * x[0]*x[0]
+    return aa/bb
 
 
 class Model:
@@ -98,7 +102,8 @@ class Model:
         ### set parameters
         self.par_bethebloch_min  = [self.meanLoss]
         self.par_zero_loss       = [0]
-        self.par_borysov_sec     = [self.EkinMin, self.EkinMax]
+        # self.par_borysov_sec     = [self.EkinMin, self.EkinMax, self.b2]
+        self.par_borysov_sec     = [self.EkinMax, self.EkinMax/self.EkinMin-1., self.EkinMax, self.b2]
         self.par_borysov_ion     = [self.w3, self.w, self.p3]
         self.par_borysov_exc     = [self.n1, self.e1]
         self.par_gauss_ion       = [self.ion_mean, self.ion_sigma]
@@ -438,7 +443,7 @@ class Model:
             g = None
             isBorysovIon = (pdfname=="borysov_ionization")
             if(pdfname=="borysov_ionization"):  g = self.borysov_ionization(par) ### This is a graph!
-            if(pdfname=="borysov_secondaries"): f = ROOT.TF1("f_"+name,inv_sum_distribution,self.dEminSec,self.dEmaxSec,len(par))
+            if(pdfname=="borysov_secondaries"): f = ROOT.TF1("f_"+name,borysov_secondaries,self.dEminSec,self.dEmaxSec,len(par))
             if(pdfname=="borysov_excitation"):  f = ROOT.TF1("f_"+name,borysov_excitation,self.dEmin,self.dEmax,len(par))
             if(pdfname=="truncated_gaus"):      f = ROOT.TF1("f_"+name,truncated_gaus,self.dEmin,self.dEmax,len(par))
             if(isBorysovIon): g.SetLineColor(ROOT.kRed)

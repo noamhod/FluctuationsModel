@@ -171,6 +171,7 @@ if __name__ == "__main__":
     nCPUs = mp.cpu_count() if(parallelize) else 0
     print("nCPUs available:",nCPUs)
     ### Create a pool of workers
+    ### https://stackoverflow.com/questions/21485319/high-memory-usage-using-python-multiprocessing
     pool = mp.Pool(processes=nCPUs,maxtasksperchild=10) if(parallelize) else None
     for ie in range(1,histos["SMALL_hdL_vs_E"].GetNbinsX()+1):
         for il in range(1,histos["SMALL_hdL_vs_E"].GetNbinsY()+1):
