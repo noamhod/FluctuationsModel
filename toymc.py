@@ -34,7 +34,7 @@ class ToyMC:
             eloss_Sec = self.model.EkinMin*self.model.EkinMax/(self.model.EkinMin*(1.-r0)+self.model.EkinMax*r0)
             f = 1.-self.model.b2*eloss_Sec/self.model.Tmax
             if(self.model.primprt.spin>0.):
-                f1 = 0.5*(eloss_Sec**2)/self.model.Etot
+                f1 = 0.5*(eloss_Sec**2)/(self.model.Etot**2)
                 f += f1
             if(fmax*r1>f): break
         ### tail cutoff:
