@@ -421,7 +421,7 @@ class Model:
         y = self.psiRe + 1.j*self.psiIm
         yf = fft(y)
         xf = fftfreq(self.N_t_bins, self.TSampling)[:self.N_t_bins//2] ## remove the last M elements, where M=floor(N/2)
-        ya = np.abs(yf[0:self.N_t_bins//2])*(2/self.N_t_bins) ### TODO: this does NOT include the case of zero-loss and I deal with it later in get_pdf()
+        ya = np.abs(yf[0:self.N_t_bins//2])*(2/self.N_t_bins) ### TODO: this does NOT include the case of zero-loss and I deal with it later in get_continuous_pdf()
         ### Get the integral as graph
         gFFT = ROOT.TGraph(len(xf),xf,ya)
         gFFT.SetLineColor( ROOT.kRed )
@@ -429,12 +429,11 @@ class Model:
         end = time.time()
         self.TimeIt(start,end,"borysov_ionization")
         return gFFT
-
-    def get_pdf(self,name,pdfname,par):
+    
+    def get_continuous_pdf(self,name,pdfname,par):
         start = time.time()
         title = name.replace("_model","")
         h = ROOT.TH1D("h_"+name,"h_"+title,self.Nbins,self.dEmin,self.dEmax)
-        if("sec" in name): h = ROOT.TH1D("h_"+name,"h_"+title,self.NbinsSec,self.dEminSec,self.dEmaxSec)
         if(self.BEBL):
             bx = h.FindBin(par[0]) ## par[0] is meanLoss... 
             h.SetBinContent(bx,1)
@@ -443,7 +442,6 @@ class Model:
             g = None
             isBorysovIon = (pdfname=="borysov_ionization")
             if(pdfname=="borysov_ionization"):  g = self.borysov_ionization(par) ### This is a graph!
-            if(pdfname=="borysov_secondaries"): f = ROOT.TF1("f_"+name,borysov_secondaries,self.dEminSec,self.dEmaxSec,len(par))
             if(pdfname=="borysov_excitation"):  f = ROOT.TF1("f_"+name,borysov_excitation,self.dEmin,self.dEmax,len(par))
             if(pdfname=="truncated_gaus"):      f = ROOT.TF1("f_"+name,truncated_gaus,self.dEmin,self.dEmax,len(par))
             if(isBorysovIon): g.SetLineColor(ROOT.kRed)
@@ -479,7 +477,34 @@ class Model:
         h.SetLineColor( ROOT.kRed )
         h.SetLineWidth( 1 )
         end = time.time()
-        self.TimeIt(start,end,f"get_pdf({name})")
+        self.TimeIt(start,end,f"get_continuous_pdf({name})")
+        return h
+        
+    def get_secondaries_pdf(self,name,pdfname,par):
+        start = time.time()
+        title = name.replace("_model","")
+        h = ROOT.TH1D("h_"+name,"h_"+title,self.NbinsSec,self.dEminSec,self.dEmaxSec)
+        f = None
+        if(pdfname=="borysov_secondaries"): f = ROOT.TF1("f_"+name,borysov_secondaries,self.dEminSec,self.dEmaxSec,len(par))
+        for i in range(len(par)):
+            if(f is not None): f.SetParameter(i,par[i])
+            else:
+                print(f"TF1 object is None for pdfname={pdfname}")
+                quit()
+        f.SetNpx(self.NptsTF1)
+        f.SetLineColor(ROOT.kRed)
+        for bb in range(1,h.GetNbinsX()+1):
+            x = h.GetBinCenter(bb)
+            y = f.Eval(x)
+            h.SetBinContent(bb,y)
+        ### important for avoiding memory issues
+        if(f is not None): del f
+        ### finalize
+        h.Scale(1./h.Integral())
+        h.SetLineColor( ROOT.kRed )
+        h.SetLineWidth( 1 )
+        end = time.time()
+        self.TimeIt(start,end,f"get_secondaries_pdf({name})")
         return h
     
     def convolution_fft(self,X,A,K):
@@ -515,22 +540,22 @@ class Model:
         pdfs["hModel"] = ROOT.TH1D("hModel","",self.Nbins,self.dEmin,self.dEmax)
         pdfs["hModel"].SetLineColor(ROOT.kRed)
         if(self.BEBL):
-            pdfs["hBEBL_Thn"] = self.get_pdf("bethebloch_min_model", "bethebloch_min_model", self.par_bethebloch_min)
+            pdfs["hBEBL_Thn"] = self.get_continuous_pdf("bethebloch_min_model", "bethebloch_min_model", self.par_bethebloch_min)
         if(self.IONB and self.EX1B and self.IONG):
-            pdfs["hBorysov_Ion"]  = self.get_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
-            pdfs["hBorysov_Exc"]  = self.get_pdf("borysov_exc_model", "borysov_excitation", self.par_borysov_exc)
-            pdfs["hTrncGaus_Ion"] = self.get_pdf("gauss_ion_model",   "truncated_gaus",     self.par_gauss_ion)
+            pdfs["hBorysov_Ion"]  = self.get_continuous_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
+            pdfs["hBorysov_Exc"]  = self.get_continuous_pdf("borysov_exc_model", "borysov_excitation", self.par_borysov_exc)
+            pdfs["hTrncGaus_Ion"] = self.get_continuous_pdf("gauss_ion_model",   "truncated_gaus",     self.par_gauss_ion)
         if(self.IONB and self.IONG and self.EX1G):
-            pdfs["hBorysov_Ion"]  = self.get_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
-            pdfs["hTrncGaus_Ion"] = self.get_pdf("gauss_ion_model",   "truncated_gaus",     self.par_gauss_ion)
-            pdfs["hTrncGaus_Exc"] = self.get_pdf("gauss_exc_model",   "truncated_gaus",     self.par_gauss_exc)
+            pdfs["hBorysov_Ion"]  = self.get_continuous_pdf("borysov_ion_model", "borysov_ionization", self.par_borysov_ion)
+            pdfs["hTrncGaus_Ion"] = self.get_continuous_pdf("gauss_ion_model",   "truncated_gaus",     self.par_gauss_ion)
+            pdfs["hTrncGaus_Exc"] = self.get_continuous_pdf("gauss_exc_model",   "truncated_gaus",     self.par_gauss_exc)
         if(self.IONB and self.EX1B and not self.IONG and not self.EX1G):
-            pdfs["hBorysov_Ion"]  = self.get_pdf("borysov_ion_model", "borysov_ionization",  self.par_borysov_ion)
-            pdfs["hBorysov_Exc"]  = self.get_pdf("borysov_exc_model", "borysov_excitation",  self.par_borysov_exc)
+            pdfs["hBorysov_Ion"]  = self.get_continuous_pdf("borysov_ion_model", "borysov_ionization",  self.par_borysov_ion)
+            pdfs["hBorysov_Exc"]  = self.get_continuous_pdf("borysov_exc_model", "borysov_excitation",  self.par_borysov_exc)
         if(self.TGAU):
-            pdfs["hTrncGaus_Thk"] = self.get_pdf("gauss_thk_model",   "truncated_gaus",   self.par_gauss_thk)
+            pdfs["hTrncGaus_Thk"] = self.get_continuous_pdf("gauss_thk_model",   "truncated_gaus",   self.par_gauss_thk)
         if(self.TGAM):
-            pdfs["hGamma_Thk"] = self.get_pdf("gamma_thk_model",   "gamma",            self.par_gamma_thk)
+            pdfs["hGamma_Thk"] = self.get_continuous_pdf("gamma_thk_model",   "gamma",            self.par_gamma_thk)
         end = time.time()
         self.TimeIt(start,end,"get_continuous_pdfs")
         return pdfs
@@ -541,7 +566,7 @@ class Model:
         pdfs = {}
         pdfs.update({"hBorysov_Sec":  None})
         if(self.SECB):
-            pdfs["hBorysov_Sec"] = self.get_pdf("borysov_sec_model", "borysov_secondaries", self.par_borysov_sec)
+            pdfs["hBorysov_Sec"] = self.get_secondaries_pdf("borysov_sec_model", "borysov_secondaries", self.par_borysov_sec)
         end = time.time()
         self.TimeIt(start,end,"get_secondaries_pdfs")
         return pdfs

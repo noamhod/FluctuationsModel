@@ -40,12 +40,13 @@ pngpath  = "/Users/noamtalhod/tmp/png"
 
 #########################
 ### make gif for all bins
-print("\nClean temp png's and temp png path...")
-ROOT.gSystem.Unlink("scan_pdfs.gif") ## remove old files
-ROOT.gSystem.Unlink("scan_cdfs.gif") ## remove old files
-ROOT.gSystem.Exec("/bin/rm -f scan_pdfs.gif scan_cdfs.gif") ## remove old files
-ROOT.gSystem.Exec(f"/bin/rm -rf {pngpath}") ## remove old files
-ROOT.gSystem.Exec(f"/bin/mkdir -p {pngpath}")
+if(dogif):
+    print("\nClean temp png's and temp png path...")
+    ROOT.gSystem.Unlink("scan_pdfs.gif") ## remove old files
+    ROOT.gSystem.Unlink("scan_cdfs.gif") ## remove old files
+    ROOT.gSystem.Exec("/bin/rm -f scan_pdfs.gif scan_cdfs.gif") ## remove old files
+    ROOT.gSystem.Exec(f"/bin/rm -rf {pngpath}") ## remove old files
+    ROOT.gSystem.Exec(f"/bin/mkdir -p {pngpath}")
 
 
 def plot_slices(label,build,E,L,hists,pdffile):
@@ -237,15 +238,31 @@ def plot_slices(label,build,E,L,hists,pdffile):
 tf0 = ROOT.TFile("scan_example.root","READ")
 href = tf0.Get("SMALL_h_dL_vs_E")
 
-hkst_prob = href.Clone("KSprob")
-hkst_dist = href.Clone("KSdist")
-hc2t_ndof = href.Clone("C2ndof")
-hkst_prob.Reset()
-hkst_dist.Reset()
-hc2t_ndof.Reset()
-hkst_prob.GetZaxis().SetTitle("KS test probability")
-hkst_dist.GetZaxis().SetTitle("KS test distance")
-hc2t_ndof.GetZaxis().SetTitle("#chi^{2}/N_{DoF} test")
+hkst_cnt_prob = href.Clone("KSprob_cnt")
+hkst_cnt_dist = href.Clone("KSdist_cnt")
+hc2t_cnt_ndof = href.Clone("C2ndof_cnt")
+hkst_cnt_prob.Reset()
+hkst_cnt_dist.Reset()
+hc2t_cnt_ndof.Reset()
+hkst_cnt_prob.SetTitle("Continuous")
+hkst_cnt_dist.SetTitle("Continuous")
+hc2t_cnt_ndof.SetTitle("Continuous")
+hkst_cnt_prob.GetZaxis().SetTitle("KS test probability")
+hkst_cnt_dist.GetZaxis().SetTitle("KS test distance")
+hc2t_cnt_ndof.GetZaxis().SetTitle("#chi^{2}/N_{DoF} test")
+
+hkst_sec_prob = href.Clone("KSprob_sec")
+hkst_sec_dist = href.Clone("KSdist_sec")
+hc2t_sec_ndof = href.Clone("C2ndof_sec")
+hkst_sec_prob.Reset()
+hkst_sec_dist.Reset()
+hc2t_sec_ndof.Reset()
+hkst_sec_prob.SetTitle("Secondaries")
+hkst_sec_dist.SetTitle("Secondaries")
+hc2t_sec_ndof.SetTitle("Secondaries")
+hkst_sec_prob.GetZaxis().SetTitle("KS test probability")
+hkst_sec_dist.GetZaxis().SetTitle("KS test distance")
+hc2t_sec_ndof.GetZaxis().SetTitle("#chi^{2}/N_{DoF} test")
 
 pdffile = "scan_slices.pdf"
 cnv = ROOT.TCanvas("cnv", "", 1000,1000)
@@ -265,7 +282,7 @@ for ie in range(1,href.GetNbinsX()+1):
         L     = href.GetYaxis().GetBinCenter(il) ## already in um
 
         ### get the rootfile
-        tf = ROOT.TFile.Open(f"{rootpath}/rootslice_{label}.root","READ")
+        tf = ROOT.TFile.Open(f"{rootpath}/slice_{label}.root","READ")
         build = tf.Get("build").GetTitle()
 
         ### get the histos from the file
@@ -283,12 +300,13 @@ for ie in range(1,href.GetNbinsX()+1):
         ### for the summary
         tree = tf.Get("meta_"+label)
         for evt in tree:
-            KS_prob = evt.KS_prob_test_cnt_pdf
-            KS_dist = evt.KS_dist_test_cnt_pdf if(evt.KS_dist_test_cnt_pdf>0) else 1e-10
-            C2_ndof = evt.C2_ndof_test_cnt_pdf if(evt.C2_ndof_test_cnt_pdf>0) else 1e-10
-            hkst_prob.SetBinContent(ie,il,KS_prob)
-            hkst_dist.SetBinContent(ie,il,KS_dist)
-            hc2t_ndof.SetBinContent(ie,il,C2_ndof)
+            if(evt.KS_prob_test_cnt_pdf>=0): hkst_cnt_prob.SetBinContent(ie,il, evt.KS_prob_test_cnt_pdf)
+            if(evt.KS_dist_test_cnt_pdf>=0): hkst_cnt_dist.SetBinContent(ie,il, evt.KS_dist_test_cnt_pdf)
+            if(evt.C2_ndof_test_cnt_pdf>=0): hc2t_cnt_ndof.SetBinContent(ie,il, evt.C2_ndof_test_cnt_pdf)
+            
+            if(evt.KS_prob_test_sec_pdf>=0): hkst_sec_prob.SetBinContent(ie,il, evt.KS_prob_test_sec_pdf)
+            if(evt.KS_dist_test_sec_pdf>=0): hkst_sec_dist.SetBinContent(ie,il, evt.KS_dist_test_sec_pdf)
+            if(evt.C2_ndof_test_sec_pdf>=0): hc2t_sec_ndof.SetBinContent(ie,il, evt.C2_ndof_test_sec_pdf)
         
         ### plot the slice
         if(dogif): plot_slices(label,build,E,L,hists,pdffile)
@@ -318,7 +336,7 @@ ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogz()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
-hkst_prob.GetZaxis().SetTitleOffset(1.6)
+hkst_cnt_prob.GetZaxis().SetTitleOffset(1.6)
 href.Draw("colz")
 # for line in gridx: line.Draw("same")
 # for line in gridy: line.Draw("same")
@@ -330,8 +348,8 @@ ROOT.gPad.SetLogy()
 # ROOT.gPad.SetLogz()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
-hkst_prob.GetZaxis().SetTitleOffset(1.6)
-hkst_prob.Draw("colz")
+hkst_cnt_prob.GetZaxis().SetTitleOffset(1.6)
+hkst_cnt_prob.Draw("colz")
 # for line in gridx: line.Draw("same")
 # for line in gridy: line.Draw("same")
 ROOT.gPad.RedrawAxis()
@@ -342,8 +360,8 @@ ROOT.gPad.SetLogy()
 # ROOT.gPad.SetLogz()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
-hkst_dist.GetZaxis().SetTitleOffset(1.6)
-hkst_dist.Draw("colz")
+hkst_cnt_dist.GetZaxis().SetTitleOffset(1.6)
+hkst_cnt_dist.Draw("colz")
 # for line in gridx: line.Draw("same")
 # for line in gridy: line.Draw("same")
 ROOT.gPad.RedrawAxis()
@@ -354,12 +372,65 @@ ROOT.gPad.SetLogy()
 # ROOT.gPad.SetLogz()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
-hc2t_ndof.GetZaxis().SetTitleOffset(1.5)
-hc2t_ndof.Draw("colz")
+hc2t_cnt_ndof.GetZaxis().SetTitleOffset(1.5)
+hc2t_cnt_ndof.Draw("colz")
 # for line in gridx: line.Draw("same")
 # for line in gridy: line.Draw("same")
 ROOT.gPad.RedrawAxis()
-canvas.SaveAs("test_kschisq.pdf")
+canvas.SaveAs("test_kschisq.pdf(")
+
+
+canvas = ROOT.TCanvas("canvas", "canvas", 1000,1000)
+canvas.Divide(2,2)
+canvas.cd(1)
+ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetLogx()
+ROOT.gPad.SetLogy()
+ROOT.gPad.SetLogz()
+ROOT.gPad.SetLeftMargin(0.15)
+ROOT.gPad.SetRightMargin(0.18)
+hkst_sec_prob.GetZaxis().SetTitleOffset(1.6)
+href.Draw("colz")
+# for line in gridx: line.Draw("same")
+# for line in gridy: line.Draw("same")
+ROOT.gPad.RedrawAxis()
+canvas.cd(2)
+ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetLogx()
+ROOT.gPad.SetLogy()
+# ROOT.gPad.SetLogz()
+ROOT.gPad.SetLeftMargin(0.15)
+ROOT.gPad.SetRightMargin(0.18)
+hkst_sec_prob.GetZaxis().SetTitleOffset(1.6)
+hkst_sec_prob.Draw("colz")
+# for line in gridx: line.Draw("same")
+# for line in gridy: line.Draw("same")
+ROOT.gPad.RedrawAxis()
+canvas.cd(3)
+ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetLogx()
+ROOT.gPad.SetLogy()
+# ROOT.gPad.SetLogz()
+ROOT.gPad.SetLeftMargin(0.15)
+ROOT.gPad.SetRightMargin(0.18)
+hkst_sec_dist.GetZaxis().SetTitleOffset(1.6)
+hkst_sec_dist.Draw("colz")
+# for line in gridx: line.Draw("same")
+# for line in gridy: line.Draw("same")
+ROOT.gPad.RedrawAxis()
+canvas.cd(4)
+ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetLogx()
+ROOT.gPad.SetLogy()
+# ROOT.gPad.SetLogz()
+ROOT.gPad.SetLeftMargin(0.15)
+ROOT.gPad.SetRightMargin(0.18)
+hc2t_sec_ndof.GetZaxis().SetTitleOffset(1.5)
+hc2t_sec_ndof.Draw("colz")
+# for line in gridx: line.Draw("same")
+# for line in gridy: line.Draw("same")
+ROOT.gPad.RedrawAxis()
+canvas.SaveAs("test_kschisq.pdf)")
 
 
 #####################
