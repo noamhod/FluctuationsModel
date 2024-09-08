@@ -167,12 +167,12 @@ def save_slice(slices,shapes,builds,label,E,L,P,NrawSteps,count):
     tree.Branch('C2_ndof_test_cnt_pdf',c2test_ndof_cnt_pdf,'C2_ndof_test_cnt_pdf/D')
     tree.Branch('C2_ndof_test_sec_pdf',c2test_ndof_sec_pdf,'C2_ndof_test_sec_pdf/D')
     
-    kstest_prob_cnt_pdf[0] = -1
-    kstest_dist_cnt_pdf[0] = -1
-    c2test_ndof_cnt_pdf[0] = -1
-    kstest_prob_sec_pdf[0] = -1
-    kstest_dist_sec_pdf[0] = -1
-    c2test_ndof_sec_pdf[0] = -1
+    kstest_prob_cnt_pdf[0] = -999
+    kstest_dist_cnt_pdf[0] = -999
+    c2test_ndof_cnt_pdf[0] = -999
+    kstest_prob_sec_pdf[0] = -999
+    kstest_dist_sec_pdf[0] = -999
+    c2test_ndof_sec_pdf[0] = -999
     
     if(cnt_pdf is not None and slices["hdEcnt_"+label].Integral()>0):# and cnt_pdf.Integral()>0):
         kstest_prob_cnt_pdf[0] = slices["hdEcnt_"+label].KolmogorovTest(cnt_pdf)

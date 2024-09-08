@@ -76,8 +76,11 @@ def plot_slices(label,build,E,L,hists,pdffile):
     hists["hdEcnt_"+label].Draw("hist")
     if(cnt_pdf is not None):
         hmax = hist.find_h_max(cnt_pdf)
+        # hint = hist.get_h_int(cnt_pdf)
         hg4max = hists["hdEcnt_"+label].GetMaximum()
+        # hg4int = hist.get_h_int(hists["hdEcnt_"+label])
         if(hmax>0 and hg4max>0): cnt_pdf.Scale(hg4max / hmax)
+        # cnt_pdf.Scale(hg4int / hint)
         cnt_pdf.SetLineWidth(2)
         cnt_pdf.Draw("hist same")
     s = ROOT.TLatex() ### the text
@@ -113,8 +116,11 @@ def plot_slices(label,build,E,L,hists,pdffile):
     hists["hdEsec_"+label].Draw("hist")
     if(sec_pdf is not None):
         hmax = hist.find_h_max(sec_pdf)
+        # hint = hist.get_h_int(sec_pdf)
         hg4max = hists["hdEsec_"+label].GetMaximum()
+        # hg4int = hist.get_h_int(hists["hdEsec_"+label])
         if(hmax>0 and hg4max>0): sec_pdf.Scale(hg4max / hmax)
+        # sec_pdf.Scale(hg4int / hint)
         sec_pdf.Draw("hist same")
         s = ROOT.TLatex() ### the text
         s.SetNDC(1);
@@ -189,10 +195,12 @@ def plot_slices(label,build,E,L,hists,pdffile):
     ROOT.gPad.Update()
     ##########################
     cgif_cdfs.cd(3)
-    if(sec_slice_cdf.Integral()>0 and sec_cdf is not None and sec_cdf.Integral()>0): ROOT.gPad.SetLogx()
+    # if(sec_slice_cdf.Integral()>0 and sec_cdf is not None and sec_cdf.Integral()>0): ROOT.gPad.SetLogx()
+    ROOT.gPad.SetLogx()
     ROOT.gPad.SetLogy()
     ROOT.gPad.SetTicks(1,1)
-    if(sec_slice_cdf is not None and sec_slice_cdf.Integral()>0):
+    # if(sec_slice_cdf is not None and sec_slice_cdf.Integral()>0):
+    if(sec_slice_cdf is not None):
         sec_slice_cdf.SetMinimum(1.e-5)
         sec_slice_cdf.SetMaximum(2.e0)
         sec_slice_cdf.Draw("hist")
@@ -234,6 +242,8 @@ def plot_slices(label,build,E,L,hists,pdffile):
     print(f"Finished plotting slice: {label}")
 
 
+hE_slice_size = ROOT.TH1D("hE_slice_size",";E [MeV];Slice size in E [%]",              len(bins.Ebins_small)-1,array.array("d",bins.Ebins_small) )
+hL_slice_size = ROOT.TH1D("hL_slice_size",";#DeltaL [#mum];Slice size in #DeltaL [%]", len(bins.dLbins_small)-1,array.array("d",bins.dLbins_small) )
 
 tf0 = ROOT.TFile("scan_example.root","READ")
 href = tf0.Get("SMALL_h_dL_vs_E")
@@ -248,7 +258,7 @@ hkst_cnt_prob.SetTitle("Continuous")
 hkst_cnt_dist.SetTitle("Continuous")
 hc2t_cnt_ndof.SetTitle("Continuous")
 hkst_cnt_prob.GetZaxis().SetTitle("KS test probability")
-hkst_cnt_dist.GetZaxis().SetTitle("KS test distance")
+hkst_cnt_dist.GetZaxis().SetTitle("KS test max distance")
 hc2t_cnt_ndof.GetZaxis().SetTitle("#chi^{2}/N_{DoF} test")
 
 hkst_sec_prob = href.Clone("KSprob_sec")
@@ -261,8 +271,10 @@ hkst_sec_prob.SetTitle("Secondaries")
 hkst_sec_dist.SetTitle("Secondaries")
 hc2t_sec_ndof.SetTitle("Secondaries")
 hkst_sec_prob.GetZaxis().SetTitle("KS test probability")
-hkst_sec_dist.GetZaxis().SetTitle("KS test distance")
+hkst_sec_dist.GetZaxis().SetTitle("KS test max distance")
 hc2t_sec_ndof.GetZaxis().SetTitle("#chi^{2}/N_{DoF} test")
+
+# ybins2split = []
 
 pdffile = "scan_slices.pdf"
 cnv = ROOT.TCanvas("cnv", "", 1000,1000)
@@ -273,13 +285,19 @@ nslices = 0
 for ie in range(1,href.GetNbinsX()+1):
     for il in range(1,href.GetNbinsY()+1):
         
-        ### skip empty slices (no GEANT4 data)
-        if(href.GetBinContent(ie,il)<1): continue
-        
         ### get the slice details
         label = "E"+str(ie)+"_dL"+str(il)
         E     = href.GetXaxis().GetBinCenter(ie) ## already in MeV
         L     = href.GetYaxis().GetBinCenter(il) ## already in um
+        DE    = href.GetXaxis().GetBinWidth(ie)
+        DL    = href.GetYaxis().GetBinWidth(il)
+
+        ### for plotting the relative slice size
+        if(il==1): hE_slice_size.SetBinContent(ie,(DE/E)*100)
+        if(ie==1): hL_slice_size.SetBinContent(il,(DL/L)*100)
+
+        ### skip empty slices (no GEANT4 data)
+        if(href.GetBinContent(ie,il)<1): continue
 
         ### get the rootfile
         tf = ROOT.TFile.Open(f"{rootpath}/slice_{label}.root","READ")
@@ -299,14 +317,34 @@ for ie in range(1,href.GetNbinsX()+1):
         
         ### for the summary
         tree = tf.Get("meta_"+label)
-        for evt in tree:
-            if(evt.KS_prob_test_cnt_pdf>=0): hkst_cnt_prob.SetBinContent(ie,il, evt.KS_prob_test_cnt_pdf)
-            if(evt.KS_dist_test_cnt_pdf>=0): hkst_cnt_dist.SetBinContent(ie,il, evt.KS_dist_test_cnt_pdf)
-            if(evt.C2_ndof_test_cnt_pdf>=0): hc2t_cnt_ndof.SetBinContent(ie,il, evt.C2_ndof_test_cnt_pdf)
-            
-            if(evt.KS_prob_test_sec_pdf>=0): hkst_sec_prob.SetBinContent(ie,il, evt.KS_prob_test_sec_pdf)
-            if(evt.KS_dist_test_sec_pdf>=0): hkst_sec_dist.SetBinContent(ie,il, evt.KS_dist_test_sec_pdf)
-            if(evt.C2_ndof_test_sec_pdf>=0): hc2t_sec_ndof.SetBinContent(ie,il, evt.C2_ndof_test_sec_pdf)
+        tree.GetEntry(0)
+        
+        if(L<1e-5): print(f"label={label}, E={E}, L={L}, KS_dist_cnt={tree.KS_dist_test_cnt_pdf}, C2_ndof_cnt={tree.C2_ndof_test_cnt_pdf}")
+        
+        epsilon = 1e-20
+        
+        KS_prob_test_cnt = tree.KS_prob_test_cnt_pdf
+        KS_dist_test_cnt = tree.KS_dist_test_cnt_pdf
+        C2_ndof_test_cnt = tree.C2_ndof_test_cnt_pdf
+        if(KS_prob_test_cnt==0): KS_prob_test_cnt += epsilon
+        if(KS_dist_test_cnt==0): KS_dist_test_cnt += epsilon
+        if(C2_ndof_test_cnt==0): C2_ndof_test_cnt += epsilon
+        if(KS_prob_test_cnt>=0): hkst_cnt_prob.SetBinContent(ie,il, KS_prob_test_cnt)
+        if(KS_dist_test_cnt>=0): hkst_cnt_dist.SetBinContent(ie,il, KS_dist_test_cnt)
+        if(C2_ndof_test_cnt>=0): hc2t_cnt_ndof.SetBinContent(ie,il, C2_ndof_test_cnt)
+
+        KS_prob_test_sec = tree.KS_prob_test_sec_pdf
+        KS_dist_test_sec = tree.KS_dist_test_sec_pdf
+        C2_ndof_test_sec = tree.C2_ndof_test_sec_pdf
+        if(KS_prob_test_sec==0): KS_prob_test_sec += epsilon
+        if(KS_dist_test_sec==0): KS_dist_test_sec += epsilon
+        if(C2_ndof_test_sec==0): C2_ndof_test_sec += epsilon        
+        if(KS_prob_test_sec>=0): hkst_sec_prob.SetBinContent(ie,il, KS_prob_test_sec)
+        if(KS_dist_test_sec>=0): hkst_sec_dist.SetBinContent(ie,il, KS_dist_test_sec)
+        if(C2_ndof_test_sec>=0): hc2t_sec_ndof.SetBinContent(ie,il, C2_ndof_test_sec)
+        
+        ### slices are maybe too large
+        # if(tree.KS_dist_test_cnt_pdf>0.5 or tree.KS_dist_test_sec_pdf>0.5 and (ie,il) not in ybins2split): ybins2split.append((ie,il))
         
         ### plot the slice
         if(dogif): plot_slices(label,build,E,L,hists,pdffile)
@@ -327,6 +365,34 @@ cnv.SaveAs(pdffile+")")
 # for line in gridx: line.SetLineColor(ROOT.kGray)
 # for line in gridy: line.SetLineColor(ROOT.kGray)
 
+
+canvas = ROOT.TCanvas("canvas", "canvas", 1200,500)
+canvas.Divide(2,1)
+canvas.cd(1)
+ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetLogx()
+# ROOT.gPad.SetLogy()
+ROOT.gPad.SetLeftMargin(0.15)
+ROOT.gPad.SetRightMargin(0.18)
+hE_slice_size.SetMinimum(0)
+hE_slice_size.SetMaximum(50)
+hE_slice_size.Draw("hist")
+ROOT.gPad.RedrawAxis()
+canvas.cd(2)
+ROOT.gPad.SetTicks(1,1)
+ROOT.gPad.SetLogx()
+# ROOT.gPad.SetLogy()
+ROOT.gPad.SetLeftMargin(0.15)
+ROOT.gPad.SetRightMargin(0.18)
+hL_slice_size.SetMinimum(0)
+hL_slice_size.SetMaximum(50)
+hL_slice_size.Draw("hist")
+ROOT.gPad.RedrawAxis()
+canvas.SaveAs("test_kschisq.pdf(")
+
+
+
+
 canvas = ROOT.TCanvas("canvas", "canvas", 1000,1000)
 canvas.Divide(2,2)
 canvas.cd(1)
@@ -345,7 +411,6 @@ canvas.cd(2)
 ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
-# ROOT.gPad.SetLogz()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
 hkst_cnt_prob.GetZaxis().SetTitleOffset(1.6)
@@ -357,7 +422,6 @@ canvas.cd(3)
 ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
-# ROOT.gPad.SetLogz()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
 hkst_cnt_dist.GetZaxis().SetTitleOffset(1.6)
@@ -369,7 +433,6 @@ canvas.cd(4)
 ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
-# ROOT.gPad.SetLogz()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
 hc2t_cnt_ndof.GetZaxis().SetTitleOffset(1.5)
@@ -377,7 +440,7 @@ hc2t_cnt_ndof.Draw("colz")
 # for line in gridx: line.Draw("same")
 # for line in gridy: line.Draw("same")
 ROOT.gPad.RedrawAxis()
-canvas.SaveAs("test_kschisq.pdf(")
+canvas.SaveAs("test_kschisq.pdf")
 
 
 canvas = ROOT.TCanvas("canvas", "canvas", 1000,1000)
@@ -432,6 +495,23 @@ hc2t_sec_ndof.Draw("colz")
 ROOT.gPad.RedrawAxis()
 canvas.SaveAs("test_kschisq.pdf)")
 
+
+fo = ROOT.TFile("test_kschisq.root","RECREATE")
+fo.cd()
+hkst_cnt_prob.Write()
+hkst_cnt_dist.Write()
+hc2t_cnt_ndof.Write()
+hkst_sec_prob.Write()
+hkst_sec_dist.Write()
+hc2t_sec_ndof.Write()
+fo.Write()
+fo.Close()
+
+
+# print("Split bins:")
+# print(f"Nbins to split: {len(ybins2split)}")
+# ybins2split.sort()
+# print(ybins2split)
 
 #####################
 ### finalize the gifs

@@ -571,7 +571,7 @@ class Model:
         self.TimeIt(start,end,"get_secondaries_pdfs")
         return pdfs
     
-    def get_model_pdfs(self):
+    def get_continuous_model_pdfs(self):
         start = time.time()
         ### get the pdfs of the continuous part
         pdfs = self.get_continuous_pdfs()
@@ -637,7 +637,7 @@ class Model:
         if(xConv is not None):         del xConv
 
         end = time.time()
-        self.TimeIt(start,end,"get_model_pdfs")
+        self.TimeIt(start,end,"get_continuous_model_pdfs")
         return pdfs
     
     def get_cdfs(self,pdfs):
@@ -705,7 +705,7 @@ class Model:
     def set_all_shapes(self):
         start = time.time()
         ### set the basic pdfs
-        self.cnt_pdfs = self.get_model_pdfs()
+        self.cnt_pdfs = self.get_continuous_model_pdfs()
         self.sec_pdfs = self.get_secondaries_pdfs()
         ### make the cdfs from the pdfs
         self.cnt_cdfs = self.get_cdfs(self.cnt_pdfs)

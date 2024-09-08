@@ -106,6 +106,13 @@ def find_h_max(h,firstbin=1):
         if(y>hmax): hmax = y
     return hmax
 
+def get_h_int(h,firstbin=1):
+    hint = 0
+    for b in range(firstbin,h.GetNbinsX()+1):
+        y = h.GetBinContent(b)
+        hint += y
+    return hint
+
 def reset_hrange_left(h,xmin):
     hclone = h.Clone(h.GetName()+"_clone")
     if(hclone.GetXaxis().GetXmin()<xmin):
