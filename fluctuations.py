@@ -27,7 +27,7 @@ class Parameters:
         #     print(f"Unknown model named {self.dedxmod}. Quitting")
         #     quit()
         assert self.dedxmod in ["BB:Tcut","BB:Tmax","G4:Tcut"], f"Unknown model named {self.dedxmod}. Quitting"
-        # print(f"Using dE/dx model: {self.dedxmod}")
+        print(f"Using dE/dx model: {self.dedxmod}")
         self.tbl     = tab.Tables(dEdx_table_file)
         
         ### default Energy Loss Fluctuations model used in main Physics List:

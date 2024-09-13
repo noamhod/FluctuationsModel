@@ -16,6 +16,7 @@ import model
 import multiprocessing as mp
 import pickle
 
+
 import argparse
 
 # parser = argparse.ArgumentParser(description='scan_example.py...')
@@ -35,7 +36,7 @@ ROOT.gStyle.SetPadRightMargin(0.15)
 
 
 ### model shapes defined later as global
-parallelize = False
+parallelize = True
 
 #####################################
 ### model histos (only relevant ones)
@@ -48,6 +49,7 @@ slices = {}
 ################################
 ### the of all slices
 rootpath = "./output"
+pklpath  = "./output"
 
 
 ##############################################################
@@ -130,8 +132,8 @@ def save_slice(slices,shapes,builds,label,E,L,P,NrawSteps,count):
     
     ############################
     ### ROOT file for the output
-    tfname = f"{rootpath}/rootslice_{label}.root"
-    pklname = f"{rootpath}/rootslice_{label}.pkl"
+    tfname = f"{rootpath}/slice_{label}.root"
+    pklname = f"{pklpath}/slice_{label}.pkl"
     tf = ROOT.TFile(tfname,"RECREATE")
     fpkl = open(pklname,"wb")
     tf.cd()
@@ -166,12 +168,12 @@ def save_slice(slices,shapes,builds,label,E,L,P,NrawSteps,count):
     tree.Branch('C2_ndof_test_cnt_pdf',c2test_ndof_cnt_pdf,'C2_ndof_test_cnt_pdf/D')
     tree.Branch('C2_ndof_test_sec_pdf',c2test_ndof_sec_pdf,'C2_ndof_test_sec_pdf/D')
     
-    kstest_prob_cnt_pdf[0] = -1
-    kstest_dist_cnt_pdf[0] = -1
-    c2test_ndof_cnt_pdf[0] = -1
-    kstest_prob_sec_pdf[0] = -1
-    kstest_dist_sec_pdf[0] = -1
-    c2test_ndof_sec_pdf[0] = -1
+    kstest_prob_cnt_pdf[0] = -999
+    kstest_dist_cnt_pdf[0] = -999
+    c2test_ndof_cnt_pdf[0] = -999
+    kstest_prob_sec_pdf[0] = -999
+    kstest_dist_sec_pdf[0] = -999
+    c2test_ndof_sec_pdf[0] = -999
     
     if(cnt_pdf is not None and slices["hdEcnt_"+label].Integral()>0):# and cnt_pdf.Integral()>0):
         kstest_prob_cnt_pdf[0] = slices["hdEcnt_"+label].KolmogorovTest(cnt_pdf)
@@ -488,7 +490,9 @@ if __name__ == "__main__":
     print("\nClean temp png's and temp png path...")
     ROOT.gSystem.Exec(f"/bin/rm -rf {rootpath}") ## remove old files
     ROOT.gSystem.Exec(f"/bin/mkdir -p {rootpath}")
-    
+    ROOT.gSystem.Exec(f"/bin/rm -rf {pklpath}") ## remove old files
+    ROOT.gSystem.Exec(f"/bin/mkdir -p {pklpath}")
+
     ################################################
     ### initialize the shapes of all relevant slices
     print(f"\nBook shapes...")
@@ -509,6 +513,7 @@ if __name__ == "__main__":
     nCPUs = mp.cpu_count() if(parallelize) else 0
     print("nCPUs available:",nCPUs)
     ### Create a pool of workers
+    ### https://stackoverflow.com/questions/21485319/high-memory-usage-using-python-multiprocessing
     pool = mp.Pool(processes=nCPUs,maxtasksperchild=10) if(parallelize) else None
     builds = {}
     for label,shape in shapes.items():

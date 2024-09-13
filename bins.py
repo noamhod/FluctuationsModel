@@ -14,6 +14,46 @@ def GetLogBinning(nbins,xmin,xmax):
     arrxbins = array.array("d", xbins)
     return nbins, arrxbins
 
+def split_bins(bin_edges, split_indices):
+    ### bin_edges     = [0,1,2,3,4,5] <-- example input
+    ### N_edges       = 6
+    ### N_bins        = 5 (=N_edges-1)
+    ### bins          = [(0,1), (1,2), (2,3), (3,4), (4,5)]
+    ### split_indices = [2,5] <-- example input
+    ### new_bins      = [(0,1), (1,1.5), (1.5,2), (2,3), (3,4), (4,4.5), (4.5,5)]
+    ### new_bin_edges = [0,1,1.5,2,3,4,4.5,5]
+    ### new_N_edges   = 8
+    ### new_N_bins    = 7 (=new_N_edges-1)
+
+    N_edges = len(bin_edges)
+    N_bins  = N_edges-1
+
+    ### safety checks
+    split_indices.sort()
+    imin = split_indices[0]
+    imax = split_indices[-1]
+    if(imin<1):
+        print(f"Error: imin={imin}. Quitting")
+        quit()
+    if(imax>N_bins):
+        print(f"Error: imax={imax}. Quitting")
+        quit()
+
+    ### now do the edge appending
+    new_bin_edges = []
+    for iedge in range(N_edges):
+        ibin = iedge+1
+        binL = bin_edges[iedge]
+        new_bin_edges.append(binL)
+        if(ibin in split_indices):
+            binR = bin_edges[iedge+1]
+            new_edge = (binL+binR)/2.
+            new_bin_edges.append(new_edge)
+    arrxbins = array.array("d", new_bin_edges)
+    return arrxbins
+    # return new_bin_edges
+
+
 ############################
 ### for normal histos
 Emin = 0.46 #3e-1
