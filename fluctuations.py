@@ -3,9 +3,9 @@ import math
 import numpy as np
 import ROOT
 import units as U
-import constants as C
-import material as mat
-import particle as prt
+import FluctuationsModel.constants as C
+import FluctuationsModel.material as mat
+import FluctuationsModel.particle as prt
 import tables as tab
 import bins
 
@@ -27,7 +27,7 @@ class Parameters:
         #     print(f"Unknown model named {self.dedxmod}. Quitting")
         #     quit()
         assert self.dedxmod in ["BB:Tcut","BB:Tmax","G4:Tcut"], f"Unknown model named {self.dedxmod}. Quitting"
-        print(f"Using dE/dx model: {self.dedxmod}")
+        # print(f"Using dE/dx model: {self.dedxmod}")
         self.tbl     = tab.Tables(dEdx_table_file)
         
         ### default Energy Loss Fluctuations model used in main Physics List:

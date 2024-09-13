@@ -34,7 +34,7 @@ parallelize = True
 
 ################################
 ### the of all pickle files
-pklpath = "/Users/noamtalhod/tmp/pkl"
+pklpath = "output/"
 
 
 ##############################################################

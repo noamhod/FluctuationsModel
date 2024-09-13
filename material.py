@@ -2,7 +2,7 @@ import array
 import math
 import numpy as np
 import units as U
-import constants as C
+import FluctuationsModel.constants as C
 
 
 class Material:

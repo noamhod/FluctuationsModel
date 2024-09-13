@@ -74,7 +74,7 @@ def setG4BBdEdxFromTable(fname):
             arr_E.append( float(words[0]) )
             arr_dEdx.append( float(words[1]) )
     npts = len(arr_E)
-    print(f"Read {npts} points from file {fname}")
+    # print(f"Read {npts} points from file {fname}")
     gBB = ROOT.TGraph(npts,arr_E,arr_dEdx)
     gBB.SetLineColor(ROOT.kBlue)
     gBB.GetXaxis().SetTitle("E [MeV]")

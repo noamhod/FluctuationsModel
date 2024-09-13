@@ -15,14 +15,14 @@ import hist
 
 import argparse
 parser = argparse.ArgumentParser(description='slice_example.py...')
-parser.add_argument('-E', metavar='incoming particle energy [MeV]', required=True,  help='incoming particle energy [MeV]')
-parser.add_argument('-L', metavar='step size in L [um]', required=True,  help='step size in L [um]')
+# parser.add_argument('-E', metavar='incoming particle energy [MeV]', required=True,  help='incoming particle energy [MeV]')
+# parser.add_argument('-L', metavar='step size in L [um]', required=True,  help='step size in L [um]')
 parser.add_argument('-WE', metavar='fractional size in of the window around E', required=False,  help='fractional size of the window around E')
 parser.add_argument('-WL', metavar='fractional size in of the window around L', required=False,  help='fractional size of the window around L')
 parser.add_argument('-N', metavar='N steps to process', required=False,  help='N steps to process')
 argus = parser.parse_args()
-EE = float(argus.E)
-LL = float(argus.L)
+EE = 0.6025#float(argus.E)
+LL = 0.2685#float(argus.L)
 WE = 0.05 if(argus.WE is None) else float(argus.WE)
 WL = 0.05 if(argus.WL is None) else float(argus.WL)
 NN = 0 if(argus.N is None) else int(argus.N)

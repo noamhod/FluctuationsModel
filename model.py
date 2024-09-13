@@ -446,8 +446,7 @@ class Model:
                 for i in range(len(par)):
                     if(f is not None): f.SetParameter(i,par[i])
                     else:
-                        print(f"TF1 object is None for pdfname={pdfname}")
-                        quit()
+                        raise AssertionError("Simulation should not reach this case")
                 f.SetNpx(self.NptsTF1)
                 f.SetLineColor(ROOT.kRed)
             for bb in range(1,h.GetNbinsX()+1):
