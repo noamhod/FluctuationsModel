@@ -102,12 +102,14 @@ ndEdxbins,dEdxbins   = GetLogBinning(n_dEdx,dEdxmin,dEdxmax)
 ####################
 ### for slicees
 n_small_dE    = 200
-n_small_E     = 50
-n_small_dL    = 200
+n_small_Esec  = 100
+n_small_E     = 30 #50
+n_small_dL    = 120 #200
 n_small_dx    = 50
 n_small_dxinv = 50
 
 nEbins_small,Ebins_small         = GetLogBinning(n_small_E,Emin,Emax)
+nEsecbins_small,Esecbins_small   = GetLogBinning(n_small_Esec,Emin,Emax)
 ndxbins_small,dxbins_small       = GetLogBinning(n_small_dx,dxmin,dxmax)
 ndxinvbins_small,dxinvbins_small = GetLogBinning(n_small_dxinv,dxinvmin,dxinvmax)
 ndLbins_small,dLbins_small       = GetLogBinning(n_small_dL,dLmin,dLmax)

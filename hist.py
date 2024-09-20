@@ -153,6 +153,7 @@ def hlin_truncate_negative(h,x0=1e-6):
     return hnew
 
 def book_minimal(histos,emin=-1): ### must pass by reference!
+    histos.update({"SMALL_E"        : ROOT.TH1D("SMALL_h_E",";E [MeV];Steps",                      len(bins.Esecbins_small)-1,array.array("d",bins.Esecbins_small))})
     histos.update({"SMALL_hdL_vs_E" : ROOT.TH2D("SMALL_h_dL_vs_E",";E [MeV];#DeltaL [#mum];Steps", len(bins.Ebins_small)-1,array.array("d",bins.Ebins_small), len(bins.dLbins_small)-1,array.array("d",bins.dLbins_small))})    
 
 def book(histos,emin=-1): ### must pass by reference!
@@ -191,6 +192,7 @@ def book(histos,emin=-1): ### must pass by reference!
     histos.update({"SMALL_hdx_vs_E_isGauss_N3" : ROOT.TH2D("SMALL_hdx_vs_E_isGauss_N3",";E [MeV];dx [#mum];Gaussian for <n_{3}>", bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxbins_small)-1,array.array("d",bins.dxbins_small))})
     histos.update({"SMALL_hdx_vs_E_isGauss_N0" : ROOT.TH2D("SMALL_hdx_vs_E_isGauss_N0",";E [MeV];dx [#mum];Gaussian for <n_{0}>", bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxbins_small)-1,array.array("d",bins.dxbins_small))})
     
+    histos.update({"SMALL_E"           : ROOT.TH1D("SMALL_h_E",";E [MeV];Steps",                             len(bins.Esecbins_small)-1,array.array("d",bins.Esecbins_small))})
     histos.update({"SMALL_hdL_vs_E"    : ROOT.TH2D("SMALL_h_dL_vs_E",";E [MeV];#DeltaL [#mum];Steps",        len(bins.Ebins_small)-1,array.array("d",bins.Ebins_small), len(bins.dLbins_small)-1,array.array("d",bins.dLbins_small))})    
     # histos.update({"SMALL_hdL_vs_E"    : ROOT.TH2D("SMALL_h_dL_vs_E",";E [MeV];#DeltaL [#mum];Steps",        bins.n_small_E,bins.Emin,bins.Emax, len(bins.dLbins_small)-1,array.array("d",bins.dLbins_small))})
     histos.update({"SMALL_hdx_vs_E"    : ROOT.TH2D("SMALL_h_dx_vs_E",";E [MeV];#Deltax [#mum];Steps",        bins.n_small_E,bins.Emin,bins.Emax, len(bins.dxbins_small)-1,array.array("d",bins.dxbins_small))})    

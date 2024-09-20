@@ -105,14 +105,13 @@ if __name__ == "__main__":
     #################################################################################
     #################################################################################
     
-    hRegions = {"BEBL":None, "IONBxEX1BxIONG":None, "IONBxIONGxEX1G":None, "IONBxEX1B":None}
-    # hRegcols = {"BEBL":ROOT.kMagenta+4, "IONBxEX1B":ROOT.kMagenta+2, "IONBxEX1BxIONG":ROOT.kMagenta+0, "IONBxIONGxEX1G":ROOT.kMagenta-7}
-    Alphas = {"BEBL":0.8, "IONBxEX1B":0.6, "IONBxEX1BxIONG":0.4, "IONBxIONGxEX1G":0.2}
+    hRegions = {"BEBL":None,         "TGAU":None,          "IONBxEX1BxIONG":None, "IONBxIONGxEX1G":None,           "IONBxEX1B":None}
+    hRegcols = {"BEBL":ROOT.kGray+2, "TGAU":ROOT.kGreen+3, "IONBxEX1B":ROOT.kRed, "IONBxEX1BxIONG":ROOT.kOrange+8, "IONBxIONGxEX1G":ROOT.kMagenta}
+    Alphas   = {"BEBL":0.5,          "TGAU":0.5,           "IONBxEX1B":0.5,       "IONBxEX1BxIONG":0.5,            "IONBxIONGxEX1G":0.5}
     for name in hRegions:
         hRegions[name] = histos["SMALL_hdL_vs_E"].Clone(name)
         hRegions[name].Reset()
-        # hRegions[name].SetFillColorAlpha(hRegcols[name],0.35)
-        hRegions[name].SetFillColorAlpha(ROOT.kMagenta,Alphas[name])
+        hRegions[name].SetFillColorAlpha(hRegcols[name],Alphas[name])
     
     for bx in range(1,histos["SMALL_hdL_vs_E"].GetNbinsX()+1):
         for by in range(1,histos["SMALL_hdL_vs_E"].GetNbinsY()+1):
@@ -124,6 +123,9 @@ if __name__ == "__main__":
             ### BEBL
             if(Mod.BEBL): hRegions["BEBL"].SetBinContent(bx,by,1)
             else:         hRegions["BEBL"].SetBinContent(bx,by,0)
+            ### THK.GAUSS
+            if(Mod.TGAU): hRegions["TGAU"].SetBinContent(bx,by,1)
+            else:         hRegions["TGAU"].SetBinContent(bx,by,0)
             ### IONB and EX1B and IONG
             if(Mod.IONB and Mod.EX1B and Mod.IONG): hRegions["IONBxEX1BxIONG"].SetBinContent(bx,by,1)
             else:                                   hRegions["IONBxEX1BxIONG"].SetBinContent(bx,by,0)
@@ -134,11 +136,17 @@ if __name__ == "__main__":
             if(Mod.IONB and Mod.EX1B and not Mod.IONG and not Mod.EX1G): hRegions["IONBxEX1B"].SetBinContent(bx,by,1)
             else:                                                        hRegions["IONBxEX1B"].SetBinContent(bx,by,0)
             
-            if(not Mod.BEBL and not (Mod.IONB and Mod.EX1B and Mod.IONG) and not (Mod.IONB and Mod.IONG and Mod.EX1G) and not (Mod.IONB and Mod.EX1B and not Mod.IONG and not Mod.EX1G)):
+            if(not Mod.BEBL
+               and not Mod.TGAU
+               and not (Mod.IONB and Mod.EX1B and Mod.IONG)
+               and not (Mod.IONB and Mod.IONG and Mod.EX1G)
+               and not (Mod.IONB and Mod.EX1B and not Mod.IONG and not Mod.EX1G)):
                 print(f"Model undefined for E={E*U.eV2MeV} MeV and L={L*U.cm2um} um --> build={Mod.build}")
     
     for name in hRegions:
         hRegions[name].Scale( histos["SMALL_hdL_vs_E"].GetMaximum() )
+    
+    
     
 
     ##########################################################
@@ -161,6 +169,24 @@ if __name__ == "__main__":
     ROOT.gPad.SetTicks(1,1)
     ROOT.gPad.RedrawAxis()
     cnv.SaveAs(pdf+"(")
+    #####################
+    cnv = ROOT.TCanvas("cnv","",500,500)
+    histos["hdL_vs_E"].SetTitle("IONB#otimesEX1B")
+    histos["hdL_vs_E"].Draw("colz")
+    hRegions["IONBxEX1B"].Draw("box same")
+    gridx,gridy = hist.getGrid(histos["SMALL_hdL_vs_E"])
+    for line in gridx:
+        line.SetLineColor(ROOT.kGray)
+        line.Draw("same")
+    for line in gridy:
+        line.SetLineColor(ROOT.kGray)
+        line.Draw("same")
+    ROOT.gPad.SetLogx()
+    ROOT.gPad.SetLogy()
+    ROOT.gPad.SetLogz()
+    ROOT.gPad.SetTicks(1,1)
+    ROOT.gPad.RedrawAxis()
+    cnv.SaveAs(pdf)
     #####################
     cnv = ROOT.TCanvas("cnv","",500,500)
     histos["hdL_vs_E"].SetTitle("IONB#otimesEX1B#otimesIONG")
@@ -199,9 +225,9 @@ if __name__ == "__main__":
     cnv.SaveAs(pdf)
     #####################
     cnv = ROOT.TCanvas("cnv","",500,500)
-    histos["hdL_vs_E"].SetTitle("IONB#otimesEX1B")
+    histos["hdL_vs_E"].SetTitle("THKG")
     histos["hdL_vs_E"].Draw("colz")
-    hRegions["IONBxEX1B"].Draw("box same")
+    hRegions["TGAU"].Draw("box same")
     gridx,gridy = hist.getGrid(histos["SMALL_hdL_vs_E"])
     for line in gridx:
         line.SetLineColor(ROOT.kGray)
@@ -216,11 +242,11 @@ if __name__ == "__main__":
     ROOT.gPad.RedrawAxis()
     cnv.SaveAs(pdf)
     #####################
-    
     cnv = ROOT.TCanvas("cnv","",500,500)
     histos["hdL_vs_E"].SetTitle("")
     histos["hdL_vs_E"].Draw("colz")
     hRegions["BEBL"].Draw("box same")
+    hRegions["TGAU"].Draw("box same")
     hRegions["IONBxEX1BxIONG"].Draw("box same")
     hRegions["IONBxIONGxEX1G"].Draw("box same")
     hRegions["IONBxEX1B"].Draw("box same")
