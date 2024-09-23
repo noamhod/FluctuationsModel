@@ -263,19 +263,10 @@ if __name__ == "__main__":
     ROOT.gPad.SetTicks(1,1)
     ROOT.gPad.RedrawAxis()
     cnv.SaveAs(pdf+")")
-    
-    # cnv = ROOT.TCanvas("cnv","",500,500)
-    # histos["SMALL_hdL_vs_E"].Draw("colz")
-    # hBEBL.Draw("box same")
-    # gridx,gridy = hist.getGrid(histos["SMALL_hdL_vs_E"])
-    # for line in gridx:
-    #     line.SetLineColor(ROOT.kGray)
-    #     line.Draw("same")
-    # for line in gridy:
-    #     line.SetLineColor(ROOT.kGray)
-    #     line.Draw("same")
-    # ROOT.gPad.SetLogy()
-    # ROOT.gPad.SetLogz()
-    # ROOT.gPad.SetTicks(1,1)
-    # ROOT.gPad.RedrawAxis()
-    # cnv.SaveAs(pdf+")")
+
+tfo = ROOT.TFile(pdf.replace(".pdf",".root"),"RECREATE")
+tfo.cd()
+for name,hreg in hRegions.items(): hreg.Write()
+histos["hdL_vs_E"].Write()
+tfo.Write()
+tfo.Close()

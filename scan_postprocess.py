@@ -52,6 +52,30 @@ if(dogif):
     ROOT.gSystem.Exec(f"/bin/mkdir -p {pngpath}")
 
 
+def avg_cdf_distance(h1,h2):
+    if(h1.GetNbinsX()!=h2.GetNbinsX()):
+        print("Histogram bin numbers do not match. Quitting")
+        quit()
+    avg_dist = 0
+    Nx = h1.GetNbinsX()
+    for bx in range(1,Nx+1):
+        y1 = h1.GetBinContent(bx)
+        y2 = h2.GetBinContent(bx)
+        avg_dist += abs(y1-y2)
+    return avg_dist/float(Nx)
+
+def rms_cdf_distance(h1,h2):
+    if(h1.GetNbinsX()!=h2.GetNbinsX()):
+        print("Histogram bin numbers do not match. Quitting")
+        quit()
+    rms_dist = 0
+    Nx = h1.GetNbinsX()
+    for bx in range(1,Nx+1):
+        y1 = h1.GetBinContent(bx)
+        y2 = h2.GetBinContent(bx)
+        rms_dist += (y1-y2)**2
+    return math.sqrt(rms_dist/float(Nx))
+
 def plot_continuous_slices(label,build,E,L,hists):
     NrawSteps = hists["hE_"+label].GetEntries()
     cnt_pdf = hists[label+"_cnt_pdf"] if(type(hists[label+"_cnt_pdf"]) is ROOT.TH1D) else None
@@ -307,28 +331,44 @@ href_sec = tf0.Get("SMALL_h_E")
 hkst_cnt_prob = href_cnt.Clone("KSprob_cnt")
 hkst_cnt_dist = href_cnt.Clone("KSdist_cnt")
 hc2t_cnt_ndof = href_cnt.Clone("C2ndof_cnt")
+havg_dist_cnt_ndof = href_cnt.Clone("AVGdist_cnt")
+hrms_dist_cnt_ndof = href_cnt.Clone("RMSdist_cnt")
 hkst_cnt_prob.Reset()
 hkst_cnt_dist.Reset()
 hc2t_cnt_ndof.Reset()
+havg_dist_cnt_ndof.Reset()
+hrms_dist_cnt_ndof.Reset()
 hkst_cnt_prob.SetTitle("Continuous")
 hkst_cnt_dist.SetTitle("Continuous")
 hc2t_cnt_ndof.SetTitle("Continuous")
+havg_dist_cnt_ndof.SetTitle("Continuous")
+hrms_dist_cnt_ndof.SetTitle("Continuous")
 hkst_cnt_prob.GetZaxis().SetTitle("KS test probability")
 hkst_cnt_dist.GetZaxis().SetTitle("KS test max distance")
 hc2t_cnt_ndof.GetZaxis().SetTitle("#chi^{2}/N_{DoF} test")
+havg_dist_cnt_ndof.GetZaxis().SetTitle("Avg CDF distance test")
+hrms_dist_cnt_ndof.GetZaxis().SetTitle("RMS CDF distance test")
 
 hkst_sec_prob = href_sec.Clone("KSprob_sec")
 hkst_sec_dist = href_sec.Clone("KSdist_sec")
 hc2t_sec_ndof = href_sec.Clone("C2ndof_sec")
+havg_dist_sec_ndof = href_sec.Clone("AVGdist_sec")
+hrms_dist_sec_ndof = href_sec.Clone("RMSdist_sec")
 hkst_sec_prob.Reset()
 hkst_sec_dist.Reset()
 hc2t_sec_ndof.Reset()
+havg_dist_sec_ndof.Reset()
+hrms_dist_sec_ndof.Reset()
 hkst_sec_prob.SetTitle("Secondaries")
 hkst_sec_dist.SetTitle("Secondaries")
 hc2t_sec_ndof.SetTitle("Secondaries")
+havg_dist_sec_ndof.SetTitle("Secondaries")
+hrms_dist_sec_ndof.SetTitle("Secondaries")
 hkst_sec_prob.GetYaxis().SetTitle("KS test probability")
 hkst_sec_dist.GetYaxis().SetTitle("KS test max distance")
 hc2t_sec_ndof.GetYaxis().SetTitle("#chi^{2}/N_{DoF} test")
+havg_dist_sec_ndof.GetYaxis().SetTitle("Avg CDF distance test")
+hrms_dist_sec_ndof.GetYaxis().SetTitle("RMS CDF distance test")
 
 
 
@@ -367,24 +407,48 @@ for ie in range(1,href_cnt.GetNbinsX()+1):
            label+"_cnt_cdf" : tf.Get(label+"_cnt_cdf"),
         }
         
-        ### for the summary
-        tree = tf.Get("meta_"+label)
-        tree.GetEntry(0)
-        
-        if(L<1e-5): print(f"label={label}, E={E}, L={L}, KS_dist_cnt={tree.KS_dist_test_cnt_pdf}, C2_ndof_cnt={tree.C2_ndof_test_cnt_pdf}")
-        
         epsilon = 1e-20
         
-        KS_prob_test_cnt = tree.KS_prob_test_cnt_pdf
-        KS_dist_test_cnt = tree.KS_dist_test_cnt_pdf
-        C2_ndof_test_cnt = tree.C2_ndof_test_cnt_pdf
+        # ### for the summary
+        # tree = tf.Get("meta_"+label)
+        # tree.GetEntry(0)
+        #
+        # if(L<1e-5): print(f"label={label}, E={E}, L={L}, KS_dist_cnt={tree.KS_dist_test_cnt_pdf}, C2_ndof_cnt={tree.C2_ndof_test_cnt_pdf}")
+        #
+        #
+        # KS_prob_test_cnt = tree.KS_prob_test_cnt_pdf
+        # KS_dist_test_cnt = tree.KS_dist_test_cnt_pdf
+        # C2_ndof_test_cnt = tree.C2_ndof_test_cnt_pdf
+        # if(KS_prob_test_cnt==0): KS_prob_test_cnt += epsilon
+        # if(KS_dist_test_cnt==0): KS_dist_test_cnt += epsilon
+        # if(C2_ndof_test_cnt==0): C2_ndof_test_cnt += epsilon
+        # if(KS_prob_test_cnt>=0): hkst_cnt_prob.SetBinContent(ie,il, KS_prob_test_cnt)
+        # if(KS_dist_test_cnt>=0): hkst_cnt_dist.SetBinContent(ie,il, KS_dist_test_cnt)
+        # if(C2_ndof_test_cnt>=0): hc2t_cnt_ndof.SetBinContent(ie,il, C2_ndof_test_cnt)
+        
+        hcnt_pdf = hists["hdEcnt_"+label].Clone("hcnt_pdf")
+        hcnt_pdf.Scale(1./hcnt_pdf.Integral())
+        hcnt_cdf = hcnt_pdf.GetCumulative()
+        
+        KS_prob_test_cnt = hists["hdEcnt_"+label].KolmogorovTest(hists[label+"_cnt_pdf"])
+        KS_dist_test_cnt = hists["hdEcnt_"+label].KolmogorovTest(hists[label+"_cnt_pdf"],"M")
+        C2_ndof_test_cnt = hists["hdEcnt_"+label].Chi2Test(hists[label+"_cnt_pdf"],"CHI2/NDF")
+        AVG_dist_test_cnt = avg_cdf_distance(hcnt_cdf,hists[label+"_cnt_cdf"])
+        RMS_dist_test_cnt = rms_cdf_distance(hcnt_cdf,hists[label+"_cnt_cdf"])
+        
         if(KS_prob_test_cnt==0): KS_prob_test_cnt += epsilon
         if(KS_dist_test_cnt==0): KS_dist_test_cnt += epsilon
         if(C2_ndof_test_cnt==0): C2_ndof_test_cnt += epsilon
+        if(AVG_dist_test_cnt==0): AVG_dist_test_cnt += epsilon
+        if(RMS_dist_test_cnt==0): RMS_dist_test_cnt += epsilon
         if(KS_prob_test_cnt>=0): hkst_cnt_prob.SetBinContent(ie,il, KS_prob_test_cnt)
         if(KS_dist_test_cnt>=0): hkst_cnt_dist.SetBinContent(ie,il, KS_dist_test_cnt)
-        if(C2_ndof_test_cnt>=0): hc2t_cnt_ndof.SetBinContent(ie,il, C2_ndof_test_cnt)
-                
+        if(AVG_dist_test_cnt>=0): havg_dist_cnt_ndof.SetBinContent(ie,il, AVG_dist_test_cnt)
+        if(RMS_dist_test_cnt>=0): hrms_dist_cnt_ndof.SetBinContent(ie,il, RMS_dist_test_cnt)
+        
+        del hcnt_pdf
+        del hcnt_cdf
+        
         ### plot the slice
         if(dogif): plot_continuous_slices(label,build,E,L,hists)
         
@@ -421,27 +485,47 @@ for ie in range(1,href_sec.GetNbinsX()+1):
        label+"_sec_pdf" : tf.Get(label+"_sec_pdf"),
        label+"_sec_cdf" : tf.Get(label+"_sec_cdf"),
     }
-    
-    ### for the summary
-    tree = tf.Get("meta_"+label)
-    tree.GetEntry(0)
-    
-    if(L<1e-5): print(f"label={label}, E={E}, KS_dist_sec={tree.KS_dist_test_sec_pdf}, C2_ndof_sec={tree.C2_ndof_test_sec_pdf}")
-    
     epsilon = 1e-20
     
-    KS_prob_test_sec = tree.KS_prob_test_sec_pdf
-    KS_dist_test_sec = tree.KS_dist_test_sec_pdf
-    C2_ndof_test_sec = tree.C2_ndof_test_sec_pdf
+    # ### for the summary
+    # tree = tf.Get("meta_"+label)
+    # tree.GetEntry(0)
+    #
+    # if(L<1e-5): print(f"label={label}, E={E}, KS_dist_sec={tree.KS_dist_test_sec_pdf}, C2_ndof_sec={tree.C2_ndof_test_sec_pdf}")
+    #
+    #
+    # KS_prob_test_sec = tree.KS_prob_test_sec_pdf
+    # KS_dist_test_sec = tree.KS_dist_test_sec_pdf
+    # C2_ndof_test_sec = tree.C2_ndof_test_sec_pdf
+    # if(KS_prob_test_sec==0): KS_prob_test_sec += epsilon
+    # if(KS_dist_test_sec==0): KS_dist_test_sec += epsilon
+    # if(C2_ndof_test_sec==0): C2_ndof_test_sec += epsilon
+    # if(KS_prob_test_sec>=0): hkst_sec_prob.SetBinContent(ie,il, KS_prob_test_sec)
+    # if(KS_dist_test_sec>=0): hkst_sec_dist.SetBinContent(ie,il, KS_dist_test_sec)
+    # if(C2_ndof_test_sec>=0): hc2t_sec_ndof.SetBinContent(ie,il, C2_ndof_test_sec)
+    
+    hsec_pdf = hists["hdEsec_"+label].Clone("hsec_pdf")
+    hsec_pdf.Scale(1./hsec_pdf.Integral())
+    hsec_cdf = hsec_pdf.GetCumulative()
+    
+    KS_prob_test_sec = hists["hdEsec_"+label].KolmogorovTest(hists[label+"_sec_pdf"])
+    KS_dist_test_sec = hists["hdEsec_"+label].KolmogorovTest(hists[label+"_sec_pdf"],"M")
+    C2_ndof_test_sec = hists["hdEsec_"+label].Chi2Test(hists[label+"_sec_pdf"],"CHI2/NDF")
+    AVG_dist_test_sec = avg_cdf_distance(hsec_cdf,hists[label+"_sec_cdf"])
+    RMS_dist_test_sec = rms_cdf_distance(hsec_cdf,hists[label+"_sec_cdf"])
     if(KS_prob_test_sec==0): KS_prob_test_sec += epsilon
     if(KS_dist_test_sec==0): KS_dist_test_sec += epsilon
-    if(C2_ndof_test_sec==0): C2_ndof_test_sec += epsilon        
-    if(KS_prob_test_sec>=0): hkst_sec_prob.SetBinContent(ie,il, KS_prob_test_sec)
-    if(KS_dist_test_sec>=0): hkst_sec_dist.SetBinContent(ie,il, KS_dist_test_sec)
-    if(C2_ndof_test_sec>=0): hc2t_sec_ndof.SetBinContent(ie,il, C2_ndof_test_sec)
+    if(C2_ndof_test_sec==0): C2_ndof_test_sec += epsilon
+    if(AVG_dist_test_sec==0): AVG_dist_test_sec += epsilon
+    if(RMS_dist_test_sec==0): RMS_dist_test_sec += epsilon
+    if(KS_prob_test_sec>=0): hkst_sec_prob.SetBinContent(ie, KS_prob_test_sec)
+    if(KS_dist_test_sec>=0): hkst_sec_dist.SetBinContent(ie, KS_dist_test_sec)
+    if(C2_ndof_test_sec>=0): hc2t_sec_ndof.SetBinContent(ie, C2_ndof_test_sec)
+    if(AVG_dist_test_sec>=0): havg_dist_sec_ndof.SetBinContent(ie, AVG_dist_test_sec)
+    if(RMS_dist_test_sec>=0): hrms_dist_sec_ndof.SetBinContent(ie, RMS_dist_test_sec)
     
-    ### slices are maybe too large
-    # if(tree.KS_dist_test_cnt_pdf>0.5 or tree.KS_dist_test_sec_pdf>0.5 and (ie,il) not in ybins2split): ybins2split.append((ie,il))
+    del hsec_pdf
+    del hsec_cdf
     
     ### plot the slice
     if(dogif): plot_secondaries_slices(label,build,E,hists)
@@ -497,7 +581,7 @@ ROOT.gPad.SetLogy()
 ROOT.gPad.SetLogz()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
-hkst_cnt_prob.GetZaxis().SetTitleOffset(1.6)
+href_cnt.GetZaxis().SetTitleOffset(1.6)
 href_cnt.Draw("colz")
 # for line in gridx: line.Draw("same")
 # for line in gridy: line.Draw("same")
@@ -508,8 +592,10 @@ ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
-hkst_cnt_prob.GetZaxis().SetTitleOffset(1.6)
-hkst_cnt_prob.Draw("colz")
+# hkst_cnt_prob.GetZaxis().SetTitleOffset(1.6)
+havg_dist_cnt_ndof.GetZaxis().SetTitleOffset(1.6)
+# hkst_cnt_prob.Draw("colz")
+havg_dist_cnt_ndof.Draw("colz")
 # for line in gridx: line.Draw("same")
 # for line in gridy: line.Draw("same")
 ROOT.gPad.RedrawAxis()
@@ -530,12 +616,15 @@ ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
-hc2t_cnt_ndof.GetZaxis().SetTitleOffset(1.5)
-hc2t_cnt_ndof.Draw("colz")
+# hc2t_cnt_ndof.GetZaxis().SetTitleOffset(1.5)
+hrms_dist_cnt_ndof.GetZaxis().SetTitleOffset(1.5)
+# hc2t_cnt_ndof.Draw("colz")
+hrms_dist_cnt_ndof.Draw("colz")
 # for line in gridx: line.Draw("same")
 # for line in gridy: line.Draw("same")
 ROOT.gPad.RedrawAxis()
 canvas.SaveAs("test_kschisq.pdf")
+
 
 
 canvas = ROOT.TCanvas("canvas", "canvas", 1000,1000)
@@ -554,7 +643,10 @@ ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
-hkst_sec_prob.Draw("hist")
+# hkst_sec_prob.GetZaxis().SetTitleOffset(1.6)
+havg_dist_sec_ndof.GetZaxis().SetTitleOffset(1.6)
+# hkst_sec_prob.Draw("hist")
+havg_dist_sec_ndof.Draw("hist")
 ROOT.gPad.RedrawAxis()
 canvas.cd(3)
 ROOT.gPad.SetTicks(1,1)
@@ -571,8 +663,10 @@ ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
 ROOT.gPad.SetLeftMargin(0.15)
 ROOT.gPad.SetRightMargin(0.18)
-hc2t_sec_ndof.GetZaxis().SetTitleOffset(1.5)
-hc2t_sec_ndof.Draw("hist")
+# hc2t_sec_ndof.GetZaxis().SetTitleOffset(1.5)
+hrms_dist_sec_ndof.GetZaxis().SetTitleOffset(1.5)
+# hc2t_sec_ndof.Draw("hist")
+hrms_dist_sec_ndof.Draw("hist")
 ROOT.gPad.RedrawAxis()
 canvas.SaveAs("test_kschisq.pdf)")
 
