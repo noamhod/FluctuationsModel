@@ -41,15 +41,6 @@ def truncated_gaus(x,par):
 
 ### this has to stay outside of any class
 ### so it can be called to construct a TF1
-# def borysov_secondaries(x,par):
-#     Emin  = par[0]
-#     Emax  = par[1]
-#     beta2 = par[2]
-#     W     = Emax/Emin-1.
-#     X     = x[0]
-#     res = (Emax-beta2*X)/((W-beta2*math.log(1.+W))*(X*X)) if(X>=Emin and X<=Emax) else 0.
-#     return res
-
 def borysov_secondaries(x,par):
     xmin = par[2]/(1.0+par[1])
     xmax = par[2]
@@ -102,7 +93,6 @@ class Model:
         ### set parameters
         self.par_bethebloch_min  = [self.meanLoss]
         self.par_zero_loss       = [0]
-        # self.par_borysov_sec     = [self.EkinMin, self.EkinMax, self.b2]
         self.par_borysov_sec     = [self.EkinMax, self.EkinMax/self.EkinMin-1., self.EkinMax, self.b2]
         self.par_borysov_ion     = [self.w3, self.w, self.p3]
         self.par_borysov_exc     = [self.n1, self.e1]
@@ -257,9 +247,15 @@ class Model:
     
     def dE_binning(self):
         if(self.SECB):
-            self.dEminSec  = 0.5*self.Tcut #10
-            self.dEmaxSec  = 5000000.1
-            self.NbinsSec  = 100000
+            self.dEminSec = 0.8*self.Tcut
+            self.dEmaxSec = 1.2*self.EkinMax
+            self.NbinsSec = 50000
+            # self.dEminSec = 0.8*self.Tcut
+            # self.dEmaxSec = 300000 ## this can be just 1.2*self.EkinMax
+            # self.NbinsSec = 50000
+            # self.dEminSec = 0.8*self.Tcut
+            # self.dEmaxSec = 1250
+            # self.NbinsSec = 2000
         if(self.BEBL):
             self.dEmin     = 0
             self.dEmax     = 11
