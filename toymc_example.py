@@ -54,7 +54,6 @@ PrimaryPrt = prt.Particle(name="proton",meV=938.27208816*U.MeV2eV,mamu=1.0072764
 par        = flct.Parameters(PrimaryPrt,TargetMat,dEdxModel,"inputs/dEdx_p_si.txt")
 modelpars  = par.GetModelPars(EE*U.MeV2eV,LL*U.um2cm)
 print(modelpars)
-quit()
 
 ######################################################
 ######################################################
@@ -64,7 +63,9 @@ DOTIME = True
 Mod = model.Model(LL*U.um2cm, EE*U.MeV2eV, modelpars, DOTIME)
 # Mod.set_fft_sampling_pars(N_t_bins=10000000,frac=0.05)
 Mod.set_fft_sampling_pars_rotem(N_t_bins=10000000,frac=0.05)
-Mod.set_all_shapes()
+# Mod.set_all_shapes()
+Mod.set_continuous_shapes()
+Mod.set_secondaries_shapes()
 cnt_pdfs = Mod.cnt_pdfs ## dict name-->TH1D
 cnt_cdfs = Mod.cnt_cdfs ## dict name-->TH1D
 sec_pdfs = Mod.sec_pdfs ## dict name-->TH1D

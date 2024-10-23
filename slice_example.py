@@ -15,14 +15,14 @@ import hist
 
 import argparse
 parser = argparse.ArgumentParser(description='slice_example.py...')
-# parser.add_argument('-E', metavar='incoming particle energy [MeV]', required=True,  help='incoming particle energy [MeV]')
-# parser.add_argument('-L', metavar='step size in L [um]', required=True,  help='step size in L [um]')
+parser.add_argument('-E', metavar='incoming particle energy [MeV]', required=True,  help='incoming particle energy [MeV]')
+parser.add_argument('-L', metavar='step size in L [um]', required=True,  help='step size in L [um]')
 parser.add_argument('-WE', metavar='fractional size in of the window around E', required=False,  help='fractional size of the window around E')
 parser.add_argument('-WL', metavar='fractional size in of the window around L', required=False,  help='fractional size of the window around L')
 parser.add_argument('-N', metavar='N steps to process', required=False,  help='N steps to process')
 argus = parser.parse_args()
-EE = 0.541#float(argus.E)
-LL = 0.2685#float(argus.L)
+EE = float(argus.E)
+LL = float(argus.L)
 WE = 0.05 if(argus.WE is None) else float(argus.WE)
 WL = 0.05 if(argus.WL is None) else float(argus.WL)
 NN = 0 if(argus.N is None) else int(argus.N)
@@ -60,7 +60,9 @@ DOTIME = True
 Mod = model.Model(LL*U.um2cm, EE*U.MeV2eV, modelpars, DOTIME)
 # Mod.set_fft_sampling_pars(N_t_bins=10000000,frac=0.01)
 Mod.set_fft_sampling_pars_rotem(N_t_bins=10000000,frac=0.01)
-Mod.set_all_shapes()
+# Mod.set_all_shapes()
+Mod.set_continuous_shapes()
+Mod.set_secondaries_shapes()
 cnt_pdfs          = Mod.cnt_pdfs ## dict name-->TH1D
 cnt_cdfs          = Mod.cnt_cdfs ## dict name-->TH1D
 sec_pdfs          = Mod.sec_pdfs ## dict name-->TH1D
@@ -126,21 +128,6 @@ arr_dL     = df['dL'].to_numpy()
 arr_dTheta = df['dTheta'].to_numpy()
 arr_dPhi   = df['dPhi'].to_numpy()
 
-values = []
-for n in range(len(arr_dx)):
-    dx     = arr_dx[n]*U.m2um
-    dEcnt  = arr_dEcnt[n]*U.eV2MeV
-    dEtot  = arr_dEtot[n]*U.eV2MeV
-    dEsec  = dEtot - dEcnt
-    E      = arr_E[n]*U.eV2MeV
-
-    if (E >= bins.Emax):   continue  ## skip the primary particles
-    if (E < bins.Emin):    continue  ## skip the low energy particles
-    if (dx >= bins.dxmax): continue  ## skip
-    if (dx < bins.dxmin):  continue  ## skip
-
-    if ((dx >= (1 - WL) * LL and dx <= (1 + WL) * LL) and (E >= (1 - WE) * EE and E <= (1 + WE) * EE)):
-        values.append(dEsec)
 
 
 #################################################
@@ -435,7 +422,6 @@ cnv.cd(1)
 ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
-if(Mod.doLogx): ROOT.gPad.SetLogx()
 hdE_cnt_lin_eV_noscale.SetMinimum(0.5)
 pdfModel = cnt_pdfs["hModel"].Clone(cnt_pdfs["hModel"].GetName()+"_clone")
 if(hdE_cnt_lin_eV_noscale.Integral()>0): pdfModel.Scale( hdE_cnt_lin_eV_noscale.GetMaximum()/pdfModel.GetMaximum() )
@@ -454,7 +440,6 @@ cnv.cd(2)
 ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
-if(Mod.doLogx): ROOT.gPad.SetLogx()
 hdE_cnt_lin_eV_noscale_clone = hdE_cnt_lin_eV_noscale.Clone(hdE_cnt_lin_eV_noscale.GetName()+"_clone")
 if(hdE_cnt_lin_eV_noscale_clone.Integral()>0): hdE_cnt_lin_eV_noscale_clone.Scale(1./hdE_cnt_lin_eV_noscale_clone.Integral())
 hdE_cnt_lin_eV_noscale_clone.GetCumulative().Draw("hist")
@@ -495,7 +480,6 @@ cnv.cd(1)
 ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
-if(Mod.doLogx): ROOT.gPad.SetLogx()
 hdE_cnt_lin_eV.SetMinimum(0.5)
 pdfModel = cnt_pdfs_scaled["hModel"].Clone(cnt_pdfs_scaled["hModel"].GetName()+"_clone")
 if(hdE_cnt_lin_eV.Integral()>0): pdfModel.Scale( hdE_cnt_lin_eV.GetMaximum()/pdfModel.GetMaximum() )
@@ -516,7 +500,6 @@ cnv.cd(2)
 ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
-if(Mod.doLogx): ROOT.gPad.SetLogx()
 hdE_cnt_lin_eV_clone = hdE_cnt_lin_eV.Clone(hdE_cnt_lin_eV.GetName()+"_clone")
 if(hdE_cnt_lin_eV_clone.Integral()>0): hdE_cnt_lin_eV_clone.Scale(1./hdE_cnt_lin_eV_clone.Integral())
 hdE_cnt_lin_eV_clone.GetCumulative().Draw("hist")
@@ -540,7 +523,6 @@ cnv.cd(1)
 ROOT.gPad.SetTicks(1,1)
 ROOT.gPad.SetLogx()
 ROOT.gPad.SetLogy()
-if(Mod.doLogx): ROOT.gPad.SetLogx()
 hdE_sec_lin_eV.SetMinimum(0.5)
 if(sec_pdfs["hBorysov_Sec"] is not None):
     pdfModel = sec_pdfs["hBorysov_Sec"].Clone(sec_pdfs["hBorysov_Sec"].GetName()+"_clone")
@@ -550,22 +532,20 @@ hdE_sec_lin_eV.SetLineColor(ROOT.kBlack)
 hdE_sec_lin_eV.SetMarkerColor(ROOT.kBlack)
 hdE_sec_lin_eV.SetMarkerStyle(20)
 hdE_sec_lin_eV.SetMarkerSize(0.6)
-hdE_sec_lin_eV.Draw("L")
+hdE_sec_lin_eV.Draw("hist")
 if(sec_pdfs["hBorysov_Sec"] is not None):
-    pdfModel.Draw("L same")
+    pdfModel.Draw("hist same")
 legend.Draw("same")
 ROOT.gPad.RedrawAxis()
 cnv.cd(2)
 ROOT.gPad.SetTicks(1,1)
-# ROOT.gPad.SetLogx()
-# ROOT.gPad.SetLogy()
-# if(Mod.doLogx): ROOT.gPad.SetLogx()
+ROOT.gPad.SetLogx()
+ROOT.gPad.SetLogy()
 hdE_sec_lin_eV_clone = hdE_sec_lin_eV.Clone(hdE_sec_lin_eV.GetName()+"_clone")
 if(hdE_sec_lin_eV_clone.Integral()>0): hdE_sec_lin_eV_clone.Scale(1./hdE_sec_lin_eV_clone.Integral())
-hdE_sec_lin_eV_clone.GetXaxis().SetRangeUser(10**2.9, 10**3.1)  # Set x-axis limits here
-hdE_sec_lin_eV_clone.GetCumulative().Draw("L")
+hdE_sec_lin_eV_clone.GetCumulative().Draw("hist")
 if(sec_cdfs["hBorysov_Sec"] is not None):
-    sec_cdfs["hBorysov_Sec"].Draw("L same")
+    sec_cdfs["hBorysov_Sec"].Draw("hist same")
 legend.Draw("same")
 ROOT.gPad.RedrawAxis()
 cnv.SaveAs(pdf+")")

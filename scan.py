@@ -42,7 +42,7 @@ pklpath = "output/"
 ##############################################################
 ### functions for the submission of model calculation
 
-def get_slice(ie,il,hgrid):
+def get_continuous_slice(ie,il,hgrid):
     label_E     = str(ie)
     label_dL    = str(il)
     label       = "E"+label_E+"_dL"+label_dL
@@ -50,7 +50,13 @@ def get_slice(ie,il,hgrid):
     L           = hgrid.GetYaxis().GetBinCenter(il)*U.um2cm  # cm
     return label, E, L
 
-def get_edges(ie,il,hgrid):
+def get_secondaries_slice(ie,hgrid):
+    label_E = str(ie)
+    label   = "E"+label_E
+    E       = hgrid.GetXaxis().GetBinCenter(ie)*U.MeV2eV # eV
+    return label, E
+
+def get_edges_continuous(ie,il,hgrid):
     Emin        = hgrid.GetXaxis().GetBinLowEdge(ie)
     Emax        = hgrid.GetXaxis().GetBinUpEdge(ie)
     Lmin        = hgrid.GetYaxis().GetBinLowEdge(il)
@@ -58,21 +64,71 @@ def get_edges(ie,il,hgrid):
     slice_edges = {"E":[Emin,Emax], "L":[Lmin,Lmax]}
     return slice_edges
 
-def get_slice_shapes(E,L,P,label,slice_edges):
-    if(parallelize): 
+def get_edges_secondaries(ie,hgrid):
+    Emin        = hgrid.GetXaxis().GetBinLowEdge(ie)
+    Emax        = hgrid.GetXaxis().GetBinUpEdge(ie)
+    slice_edges = {"E":[Emin,Emax]}
+    return slice_edges
+
+
+# def get_slice_shapes(E,L,P,label,slice_edges):
+#     if(parallelize):
+#         lock = mp.Lock()
+#         lock.acquire()
+#     start1 = time.time()
+#     Mod = model.Model(L,E,P)
+#     Mod.set_fft_sampling_pars_rotem(N_t_bins=10000000,frac=0.01)
+#     # Mod.set_all_shapes()
+#     Mod.set_continuous_shapes()
+#     Mod.set_secondaries_shapes()
+#     end1 = time.time()
+#     elapsed1 = end1-start1
+#
+#     start2 = time.time()
+#     ############################
+#     ### output files
+#     pklname = f"{pklpath}/slice_{label}.pkl"
+#     fpkl = open(pklname,"wb")
+#     ############################
+#
+#     ### write the sapes to the pickle file
+#     data = { "Label":label,
+#              "Slice_E_min":slice_edges["E"][0],
+#              "Slice_E_max":slice_edges["E"][1],
+#              "Slice_dL_min":slice_edges["L"][0],
+#              "Slice_dL_max":slice_edges["L"][1],
+#              "Pars":P,
+#              "cnt_cdf_arrx":Mod.cnt_cdfs_scaled_arrx,
+#              "cnt_cdf_arrsy":Mod.cnt_cdfs_scaled_arrsy,
+#              "sec_cdf_arrx":Mod.sec_cdfs_arrx,
+#              "sec_cdf_arrsy":Mod.sec_cdfs_arrsy }
+#     pickle.dump(data, fpkl, protocol=pickle.HIGHEST_PROTOCOL) ### dump to pickle
+#     fpkl.close()
+#     end2 = time.time()
+#     elapsed2 = end2-start2
+#
+#     ### clean up the model class
+#     ### for reasonable memory usage
+#     del Mod
+#
+#     print(f"Finished slice: {label} at (E,dL)=({E*U.eV2MeV:.3f} MeV,{L*U.cm2um:.6f} um), model obtained within {elapsed1:.2f} [s] and saved in {elapsed2:.2f} [s]")
+#     if(parallelize): lock.release()
+
+def get_slice_continuous_shapes(E,L,P,label,slice_edges):
+    if(parallelize):
         lock = mp.Lock()
         lock.acquire()
     start1 = time.time()
     Mod = model.Model(L,E,P)
     Mod.set_fft_sampling_pars_rotem(N_t_bins=10000000,frac=0.01)
-    Mod.set_all_shapes()
+    Mod.set_continuous_shapes()
     end1 = time.time()
     elapsed1 = end1-start1
     
     start2 = time.time()
     ############################
     ### output files
-    pklname = f"{pklpath}/slice_{label}.pkl"
+    pklname = f"{pklpath}/slice_cnt_{label}.pkl"
     fpkl = open(pklname,"wb")
     ############################
 
@@ -84,7 +140,42 @@ def get_slice_shapes(E,L,P,label,slice_edges):
              "Slice_dL_max":slice_edges["L"][1],
              "Pars":P,
              "cnt_cdf_arrx":Mod.cnt_cdfs_scaled_arrx,
-             "cnt_cdf_arrsy":Mod.cnt_cdfs_scaled_arrsy,
+             "cnt_cdf_arrsy":Mod.cnt_cdfs_scaled_arrsy}
+    pickle.dump(data, fpkl, protocol=pickle.HIGHEST_PROTOCOL) ### dump to pickle
+    fpkl.close()
+    end2 = time.time()
+    elapsed2 = end2-start2
+
+    ### clean up the model class
+    ### for reasonable memory usage
+    del Mod
+
+    print(f"Finished continuous slice: {label} at (E,dL)=({E*U.eV2MeV:.3f} MeV,{L*U.cm2um:.6f} um), model obtained within {elapsed1:.2f} [s] and saved in {elapsed2:.2f} [s]")
+    if(parallelize): lock.release()
+
+def get_slice_secondaries_shapes(E,LMID,P,label,slice_edges):
+    if(parallelize):
+        lock = mp.Lock()
+        lock.acquire()
+    start1 = time.time()
+    Mod = model.Model(LMID,E,P)
+    # Mod.set_fft_sampling_pars_rotem(N_t_bins=10000000,frac=0.01)
+    Mod.set_secondaries_shapes()
+    end1 = time.time()
+    elapsed1 = end1-start1
+
+    start2 = time.time()
+    ############################
+    ### output files
+    pklname = f"{pklpath}/slice_sec_{label}.pkl"
+    fpkl = open(pklname,"wb")
+    ############################
+
+    ### write the sapes to the pickle file
+    data = { "Label":label,
+             "Slice_E_min":slice_edges["E"][0],
+             "Slice_E_max":slice_edges["E"][1],
+             "Pars":P,
              "sec_cdf_arrx":Mod.sec_cdfs_arrx,
              "sec_cdf_arrsy":Mod.sec_cdfs_arrsy }
     pickle.dump(data, fpkl, protocol=pickle.HIGHEST_PROTOCOL) ### dump to pickle
@@ -96,14 +187,14 @@ def get_slice_shapes(E,L,P,label,slice_edges):
     ### for reasonable memory usage
     del Mod
     
-    print(f"Finished slice: {label} at (E,dL)=({E*U.eV2MeV:.3f} MeV,{L*U.cm2um:.6f} um), model obtained within {elapsed1:.2f} [s] and saved in {elapsed2:.2f} [s]")
+    print(f"Finished secondaries slice: {label} at E=({E*U.eV2MeV:.3f} MeV, model obtained within {elapsed1:.2f} [s] and saved in {elapsed2:.2f} [s]")
     if(parallelize): lock.release()
 
 def collect_errors(error):
     ### https://superfastpython.com/multiprocessing-pool-error-callback-functions-in-python/
     print(f'Error: {error}', flush=True)
 
-def save_grid(h2D):
+def save_continuous_grid(h2D):
     arrE_mid = np.zeros( h2D.GetNbinsX() )
     arrE_min = np.zeros( h2D.GetNbinsX() )
     arrE_max = np.zeros( h2D.GetNbinsX() )
@@ -127,7 +218,24 @@ def save_grid(h2D):
         arrdL_min[il-1] = dLmin
         arrdL_max[il-1] = dLmax
     slice_arrays = {"arrE":arrE_mid,"arrE_min":arrE_min,"arrE_max":arrE_max, "arrdL":arrdL_mid,"arrdL_min":arrdL_min,"arrdL_max":arrdL_max}
-    fpkl = open("scan_grid.pkl","wb")
+    fpkl = open("scan_continuous_grid.pkl","wb")
+    pickle.dump(slice_arrays, fpkl, protocol=pickle.HIGHEST_PROTOCOL) ### dump to pickle
+    fpkl.close()
+
+def save_secondaries_grid(h1D):
+    arrE_mid = np.zeros( h1D.GetNbinsX() )
+    arrE_min = np.zeros( h1D.GetNbinsX() )
+    arrE_max = np.zeros( h1D.GetNbinsX() )
+    xaxis = h1D.GetXaxis()
+    for ie in range(1,h1D.GetNbinsX()+1):
+        EE   = xaxis.GetBinCenter(ie)
+        Emin = xaxis.GetBinLowEdge(ie)
+        Emax = xaxis.GetBinUpEdge(ie)
+        arrE_mid[ie-1] = EE
+        arrE_min[ie-1] = Emin
+        arrE_max[ie-1] = Emax
+    slice_arrays = {"arrE":arrE_mid,"arrE_min":arrE_min,"arrE_max":arrE_max}
+    fpkl = open("scan_secondaries_grid.pkl","wb")
     pickle.dump(slice_arrays, fpkl, protocol=pickle.HIGHEST_PROTOCOL) ### dump to pickle
     fpkl.close()
 
@@ -139,18 +247,18 @@ def save_grid(h2D):
 
 
 if __name__ == "__main__":
-    
     tracemalloc.start()
     
     ###################
     ### general histos:
     histos = {}
     # hist.book(histos)
-    hist.book_minimal(histos) ### only relevant for getting the SMALL_hdL_vs_E hist
+    hist.book_minimal(histos) ### only relevant for getting the SMALL_hdL_vs_E and SMALL_E histos
     
     ###################
     ### write the grid:
-    save_grid(histos["SMALL_hdL_vs_E"])
+    save_continuous_grid(histos["SMALL_hdL_vs_E"])
+    save_secondaries_grid(histos["SMALL_E"])
     
     ###################################
     ### get the parameters of the model
@@ -170,28 +278,54 @@ if __name__ == "__main__":
     print("\nSubmit the model jobs...")
     nCPUs = mp.cpu_count() if(parallelize) else 0
     print("nCPUs available:",nCPUs)
-    ### Create a pool of workers
-    ### https://stackoverflow.com/questions/21485319/high-memory-usage-using-python-multiprocessing
+
+
+    ###########################################
+    ### Create a pool of workers for continuous
     pool = mp.Pool(processes=nCPUs,maxtasksperchild=10) if(parallelize) else None
     for ie in range(1,histos["SMALL_hdL_vs_E"].GetNbinsX()+1):
         for il in range(1,histos["SMALL_hdL_vs_E"].GetNbinsY()+1):
             ### get the slice parameters
-            label, E, L = get_slice(ie,il,histos["SMALL_hdL_vs_E"])
-            slice_edges = get_edges(ie,il,histos["SMALL_hdL_vs_E"])
+            label, E, L = get_continuous_slice(ie,il,histos["SMALL_hdL_vs_E"])
+            slice_edges = get_edges_continuous(ie,il,histos["SMALL_hdL_vs_E"])
             P           = par.GetModelPars(E,L)
-            print(f'Sending job: label={label}, build={P["build"]}, E={E*U.eV2MeV} MeV, L={L*U.cm2um} um')
-            ########################
+            print(f'Sending continuous-loss job: label={label}, build={P["build"]}, E={E*U.eV2MeV} MeV, L={L*U.cm2um} um')
+            ################
             ### send the job
             if(parallelize):
-                pool.apply_async(get_slice_shapes, args=(E,L,P,label,slice_edges), error_callback=collect_errors)
+                pool.apply_async(get_slice_continuous_shapes, args=(E,L,P,label,slice_edges), error_callback=collect_errors)
             else:
-                get_slice_shapes(E,L,P,label,slice_edges)
+                get_slice_continuous_shapes(E,L,P,label,slice_edges)
+    ######################################
+    ### Wait for all the workers to finish
+    if(parallelize):
+        pool.close()
+        pool.join()
+
+
+    ############################################
+    ### Create a pool of workers for secondaries
+    pool = mp.Pool(processes=nCPUs,maxtasksperchild=10) if(parallelize) else None
+    LMID = (histos["SMALL_hdL_vs_E"].GetYaxis().GetXmax()-histos["SMALL_hdL_vs_E"].GetYaxis().GetXmin())/2.
+    for ie in range(1,histos["SMALL_E"].GetNbinsX()+1):
+        ### get the slice parameters
+        label, E    = get_secondaries_slice(ie,histos["SMALL_E"])
+        slice_edges = get_edges_secondaries(ie,histos["SMALL_E"])
+        P           = par.GetModelPars(E,LMID)
+        print(f'Sending secondaries-loss job: label={label}, build={P["build"]}, E={E*U.eV2MeV} MeV, L={L*U.cm2um} um')
+        ################
+        ### send the job
+        if(parallelize):
+            pool.apply_async(get_slice_secondaries_shapes, args=(E,LMID,P,label,slice_edges), error_callback=collect_errors)
+        else:
+            get_slice_secondaries_shapes(E,LMID,P,label,slice_edges)
     ######################################
     ### Wait for all the workers to finish
     if(parallelize): 
         pool.close()
         pool.join()
     
+
     ######################################
     snapshot = tracemalloc.take_snapshot()
     top_stats = snapshot.statistics('lineno')

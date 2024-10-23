@@ -41,15 +41,6 @@ def truncated_gaus(x,par):
 
 ### this has to stay outside of any class
 ### so it can be called to construct a TF1
-# def borysov_secondaries(x,par):
-#     Emin  = par[0]
-#     Emax  = par[1]
-#     beta2 = par[2]
-#     W     = Emax/Emin-1.
-#     X     = x[0]
-#     res = (Emax-beta2*X)/((W-beta2*math.log(1.+W))*(X*X)) if(X>=Emin and X<=Emax) else 0.
-#     return res
-
 def borysov_secondaries(x,par):
     xmin = par[2]/(1.0+par[1])
     xmax = par[2]
@@ -102,7 +93,6 @@ class Model:
         ### set parameters
         self.par_bethebloch_min  = [self.meanLoss]
         self.par_zero_loss       = [0]
-        # self.par_borysov_sec     = [self.EkinMin, self.EkinMax, self.b2]
         self.par_borysov_sec     = [self.EkinMax, self.EkinMax/self.EkinMin-1., self.EkinMax, self.b2]
         self.par_borysov_ion     = [self.w3, self.w, self.p3]
         self.par_borysov_exc     = [self.n1, self.e1]
@@ -257,9 +247,15 @@ class Model:
     
     def dE_binning(self):
         if(self.SECB):
-            self.dEminSec  = 0.5*self.Tcut #10
-            self.dEmaxSec  = 5000000.1
-            self.NbinsSec  = 100000
+            self.dEminSec = 0.8*self.Tcut
+            self.dEmaxSec = 1.2*self.EkinMax
+            self.NbinsSec = 50000
+            # self.dEminSec = 0.8*self.Tcut
+            # self.dEmaxSec = 300000 ## this can be just 1.2*self.EkinMax
+            # self.NbinsSec = 50000
+            # self.dEminSec = 0.8*self.Tcut
+            # self.dEmaxSec = 1250
+            # self.NbinsSec = 2000
         if(self.BEBL):
             self.dEmin     = 0
             self.dEmax     = 11
@@ -700,20 +696,16 @@ class Model:
         end = time.time()
         self.TimeIt(start,end,"get_pdfs_from_arrays")
         return pdfs
-        
-    def set_all_shapes(self):
+
+    def set_continuous_shapes(self):
         start = time.time()
         ### set the basic pdfs
         self.cnt_pdfs = self.get_continuous_model_pdfs()
-        self.sec_pdfs = self.get_secondaries_pdfs()
         ### make the cdfs from the pdfs
         self.cnt_cdfs = self.get_cdfs(self.cnt_pdfs)
-        self.sec_cdfs = self.get_cdfs(self.sec_pdfs)
         ### get as arrays
         self.cnt_pdfs_arrx, self.cnt_pdfs_arrsy = self.get_as_arrays(self.cnt_pdfs,doScale=True)
-        self.sec_pdfs_arrx, self.sec_pdfs_arrsy = self.get_as_arrays(self.sec_pdfs,doScale=False)
         self.cnt_cdfs_arrx, self.cnt_cdfs_arrsy = self.get_as_arrays(self.cnt_cdfs,doScale=True)
-        self.sec_cdfs_arrx, self.sec_cdfs_arrsy = self.get_as_arrays(self.sec_cdfs,doScale=False)
         ### get as scaled arrays
         titles = self.cnt_pdfs["hModel"].GetTitle()+";"+self.cnt_pdfs["hModel"].GetXaxis().GetTitle()+";"+self.cnt_pdfs["hModel"].GetXaxis().GetTitle()
         self.cnt_pdfs_scaled = self.get_pdfs_from_arrays(self.cnt_pdfs_arrx,self.cnt_pdfs_arrsy,titles)
@@ -722,4 +714,47 @@ class Model:
         self.cnt_cdfs_scaled_arrx, self.cnt_cdfs_scaled_arrsy = self.get_as_arrays(self.cnt_cdfs_scaled,doScale=False)
         ### done
         end = time.time()
+        self.TimeIt(start,end,"set_continuous_shapes")
+
+    def set_secondaries_shapes(self):
+        start = time.time()
+        ### set the basic pdfs
+        self.sec_pdfs = self.get_secondaries_pdfs()
+        ### make the cdfs from the pdfs
+        self.sec_cdfs = self.get_cdfs(self.sec_pdfs)
+        ### get as arrays
+        self.sec_pdfs_arrx, self.sec_pdfs_arrsy = self.get_as_arrays(self.sec_pdfs,doScale=False)
+        self.sec_cdfs_arrx, self.sec_cdfs_arrsy = self.get_as_arrays(self.sec_cdfs,doScale=False)
+        ### done
+        end = time.time()
+        self.TimeIt(start,end,"set_secondaries_shapes")
+
+    def set_all_shapes(self):
+        start = time.time()
+        self.set_continuous_shapes()
+        self.set_secondaries_shapes()
+        end = time.time()
         self.TimeIt(start,end,"set_all_shapes")
+
+    # def set_all_shapes(self):
+    #     start = time.time()
+    #     ### set the basic pdfs
+    #     self.cnt_pdfs = self.get_continuous_model_pdfs()
+    #     self.sec_pdfs = self.get_secondaries_pdfs()
+    #     ### make the cdfs from the pdfs
+    #     self.cnt_cdfs = self.get_cdfs(self.cnt_pdfs)
+    #     self.sec_cdfs = self.get_cdfs(self.sec_pdfs)
+    #     ### get as arrays
+    #     self.cnt_pdfs_arrx, self.cnt_pdfs_arrsy = self.get_as_arrays(self.cnt_pdfs,doScale=True)
+    #     self.sec_pdfs_arrx, self.sec_pdfs_arrsy = self.get_as_arrays(self.sec_pdfs,doScale=False)
+    #     self.cnt_cdfs_arrx, self.cnt_cdfs_arrsy = self.get_as_arrays(self.cnt_cdfs,doScale=True)
+    #     self.sec_cdfs_arrx, self.sec_cdfs_arrsy = self.get_as_arrays(self.sec_cdfs,doScale=False)
+    #     ### get as scaled arrays
+    #     titles = self.cnt_pdfs["hModel"].GetTitle()+";"+self.cnt_pdfs["hModel"].GetXaxis().GetTitle()+";"+self.cnt_pdfs["hModel"].GetXaxis().GetTitle()
+    #     self.cnt_pdfs_scaled = self.get_pdfs_from_arrays(self.cnt_pdfs_arrx,self.cnt_pdfs_arrsy,titles)
+    #     self.cnt_cdfs_scaled = self.get_cdfs(self.cnt_pdfs_scaled)
+    #     self.cnt_pdfs_scaled_arrx, self.cnt_pdfs_scaled_arrsy = self.get_as_arrays(self.cnt_pdfs_scaled,doScale=False)
+    #     self.cnt_cdfs_scaled_arrx, self.cnt_cdfs_scaled_arrsy = self.get_as_arrays(self.cnt_cdfs_scaled,doScale=False)
+    #     ### done
+    #     end = time.time()
+    #     self.TimeIt(start,end,"set_all_shapes")

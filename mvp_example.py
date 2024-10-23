@@ -34,7 +34,9 @@ DOTIME = True
 Mod = model.Model(LL*U.um2cm, EE*U.MeV2eV, modelpars, DOTIME)
 # Mod.set_fft_sampling_pars(N_t_bins=10000000,frac=0.01)
 Mod.set_fft_sampling_pars_rotem(N_t_bins=10000000,frac=0.01)
-Mod.set_all_shapes()
+# Mod.set_all_shapes()
+Mod.set_continuous_shapes()
+Mod.set_secondaries_shapes()
 
 end = time.time()
 elapsed = end - start
