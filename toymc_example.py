@@ -6,6 +6,7 @@ from scipy.fft import fft, fftfreq, rfft, irfft
 from scipy.special import sici, exp1
 from scipy.signal import convolve, fftconvolve
 import ROOT
+import pickle
 
 import constants as C
 import units as U
@@ -70,21 +71,7 @@ cnt_pdfs = Mod.cnt_pdfs ## dict name-->TH1D
 cnt_cdfs = Mod.cnt_cdfs ## dict name-->TH1D
 sec_pdfs = Mod.sec_pdfs ## dict name-->TH1D
 sec_cdfs = Mod.sec_cdfs ## dict name-->TH1D
-# cnt_pdfs_scaled   = Mod.cnt_pdfs_scaled ## dict name-->TH1D
-# cnt_cdfs_scaled   = Mod.cnt_cdfs_scaled ## dict name-->TH1D
-# cnt_pdfs_scaled_arrx  = Mod.cnt_pdfs_scaled_arrx  ## np.array
-# cnt_pdfs_scaled_arrsy = Mod.cnt_pdfs_scaled_arrsy ## dict name-->np.array
-# cnt_cdfs_scaled_arrx  = Mod.cnt_cdfs_scaled_arrx  ## np.array
-# cnt_cdfs_scaled_arrsy = Mod.cnt_cdfs_scaled_arrsy ## dict name-->np.array
-# sec_pdfs_arrx  = Mod.sec_pdfs_arrx  ## np.array
-# sec_pdfs_arrsy = Mod.sec_pdfs_arrsy ## dict name-->np.array
-# sec_cdfs_arrx  = Mod.sec_cdfs_arrx  ## np.array
-# sec_cdfs_arrsy = Mod.sec_cdfs_arrsy ## dict name-->np.array
 
-# cnt_pdfs = Mod.get_model_pdfs()
-# cnt_cdfs = Mod.get_cdfs(cnt_pdfs)
-# sec_pdfs = Mod.get_secondaries_pdfs()
-# sec_cdfs = Mod.get_cdfs(sec_pdfs)
 
 ######################################################
 ######################################################
@@ -97,12 +84,24 @@ histos = ToyMC.Generate(Nsteps=1000000)
 ######################################################
 ######################################################
 
-pdffile = "toymc_example.pdf"
+pdffilename = "toymc_example.pdf"
+
+pklfilename = "toymc_example.pkl"
+fpkl = open(pklfilename,"wb")
+shapes = {}
+shapes.update({"x":Mod.cnt_pdfs_arrx})
+shapes.update({"y":Mod.cnt_pdfs_arrsy})
+shapes.update({"x_scl":Mod.cnt_pdfs_scaled_arrx})
+shapes.update({"y_slc":Mod.cnt_pdfs_scaled_arrsy})
+pickle.dump(shapes, fpkl, protocol=pickle.HIGHEST_PROTOCOL) ### dump to pickle
+fpkl.close()
+
+
 
 ### plot psi(t)
 if(Mod.BEBL or Mod.TGAU or Mod.TGAM):
     canvas = ROOT.TCanvas("canvas", "canvas", 500,500)
-    canvas.SaveAs(pdffile+"(")
+    canvas.SaveAs(pdffilename+"(")
 else:
     if(Mod.psiRe is None or Mod.psiIm is None):
         trange,psiRe,psiIm = Mod.scipy_psi_of_t("psi_of_t")
@@ -125,7 +124,7 @@ else:
     ROOT.gPad.SetRightMargin(0.1)
     hpsiIm.Draw("hist")
     ROOT.gPad.RedrawAxis()
-    canvas.SaveAs(pdffile+"(")
+    canvas.SaveAs(pdffilename+"(")
 
 
 
@@ -213,7 +212,7 @@ ROOT.gPad.SetRightMargin(0.1)
 hist.reset_hrange_left(histos["hTotal"],1e-2).DrawNormalized("ep")
 hist.reset_hrange_left(cnt_pdfs["hModel"],1e-2).DrawNormalized("hist same")
 ROOT.gPad.RedrawAxis()
-canvas.SaveAs(pdffile)
+canvas.SaveAs(pdffilename)
 
 
 
@@ -309,11 +308,11 @@ histos["hTotal"].GetCumulative().Draw("ep")
 cnt_cdfs["hModel"].Draw("hist same")
 # hist.reset_hrange_left(cnt_cdfs["hModel"],1e-2).Draw("hist same")
 ROOT.gPad.RedrawAxis()
-canvas.SaveAs(pdffile+")")
+canvas.SaveAs(pdffilename+")")
 
 
 ### write to root file
-fOut = ROOT.TFile(pdffile.replace("pdf","root"), "RECREATE")
+fOut = ROOT.TFile(pdffilename.replace("pdf","root"), "RECREATE")
 fOut.cd()
 for name,h in histos.items():
     if(h is not None): h.Write()
